@@ -63,7 +63,7 @@ output=TSEB.TSEB_PT(Tr_K, vza, Ta_K, u, ea, p, Sdn_dir, Sdn_dif, fvis, fnir, sza
 you can type
 `help(TSEB.TSEB_PT)`
 > to understand better the inputs needed and the outputs returned
-`
+
 the direct and difuse shortwave radiation (`Sdn_dir`, `Sdn_dif`, `fvis`, `fnir`) and the downwelling longwave radiation (`Lsky`) can be estimated by
 
 ```python
