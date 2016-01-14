@@ -1,0 +1,70 @@
+﻿# TSEB model to run: 
+# TSEB_PT: Kustas and Norman 1999 Priestley-Taylor TSEB, DTD: Norman et al. 2003 Dual Time Differenced TSEB, TSEB_2T: Component temperatures TSEB (To be implemented the patched / parallel very high resolution TSEB
+TSEB_MODEL=TSEB_PT
+
+#==============================================================================
+# Input ASCII File with full path
+# Use forward slash '/' for path separators, even using Windows
+#==============================================================================
+# The input text file does not require any specific delimiter nor any specific order, but it is required that the first line contains explicitly the names of the variables (see example)
+# If running TSEB_PT the input table should contain at least the following columns: 'Year','DOY','Time','Trad','VZA','Ta','u','ea','Sdn','LAI','hc'
+# If running DTD the input table should contain at least the following columns: 'Year','DOY','Time','Trad_0','Trad_1','VZA','Ta_0','Ta_1','u','ea','Sdn','LAI','hc'
+# If running TSEB_2T the input table should contain at least the following columns: 'Year','DOY','Time','Tc','Ts','Ta','u','ea','Sdn','LAI','hc'
+# Temperatures are in Celsius, angles are in degrees, presure are in mb. u: wind speed, ea: vapour prssure, Sdn: incoming solar radiation
+# Additional input variables are: 'SAA': solar azimuth angle, 'SZA': solar zenith angle, 'Ldn': incoming longwave radiation, 'f_C': fractional cover, 'f_g': green fraction, 'wc': canopy width to height ratio, 'G': soil heat flux (see G_Calc flag below)
+# Other variables included (accidentaly or on purpose) in the text file are ignored
+InputFile=./Input/BalsaBlancaInput_2.txt # mandatory file
+
+#==============================================================================
+# Output paramters
+#==============================================================================
+# full path to the output file table
+OutputFile=./Output/OutputTest.txt
+
+#==============================================================================
+# Site Parameters
+#==============================================================================
+# Coordinates: 36°56′26.0′′, W2°01′58.8′′) at 200 masl
+lat=36.95 # Site latitude (degrees)
+lon= 2.33 # Site Longitue (degrees)
+altitude=200 # Site altitude (m)
+stdlon=15 # Standard longitude of time zone (degrees)
+z_t=2.5 # Measurement height of air temperature (m)
+z_u=3.5 # Measurement height of wind speed (m)
+LANDCOVER=5
+#==============================================================================
+# Canopy and Soil spectra
+#==============================================================================
+emisVeg=0.98 # leaf emissivity
+emisGrd=0.95 # soil emissivity
+
+# Leaf spectral properties:{rho_leaf_vis: visible reflectance,tau_leaf_vis: visible transmittance, rho_leaf_nir: NIR reflectance, tau_leaf_nir: NIR transmittance}
+rhovis=0.07
+tauvis=0.08
+rhonir=0.32
+taunir=0.33 
+
+# Leaf spectral properties:{rsoilv: visible reflectance, rsoiln: NIR reflectance}
+rsoilv=0.15
+rsoiln=0.25
+
+#==============================================================================
+# Canopy and soil parameters
+#==============================================================================
+Max_alpha_PT=1.26# Initial value for Priestley Taylor canopy transpiration
+z0_soil=0.01 # Bare soil roughness lenght (m)
+leaf_width=0.1 # leaf effective width (m)
+
+#==============================================================================
+# Additional options
+#==============================================================================
+# Soil Heat Flux calculation
+#[1,G_ratio]: default, estimate G as a ratio of Rn_soil, default G_ratio=0.35
+#[0,G_constant] : Use a constant G, usually use G_Constant=0 to ignore the computation of G
+#[2,[time,GAmp, Gshift,Gshape]] : estimate G from Santanello and Friedl with time=decTime
+CalcG=0
+G_ratio=0.35
+G_constant=0
+GAmp=0.35
+Gshift=3
+Gshape=24

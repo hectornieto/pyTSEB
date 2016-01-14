@@ -1,0 +1,53 @@
+If you use PyTSEB in any academic work then you *must* cite the following papers:
+
+Norman, J. M.; Kustas, W. P. & Humes, K. S. Source approach for estimating soil and 
+vegetation energy fluxes in observations of directional radiometric surface temperature 
+Agricultural and Forest Meteorology, 1995, 77, 263-293
+
+Kustas, W. P. & Norman, J. M. Evaluation of soil and vegetation heat flux predictions 
+using a simple two-source model with radiometric temperatures for partial canopy cover 
+Agricultural and Forest Meteorology, 1999, 94, 13-29
+
+In BibTeX format:
+
+@Article{Norman1995,
+  Title                    = {Source approach for estimating soil and vegetation energy fluxes 
+				in observations of directional radiometric surface temperature},
+  Author                   = {J. M. Norman and W. P. Kustas and K. S. Humes},
+  Journal                  = {Agricultural and Forest Meteorology},
+  Year                     = {1995},
+  Number                   = {3-4},
+  Pages                    = {263--293},
+  Volume                   = {77}
+}
+@Article{Kustas1999,
+  Title                    = {Evaluation of soil and vegetation heat flux predictions 
+		using a simple two-source model with radiometric temperatures for partial canopy cover},
+  Author                   = {William P. Kustas and John M. Norman},
+  Journal                  = {Agricultural and Forest Meteorology},
+  Year                     = {1999},
+  Number                   = {1},
+  Pages                    = {13--29},
+  Volume                   = {94}
+}
+
+If you use **the Dual-Time Differenced (DTD)** model you *must* also cite the following papers
+
+Guzinski, R.; Anderson, M. C.; Kustas, W. P.; Nieto, H. & Sandholt, I. Using a thermal-based 
+two source energy balance model with time-differencing to estimate surface energy fluxes with 
+day-night MODIS observations Hydrology and Earth System Sciences, 2013, 17, 2809-2825
+
+In BibTeX format:
+
+@Article{Guzinski2013,
+  Title                    = {Using a thermal-based two source energy balance model with time-differencing 
+				to estimate surface energy fluxes with day-night {MODIS} observations},
+  Author                   = {Guzinski, R. and Anderson, M. C. and Kustas, W. P. and Nieto, H. and Sandholt, I.},
+  Journal                  = {Hydrology and Earth System Sciences},
+  Year                     = {2013},
+  Number                   = {7},
+  Pages                    = {2809--2825},
+  Volume                   = {17},
+
+  Doi                      = {10.5194/hess-17-2809-2013}
+}
