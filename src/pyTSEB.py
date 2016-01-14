@@ -1026,18 +1026,18 @@ class PyTSEB():
             lai=float(indata[self.inputNames.index('LAI')])
             hc=float(indata[self.inputNames.index('hc')])
             # Get the other canopy parameters if present in the input table otherwise use defaults
-            if 'f_C' not in self.inputNames: # Fractional cover
+            if 'fc' not in self.inputNames: # Fractional cover
                 fc=self.f_c
             else:
-                fc=float(indata[self.inputNames.index('f_C')])
+                fc=float(indata[self.inputNames.index('fc')])
             if 'wc' not in self.inputNames: # Canopy width to height ratio
                 wc=self.wc
             else:
                 wc=float(indata[self.inputNames.index('wc')])
-            if 'f_g' not in self.inputNames: # Green fraction
+            if 'fg' not in self.inputNames: # Green fraction
                 f_g=self.f_g
             else:
-                f_g=float(indata[self.inputNames.index('f_g')])
+                f_g=float(indata[self.inputNames.index('fg')])
             # Calculate Roughness
             z_0M, d_0=TSEB.res.CalcRoughness (lai, hc,wc,self.LANDCOVER)
             vza=float(indata[self.inputNames.index('VZA')])
