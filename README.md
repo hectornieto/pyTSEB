@@ -120,15 +120,15 @@ heat capacity of air or latent heat of vaporization.
 see pydocs at each module
 
 ## Tests
-The folder *./Input* contains examples for running TSEB in a tabulated time series (*BalsaBlanca_Input.txt*) 
-and in an image (*20140809_gallo_lodi_\*.tif*). Just run the high-level scripts with the configuration files 
-provied by default and compare the resulting outputs with the files stored in *./Output/*
+The folder *./Input* contains examples for running TSEB in a tabulated time series (*ExampleTableInput.txt*) 
+and in an image (*ExampleImage\*.tif*). Just run the high-level scripts with the configuration files 
+provided by default and compare the resulting outputs with the files stored in *./Output/*
 
 ## Contributors
 - **Hector Nieto** <hnieto@ias.csic.es> <hector.nieto.solana@gmail.com> main developer
 - **Radoslaw Guzinsi** DTD code developer and tester of pyTSEB
 - **Ana Andreu** tester
-- **William P. Kustas** tester
+- **William P. Kustas** TSEB modeling, tester 
 
 ## License
 pyTSEB: a Python Two Source Energy Balance Model
