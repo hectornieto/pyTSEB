@@ -121,7 +121,7 @@ see pydocs at each module
 
 ## Tests
 The folder *./Input* contains examples for running TSEB in a tabulated time series (*ExampleTableInput.txt*) 
-and in an image (*ExampleImage\*.tif*). Just run the high-level scripts with the configuration files 
+and in an image (*ExampleImage_\< variable >.tif*). Just run the high-level scripts with the configuration files 
 provided by default and compare the resulting outputs with the files stored in *./Output/*
 
 ## Contributors
