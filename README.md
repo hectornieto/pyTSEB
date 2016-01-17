@@ -126,9 +126,9 @@ provided by default and compare the resulting outputs with the files stored in *
 
 ## Contributors
 - **Hector Nieto** <hnieto@ias.csic.es> <hector.nieto.solana@gmail.com> main developer
-- **Radoslaw Guzinsi** DTD code developer and tester of pyTSEB
-- **Ana Andreu** tester
 - **William P. Kustas** TSEB modeling, tester 
+- **Radoslaw Guzinsi** DTD code developer, tester
+- **Ana Andreu** tester
 
 ## License
 pyTSEB: a Python Two Source Energy Balance Model
