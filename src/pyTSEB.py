@@ -66,7 +66,7 @@ class PyTSEB():
         # Output variables saved in images
         self.fields=('H1','LE1','R_n1','G1')
         # Ancillary output variables
-        self.anc_fields=('H_C1','LE_C1','LE_partition','T_C1', 'T_S1','R_ns1','R_nl1', 'u_friction', 'L','F')
+        self.anc_fields=('H_C1','LE_C1','LE_partition','T_C1', 'T_S1','R_ns1','R_nl1', 'u_friction', 'L')
         # File Configuration variables
         self.input_commom_vars=('TSEB_MODEL','lat','lon','altitude','stdlon',
                    'z_t','z_u','emisVeg','emisGrd','rhovis','tauvis',
@@ -79,47 +79,53 @@ class PyTSEB():
         self.input_point_vars=['InputFile']
         
     def PointTimeSeriesWidget(self):
+        ''' Creates the widgets needed to setup TSEB for running over a point time series'''
         import ipywidgets as widgets
         from IPython.display import display
+        # Load and save configuration buttons
         self.w_loadconfig=widgets.Button(description='Load Configuration File')
         self.w_saveconfig=widgets.Button(description='Save Configuration File')
+        # Input and output ascii files
         self.w_input=widgets.Button(description='Select Input File')
         self.w_inputtxt=widgets.Text(description='Input File :', value=self.InputFile, width=500)
         self.w_output=widgets.Button(description='Select Output File')
         self.w_outputtxt=widgets.Text(description='Output File :', value=self.OutputTxtFile,width=500)
+        # Create TSEB options widgets
         self.SelectModel()
         self.DefineSiteDescription()
         self.SpectralProperties()
         self.SurfaceProperties()
         self.AdditionalOptionsPoint()
         
-        # Model Selection
+        # Model Selection tabs
         tabs = widgets.Tab(children=[self.w_model,self.sitePage,self.specPage,self.vegPage,self.optPage])
         tabs.set_title(0, 'TSEB Model')
         tabs.set_title(1, 'Site Description')
         tabs.set_title(2, 'Spectral Properties')
         tabs.set_title(3, 'Canopy Description')
         tabs.set_title(4, 'Additional Options')
-       
+        # Display widgets
         display(self.w_loadconfig)        
         display(widgets.HBox([self.w_input,self.w_inputtxt]))
         display(widgets.HBox([self.w_output,self.w_outputtxt]))
         display(tabs)
         display(self.w_saveconfig)
+        # Handle interactions        
         self.w_CalcG.on_trait_change(self.on_G_change, 'value')
         self.w_input.on_click(self.on_input_clicked)    
         self.w_output.on_click(self.on_output_clicked)
-
         self.isImage=False
         self.w_loadconfig.on_click(self.on_loadconfig_clicked)
         self.w_saveconfig.on_click(self.on_saveconfig_clicked)
                
     def LocalImageWidget(self):
+        ''' Creates the widgets needed to setup TSEB for running over an image'''
         import ipywidgets as widgets
         from IPython.display import display
+        # Load and save configuration buttons
         self.w_loadconfig=widgets.Button(description='Load Configuration File')
         self.w_saveconfig=widgets.Button(description='Save Configuration File')
-
+        # Input and output images
         self.w_LST=widgets.Button(description='Browse Trad Image')
         self.w_LSTtxt=widgets.Text(description='LST:',value='Type Trad File', width=500)
         self.w_VZA=widgets.Button(description='Browse VZA Image')
@@ -128,28 +134,24 @@ class PyTSEB():
         self.w_LAItxt=widgets.Text(description='LAI:',value='1', width=500)
         self.w_Hc=widgets.Button(description='Browse H canopy Image')
         self.w_Hctxt=widgets.Text(description='H canopy:',value='1', width=500)
-
         self.w_Wc=widgets.Button(description='Browse Canopy widht/height Image')
         self.w_Wctxt=widgets.Text(description='Wc canopy:',value=str(self.wc), width=500)
         self.w_Fc=widgets.Button(description='Browse F cover Image')
         self.w_Fctxt=widgets.Text(description='F cover:',value=str(self.f_c), width=500)
         self.w_Fg=widgets.Button(description='Browse F green Image')
         self.w_Fgtxt=widgets.Text(description='F green:',value=str(self.f_g), width=500)
-
         self.w_mask=widgets.Button(description='Browse Image Mask')
         self.w_masktxt=widgets.Text(description='Mask:',value='0', width=500)
-        
         self.w_output=widgets.Button(description='Select Output File')
         self.w_outputtxt=widgets.Text(description='Output File :', value=self.OutputImageFile, width=500)
-
+        # Create TSEB options widgets
         self.SelectModel()
         self.DefineSiteDescription()
         self.Meteorology()
         self.SpectralProperties()
         self.SurfaceProperties()
         self.AdditionalOptionsPoint()
-        
-        # Model Selection
+        # Model Selection tabs
         tabs = widgets.Tab(children=[self.w_model,self.sitePage,self.metPage,self.specPage,self.vegPage,self.optPage])
         tabs.set_title(0, 'TSEB Model')
         tabs.set_title(1, 'Site Description')
@@ -157,7 +159,7 @@ class PyTSEB():
         tabs.set_title(3, 'Spectral Properties')
         tabs.set_title(4, 'Canopy Description')
         tabs.set_title(5, 'Additional Options')
-        
+        # Display widgets
         display(self.w_loadconfig)        
         display(widgets.VBox([widgets.HTML('Select Radiometric Temperature Image'),
             widgets.HBox([self.w_LST,self.w_LSTtxt]),
@@ -178,28 +180,29 @@ class PyTSEB():
         display(widgets.HBox([self.w_output,self.w_outputtxt]))
         display(tabs)
         display(self.w_saveconfig) 
-        self.w_CalcG.on_trait_change(self.on_G_change, 'value')
+        # Handle interactions
         self.w_LST.on_click(self.on_inputLST_clicked)    
         self.w_VZA.on_click(self.on_inputVZA_clicked)    
-          
         self.w_LAI.on_click(self.on_inputLAI_clicked)  
         self.w_Fc.on_click(self.on_inputFc_clicked)  
         self.w_Fg.on_click(self.on_inputFg_clicked)  
         self.w_Hc.on_click(self.on_inputHc_clicked)  
         self.w_Wc.on_click(self.on_inputWc_clicked)
         self.w_mask.on_click(self.on_inputmask_clicked)
-        
         self.w_output.on_click(self.on_output_clicked)    
         self.w_model.on_trait_change(self.on_model_change,'value')
-
+        self.w_CalcG.on_trait_change(self.on_G_change, 'value')
         self.isImage=True
         self.w_loadconfig.on_click(self.on_loadconfig_clicked)
         self.w_saveconfig.on_click(self.on_saveconfig_clicked)
 
     def on_loadconfig_clicked(self,b):
+        ''' Pops-up a file dialog and reads the configuration file selected to 
+        update the fields in the widgets'''
+        
         InputFile=self.GetInputFileName(title='Select Input Configuration File')
         configdata=self.parseInputConfig(InputFile,isImage=self.isImage)
-        # Update the commom fields
+        # Update the widget fields
         self.w_model.value=configdata['TSEB_MODEL']
         self.w_lat.value=configdata['lat']
         self.w_lon.value=configdata['lon']
@@ -250,6 +253,8 @@ class PyTSEB():
             self.w_inputtxt.value=str(configdata['InputFile']).strip('"')
 
     def on_saveconfig_clicked(self,b):
+        ''' Pops-up a file dialog and creates/overwrites the configuration file selected to 
+        write the fields from the widgets'''
         OutputFile=self.GetOutputFileName(title='Select Output Configuration File')
         fid=open(OutputFile,'w')
         fid.write('# Input files\n')
@@ -325,6 +330,8 @@ class PyTSEB():
         print('Saved Configuration File')
                   
     def parseInputConfig(self,InputFile,isImage=False):
+        ''' Parser to get the information from an ascii configuration file
+        Returs a dictionary with all the fields found in the file'''
         # look for the following variable names
         from re import match
         if isImage:
@@ -349,7 +356,7 @@ class PyTSEB():
             elif line[0]=='#': #skip comment line
                 continue
             elif '=' in line:
-                string=line.strip('\n').split('#')[0] # Remove comments in case they exist
+                string=line.strip('\n').strip('\r').split('#')[0] # Remove comments in case they exist
                 field,value=string.split('=')
                 for var in input_vars:
                     if var==field:
@@ -358,6 +365,7 @@ class PyTSEB():
         return configdata
            
     def SelectModel(self):
+        ''' Widget to select the TSEB model'''
         import ipywidgets as widgets
         self.w_model=widgets.ToggleButtons(description='Select TSEB model to run:',
             options={'Priestley Taylor':'TSEB_PT', 'Dual-Time Difference':'DTD', 'Component Temperatures':'TSEB_2T'},
@@ -371,6 +379,7 @@ class PyTSEB():
    
 
     def DefineSiteDescription(self):
+        ''' Widget to define the site characteristics'''
         import ipywidgets as widgets
 
         self.w_lat=widgets.BoundedFloatText(value=self.lat,min=-90,max=90,description='Lat.',width=100)
@@ -384,6 +393,7 @@ class PyTSEB():
                     widgets.HBox([self.w_zu,self.w_zt])], background_color='#EEE')
         
     def SpectralProperties(self):
+        ''' Widget to define the spectral properties of the vegeation/soil'''
         import ipywidgets as widgets
         self.w_rhovis=widgets.BoundedFloatText(value=self.rhovis,min=0,max=1,description='Leaf refl. PAR',width=80)
         self.w_tauvis=widgets.BoundedFloatText(value=self.tauvis,min=0,max=1,description='Leaf trans. PAR',width=80)
@@ -398,6 +408,7 @@ class PyTSEB():
                     widgets.HBox([self.w_rsoilv,self.w_rsoiln,self.w_emisVeg,self.w_emisSoil])], background_color='#EEE')
     
     def Meteorology(self):
+        ''' Widget to set the meteorological forcing'''
         import ipywidgets as widgets
         self.w_DOY=widgets.BoundedFloatText(value=1,min=1,max=366,description='Day of Year',width=80)
         self.w_Time=widgets.BoundedFloatText(value=12,min=0,max=24,description='Dec. Time (h)',width=80)
@@ -443,19 +454,42 @@ class PyTSEB():
         self.w_masktxt.value=self.GetInputFileName(title='Select Image Mask')
 
     def GetInputFileName(self, title='Select Input File'):
-        from tkinter.filedialog import askopenfilename
+        ''' Input filename selection widget'''
+        import sys
+        # Import Tkinter GUI widgets
+        if sys.version_info.major==2:
+            from tkFileDialog import askopenfilename
+            import Tkinter as tk
+        else:
+            from tkinter.filedialog import askopenfilename
+            import tkinter as tk
+        root=tk.Tk()
+        root.deiconify()
         InputFile = askopenfilename(title=title) # show an "Open" dialog box and return the path to the selected file
+        root.destroy() # Destroy the GUI
         return InputFile
     
     def on_output_clicked(self,b):
         self.w_outputtxt.value=self.GetOutputFileName()
 
     def GetOutputFileName(self, title='Select Output File'):
-        from tkinter.filedialog import asksaveasfilename
+        ''' Output filename selection widget'''
+        import sys
+        # Import Tkinter GUI widgets
+        if sys.version_info.major==2:
+            from tkFileDialog import asksaveasfilename
+            import Tkinter as tk
+        else:
+            from tkinter.filedialog import asksaveasfilename
+            import tkinter as tk
+        root=tk.Tk()
+        root.deiconify()
         OutputFile = asksaveasfilename(title=title) # show an "Open" dialog box and return the path to the selected file
+        root.destroy()  # Destroy the GUI
         return OutputFile
     
     def SurfaceProperties(self):
+        ''' Widget to set the land surface properties'''
         import ipywidgets as widgets
         self.w_PT=widgets.BoundedFloatText(value=self.max_PT,min=0,description="Max. alphaPT",width=80)
         self.w_LAD=widgets.BoundedFloatText(value=self.x_LAD,min=0,description="LIDF param.",width=80)
@@ -468,6 +502,7 @@ class PyTSEB():
     
    
     def AdditionalOptionsPoint(self):
+        ''' Widget for additional calculation options in TSEB'''
         import ipywidgets as widgets
         self.CalcGOptions()
         self.optPage=widgets.VBox([
@@ -478,6 +513,7 @@ class PyTSEB():
             widgets.HBox([self.w_GAmp,self.w_Gphase,self.w_Gshape])], background_color='#EEE')
 
     def CalcGOptions(self):
+        ''' Widget to set algorithm for soil heat flux calculation'''
         import ipywidgets as widgets
         self.w_CalcG=widgets.ToggleButtons(description='Select method for soil heat flux',
             options={'Ratio of soil net radiation':1, 'Constant or measured value':0, 'Time dependent (Santanelo & Friedl)':2},value=self.CalcG, width=300)
@@ -495,6 +531,7 @@ class PyTSEB():
         self.w_Gshape.visible=False
 
     def on_G_change(self,name, value):
+        ''' Makes visible/invisible the parameters according to the option in G'''
         if value==0:
             self.w_Gratio.visible=False
             self.w_Gconstant.visible=True
@@ -518,7 +555,7 @@ class PyTSEB():
             self.w_Gshape.visible=True
 
     def GetDataTSEBWidgets(self,isImage):
-       
+        ''' Parses the data in the widgets to the RunTSEB input variables'''
         self.TSEB_MODEL=self.w_model.value
         self.lat,self.lon,self.alt,self.stdlon,self.z_u,self.z_t=(self.w_lat.value,
                 self.w_lon.value,self.w_alt.value,float(self.w_stdlon.value)*15,
@@ -558,7 +595,7 @@ class PyTSEB():
             self.InputFile=self.w_inputtxt.value
 
     def GetDataTSEB(self,configdata,isImage):
-        
+        ''' Parses the data directly from a configuratio file to the RunTSEB input variables'''
         self.TSEB_MODEL=configdata['TSEB_MODEL']
         self.lat,self.lon,self.alt,self.stdlon,self.z_u,self.z_t=(float(configdata['lat']),
                 float(configdata['lon']),float(configdata['altitude']),float(configdata['stdlon']),
@@ -599,15 +636,16 @@ class PyTSEB():
             self.InputFile=str(configdata['InputFile']).strip('"')
     
     def RunTSEBLocalImage(self):
+        ''' Runs TSEB for an image'''
         import TSEB
         import numpy as np
         import gdal
         import ipywidgets as widgets
         from IPython.display import display
         from os.path import splitext
-
+        # Create an input dictionary
         inDataArray=dict()
-        # Open the input file
+        # Open the LST data according to the model
         if self.TSEB_MODEL=='TSEB_PT' or self.TSEB_MODEL=='DTD':
             try:
                 # Read the image mosaic and get the LST at noon time
@@ -630,7 +668,6 @@ class PyTSEB():
                     print('Error reading sunrise LST file '+str(self.input_LST))
                     return
             del fid
-
         elif self.TSEB_MODEL=='TSEB_2T':
             try:
                 # Read the Noon Component Temperatures
@@ -663,7 +700,6 @@ class PyTSEB():
         # Read the Green fraction
         success,inDataArray['f_g']=self.OpenGDALImage(self.input_Fg,dims,'Green Fraction')
         if not success: return
-      
         #Calculate illumination conditions
         sza,saa=TSEB.met.Get_SunAngles(self.lat,self.lon,self.stdlon,self.DOY,self.Time)
         # Estimation of diffuse radiation
@@ -675,19 +711,20 @@ class PyTSEB():
         Skyl=difvis*fvis+difnir*fnir
         Sdn_dir=self.Sdn*(1.0-Skyl)
         Sdn_dif=self.Sdn*Skyl
-       
+        # incoming long wave radiation
         Ta_K_1=self.Ta_1+273.15
         if self.TSEB_MODEL=='DTD':
             Ta_K_0=self.Ta_0+273.15
-
-        # incoming long wave radiation
         try:
             Lsky=float(self.Ldn)
         except:
             emisAtm = TSEB.rad.CalcEmiss_atm(self.ea,Ta_K_1)
             Lsky = emisAtm * TSEB.met.CalcStephanBoltzmann(Ta_K_1)
-        
-        #Loop all the valid pixels
+        # Create the output dictionary
+        outputStructure=self.getOutputStructure()
+        tsebout=dict()
+        for field in outputStructure:tsebout[field]=np.zeros(dims)
+        # Open the processing maks and get the id for the cells to process
         if self.input_mask!='0':
             try:
                 fid=gdal.Open(self.input_mask,gdal.GA_ReadOnly)
@@ -698,11 +735,6 @@ class PyTSEB():
         else:
             mask=np.ones(dims)
         ids=np.where(mask>0)
-        # Create the output dictionary
-        outputStructure=self.getOutputStructure()
-        tsebout=dict()
-        for field in outputStructure:tsebout[field]=np.zeros(dims)
-        
         # Create a progress bar widget
         try:
             f=widgets.FloatProgress(min=0,max=len(ids[0]),step=1,description='Progress:')
@@ -713,8 +745,7 @@ class PyTSEB():
             progress_id=0
             print('0% processed')
             isWidget=False
-
-        # Loop all the lines in the tables
+        # Loop and run TSEB for all the valid cells
         for i,row in enumerate(ids[0]):
             col=ids[1][i]
             if isWidget:
@@ -724,7 +755,6 @@ class PyTSEB():
                 if progress>=progress_bar[progress_id]:
                     print(str(progress_bar[progress_id])+ '% ')
                     progress_id=progress_id+1
- 
             # Get the LAI
             lai=inDataArray['LAI'][row,col]
             fc=inDataArray['f_C'][row,col]
@@ -737,7 +767,6 @@ class PyTSEB():
             # Calculate Roughness
             z_0M, d_0=TSEB.res.CalcRoughness (lai, hc,wc,self.LANDCOVER)
             vza=inDataArray['VZA'][row,col]
-                    
             if self.TSEB_MODEL=='DTD':
                 #Run DTD
                 Tr_K_0=inDataArray['T_R0'][row,col]+273.15
@@ -790,7 +819,7 @@ class PyTSEB():
             LE=LE_C+LE_S
             H=H_C+H_S
             Rn=S_nC+S_nS+L_nC+L_nS
-
+            # Write the data in the output dictionary
             tsebout['R_A1'][row,col]=R_a
             tsebout['R_X1'][row,col]=R_x
             tsebout['R_S1'][row,col]=R_s
@@ -815,7 +844,6 @@ class PyTSEB():
             tsebout['theta_s1'][row,col]=sza
             tsebout['albedo1'][row,col]=1.0-Rn/self.Sdn
             tsebout['F'][row,col]=lai
-
         # Write the TIFF output
         self.WriteTifOutput(self.OutputFile,tsebout, geo, prj,self.fields)
         outputfile=splitext(self.OutputFile)[0]+'_ancillary.tif'
@@ -823,6 +851,7 @@ class PyTSEB():
         print('Saved Files')
 
     def OpenGDALImage(self,inputString,dims,variable):
+        '''Opens a GDAL sigle band image and returs an array'''
         import gdal
         import numpy as np
         success=True
@@ -839,6 +868,7 @@ class PyTSEB():
         return success,array
 
     def WriteTifOutput(self,outfile,output,geo, prj, fields):
+        '''Creates the output GDAL GeoTIFF'''
         import gdal
         import numpy as np
         rows,cols=np.shape(output['H1'])
@@ -849,20 +879,19 @@ class PyTSEB():
         ds.SetProjection(prj)
         for i,field in enumerate(fields):
             band=ds.GetRasterBand(i+1)
-            band.SetNoDataValue(-9999)
+            band.SetNoDataValue(0)
             band.WriteArray(output[field])
             band.FlushCache()
         ds.FlushCache()
         del ds
 
     def getOutputStructure(self):
-        
+        '''Defines a list with all the outputs from TSEB'''        
         outputStructure = (
         # resistances
         'R_A1',   #resistance to heat transport in the surface layer (s/m) at time t1
         'R_X1',  #resistance to heat transport in the canopy surface layer (s/m) at time t1
         'R_S1',   #resistance to heat transport from the soil surface (s/m) at time t1
-
         # fluxes
         'R_n1',   #net radiation reaching the surface at time t1
         'R_ns1',  #net shortwave radiation reaching the surface at time t1
@@ -876,12 +905,10 @@ class PyTSEB():
         'LE_S1',    #soil latent heat flux (W/m^2) at time t1
         'LE1',    #total latent heat flux (W/m^2) at time t1
         'LE_partition',   #Latent Heat Flux Partition (LEc/LE) at time t1
-
         # temperatures (might not be accurate)
         'T_C1',   #canopy temperature at time t1 (deg C)	
         'T_S1',   #soil temperature at time t1 (deg C)
         'T_AC1',   #air temperature at the canopy interface at time t1 (deg C)
-     
         # miscaleneous
         'albedo1',    # surface albedo (Rs_out/Rs_in)
         'omega0', #nadir view vegetation clumping factor
@@ -895,6 +922,7 @@ class PyTSEB():
         return outputStructure
             
     def CheckDataPointSeriers(self):
+        '''Checks that the input ascii file complies with all the required fiels to run TSEB'''
         success=False
         # Mandatory Input Fields
         MandatoryFields_TSEB_PT=('Year','DOY','Time','Trad','VZA','Ta','u','ea','Sdn','LAI','hc')
@@ -922,6 +950,7 @@ class PyTSEB():
         return True
     
     def RunTSEBPointSeries(self):
+        '''Runs TSEB for a tabulated point time series'''
         import TSEB
         import ipywidgets as widgets
         from IPython.display import display
@@ -945,7 +974,7 @@ class PyTSEB():
             num_lines = sum(1 for line in open(self.InputFile,'r'))
             infid=open(self.InputFile,'r')
             # Read the firs line of the file headers
-            self.inputNames=infid.readline().strip('\n')
+            self.inputNames=infid.readline().strip('\n').strip('\r')
             self.inputNames=self.inputNames.split('\t')
         except IOError:
             print('Error reading input file : '+self.InputFile)
@@ -963,7 +992,6 @@ class PyTSEB():
             progress_id=0
             print('0% processed')
             isWidget=False
-            
         # Loop all the lines in the tables
         for i,indata in enumerate(infid): # Read on line at a time
             if isWidget:
@@ -973,8 +1001,7 @@ class PyTSEB():
                 if progress>=progress_bar[progress_id]:
                     print(str(progress_bar[progress_id])+ '% ')
                     progress_id=progress_id+1
-
-            indata=indata.strip('\n') # remove the carriage return at the end of the line
+            indata=indata.strip('\n').strip('\r') # remove the carriage returns at the end of the line
             indata=indata.split('\t') # Split the string by tabs to have a list of values
             # Get the Year, Doy of the Year and Time: i.e.: finds the column where 'Year' is placed and get the value from indata
             Year,DOY,Time=(float(indata[self.inputNames.index('Year')]),float(indata[self.inputNames.index('DOY')]),float(indata[self.inputNames.index('Time')]))
@@ -1011,7 +1038,6 @@ class PyTSEB():
                 Tr_K_1=float(indata[self.inputNames.index('Trad_1')])+273.15
                 Ta_K_0=float(indata[self.inputNames.index('Ta_0')])+273.15
                 Tr_K_0=float(indata[self.inputNames.index('Trad_0')])+273.15
-               
             # incoming long wave radiation
             ea=float(indata[self.inputNames.index('ea')])
             u=float(indata[self.inputNames.index('u')])
@@ -1021,7 +1047,6 @@ class PyTSEB():
                 Lsky = emisAtm * TSEB.met.CalcStephanBoltzmann(Ta_K_1)
             else:
                 Lsky=float(indata[self.inputNames.index('Ldn')])
-               
             # Get the LAI and canopy height
             lai=float(indata[self.inputNames.index('LAI')])
             hc=float(indata[self.inputNames.index('hc')])
@@ -1047,7 +1072,6 @@ class PyTSEB():
                     self.CalcG[1]=float(indata[self.inputNames.index('G')])
             elif self.CalcG[0]==2: # Santanello and Friedls G
                 self.CalcG[1][0]=Time # Set the time in the CalcG flag to compute the Santanello and Friedl G
-                    
             if self.TSEB_MODEL=='DTD':
                 #Run DTD
                 [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,Ri,n_iterations]=[0]*20
@@ -1090,7 +1114,6 @@ class PyTSEB():
                         u,ea,p,S_nS, S_nC, L_nS,L_nC,lai,hc,z_0M, d_0, self.zu,self.zt,leaf_width=self.leaf_width,f_c=fc,
                          z0_soil=self.z0_soil,alpha_PT=self.Max_alpha_PT,
                          CalcG=self.CalcG)
-            
             # Calculate the bulk fluxes
             LE=LE_C+LE_S
             H=H_C+H_S
