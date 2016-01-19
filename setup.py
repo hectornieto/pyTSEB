@@ -38,7 +38,7 @@ SHORT_DESCRIPTION = "Two Source Energy Balance (TSEB) Models to estimate sensibl
 REQS = [
     'numpy',
     'gdal',
-    'matplotlib'
+    'bokeh'
 ]
 
 setup(
@@ -46,7 +46,7 @@ setup(
     packages              = [''],
     package_dir           = {'': 'src'},
     install_requires      = REQS,
-    version               = "1.0.0",
+    version               = "1.0.1",
     author                = "Hector Nieto",
     author_email          = "hector.nieto.solana@gmail.com",
     maintainer            = "Hector Nieto",

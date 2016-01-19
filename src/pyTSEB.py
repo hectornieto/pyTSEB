@@ -24,7 +24,7 @@ class PyTSEB():
     
     def __init__(self):
         '''Initialize input variables  with default  values'''
-        self.InputFile='./Input/BalsaBlancaInput_2.txt'
+        self.InputFile='./Input/ExampleInput.txt'
         self.OutputTxtFile='./Output/test.txt'
         self.OutputImageFile='./Output/test.tif'
         
@@ -497,8 +497,13 @@ class PyTSEB():
         self.w_leafwidth=widgets.BoundedFloatText(value=self.leaf_width,min=0.001,description="Leaf width",width=80)
         self.w_zsoil=widgets.BoundedFloatText(value=self.z0soil,min=0,description="soil roughness",width=80)
         self.w_lc=widgets.Dropdown(options={'CROP':11,'GRASS':2,'SHRUB':5,'CONIFER':4,'BROADLEAVED':3},value=self.LANDCOVER,description="Land Cover Type",width=200)
+        lcText=widgets.HTML(value='''Land cover information is used to estimate roughness. <BR>
+                                    For shrubs, conifers and broadleaves we use the model of <BR>
+                                    Schaudt & Dickinson (2000) Agricultural and Forest Meteorology. <BR>
+                                    For crops and grasses we use a fixed ratio of canopy heigh''', width=100)
+
         self.vegPage=widgets.VBox([widgets.HBox([self.w_PT,self.w_LAD,self.w_leafwidth]),
-                    widgets.HBox([self.w_zsoil,self.w_lc])], background_color='#EEE')
+                    widgets.HBox([self.w_zsoil,self.w_lc,lcText])], background_color='#EEE')
     
    
     def AdditionalOptionsPoint(self):
@@ -642,7 +647,8 @@ class PyTSEB():
         import gdal
         import ipywidgets as widgets
         from IPython.display import display
-        from os.path import splitext
+        from os.path import splitext, dirname, exists
+        from os import mkdir
         # Create an input dictionary
         inDataArray=dict()
         # Open the LST data according to the model
@@ -845,6 +851,9 @@ class PyTSEB():
             tsebout['albedo1'][row,col]=1.0-Rn/self.Sdn
             tsebout['F'][row,col]=lai
         # Write the TIFF output
+        outdir=dirname(self.OutputFile)
+        if not exists(outdir):
+            mkdir(outdir)
         self.WriteTifOutput(self.OutputFile,tsebout, geo, prj,self.fields)
         outputfile=splitext(self.OutputFile)[0]+'_ancillary.tif'
         self.WriteTifOutput(outputfile,tsebout, geo, prj,self.anc_fields)
@@ -926,7 +935,7 @@ class PyTSEB():
         success=False
         # Mandatory Input Fields
         MandatoryFields_TSEB_PT=('Year','DOY','Time','Trad','VZA','Ta','u','ea','Sdn','LAI','hc')
-        MandatoryFields_DTD=('Year','DOY','Time','Trad_0','Trad_1','VZA','Ta_0','Ta_1','u','ea','Sdn','LAI','hc')                        
+        MandatoryFields_DTD=('Year','DOY','Time','Trad_0','Trad','VZA','Ta_0','Ta','u','ea','Sdn','LAI','hc')                        
         MandatoryFields_TSEB_2T=('Year','DOY','Time','Tc','Ts','Ta','u','ea','Sdn','LAI','hc')  
         # Check that all mandatory input variables exist
         if self.TSEB_MODEL=='TSEB_PT':
@@ -954,6 +963,8 @@ class PyTSEB():
         import TSEB
         import ipywidgets as widgets
         from IPython.display import display
+        from  os. path import dirname, exists
+        from os import mkdir
         # Output Headers
         outputTxtFieldNames = ['Year', 'DOY', 'Time','LAI','f_g', 'skyl', 'VZA', 
                                'SZA', 'SAA','L_sky','Rn_model','Rn_sw_veg', 'Rn_sw_soil', 
@@ -962,6 +973,9 @@ class PyTSEB():
                                'flag', 'zo', 'd', 'G_model', 'R_s', 'R_x', 'R_a', 
                                'u_friction', 'L',  'n_iterations']
         # Create and open the ouput file
+        outdir=dirname(self.OutputFile)
+        if not exists(outdir):
+            mkdir(outdir)
         fid_out=open(self.OutputFile,'w')
         header=outputTxtFieldNames[0]
         # Write the ouput headers
@@ -1026,18 +1040,17 @@ class PyTSEB():
             Sdn_dir=Sdn*(1.0-Skyl) # Direct irradiance
             Sdn_dif=Sdn*Skyl # Diffuse irradiance
             # Get the temperatures
-            if self.TSEB_MODEL=='TSEB_PT':# Only one temperature observation
+            if self.TSEB_MODEL=='TSEB_PT' or self.TSEB_MODEL=='DTD':# Radiometric composite temperature
                 Ta_K_1=float(indata[self.inputNames.index('Ta')])+273.15
                 Tr_K_1=float(indata[self.inputNames.index('Trad')])+273.15
+                if self.TSEB_MODEL=='DTD': # Get the near sunrise temperatures
+                    Ta_K_0=float(indata[self.inputNames.index('Ta_0')])+273.15
+                    Tr_K_0=float(indata[self.inputNames.index('Trad_0')])+273.15
             elif self.TSEB_MODEL=='TSEB_2T': # one air temperature observation amd two component temperatures
                 Ta_K_1=float(indata[self.inputNames.index('Ta')])+273.15
                 Tc=float(indata[self.inputNames.index('Tc')])+273.15
                 Ts=float(indata[self.inputNames.index('Ts')])+273.15
-            else: # DTD, two temperatures
-                Ta_K_1=float(indata[self.inputNames.index('Ta_1')])+273.15
-                Tr_K_1=float(indata[self.inputNames.index('Trad_1')])+273.15
-                Ta_K_0=float(indata[self.inputNames.index('Ta_0')])+273.15
-                Tr_K_0=float(indata[self.inputNames.index('Trad_0')])+273.15
+
             # incoming long wave radiation
             ea=float(indata[self.inputNames.index('ea')])
             u=float(indata[self.inputNames.index('u')])

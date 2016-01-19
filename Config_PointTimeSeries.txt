@@ -13,7 +13,8 @@ TSEB_MODEL=TSEB_PT
 # Temperatures are in Celsius, angles are in degrees, presure are in mb. u: wind speed, ea: vapour prssure, Sdn: incoming solar radiation
 # Additional input variables are: 'SAA': solar azimuth angle, 'SZA': solar zenith angle, 'Ldn': incoming longwave radiation, 'f_C': fractional cover, 'f_g': green fraction, 'wc': canopy width to height ratio, 'G': soil heat flux (see G_Calc flag below)
 # Other variables included (accidentaly or on purpose) in the text file are ignored
-InputFile=./Input/BalsaBlancaInput_2.txt # mandatory file
+
+InputFile=./Input/ExampleInput.txt # mandatory file
 
 #==============================================================================
 # Output paramters
@@ -24,14 +25,13 @@ OutputFile=./Output/OutputTest.txt
 #==============================================================================
 # Site Parameters
 #==============================================================================
-# Coordinates: 36°56′26.0′′, W2°01′58.8′′) at 200 masl
-lat=36.95 # Site latitude (degrees)
-lon= 2.33 # Site Longitue (degrees)
-altitude=200 # Site altitude (m)
-stdlon=15 # Standard longitude of time zone (degrees)
-z_t=2.5 # Measurement height of air temperature (m)
-z_u=3.5 # Measurement height of wind speed (m)
-LANDCOVER=5
+lat=31.74 # Site latitude (degrees)
+lon= -110.05 # Site Longitue (degrees)
+altitude=1371 # Site altitude (m)
+stdlon=-105 # Standard longitude of time zone (degrees)
+z_t=4.0 # Measurement height of air temperature (m)
+z_u=4.3 # Measurement height of wind speed (m)
+
 #==============================================================================
 # Canopy and Soil spectra
 #==============================================================================
@@ -39,32 +39,34 @@ emisVeg=0.98 # leaf emissivity
 emisGrd=0.95 # soil emissivity
 
 # Leaf spectral properties:{rho_leaf_vis: visible reflectance,tau_leaf_vis: visible transmittance, rho_leaf_nir: NIR reflectance, tau_leaf_nir: NIR transmittance}
-rhovis=0.07
-tauvis=0.08
-rhonir=0.32
-taunir=0.33 
+rhovis=0.094
+tauvis=0.021
+rhonir=0.345
+taunir=0.203 
 
 # Leaf spectral properties:{rsoilv: visible reflectance, rsoiln: NIR reflectance}
-rsoilv=0.15
-rsoiln=0.25
+rsoilv=0.111
+rsoiln=0.410
 
 #==============================================================================
 # Canopy and soil parameters
 #==============================================================================
 Max_alpha_PT=1.26# Initial value for Priestley Taylor canopy transpiration
-z0_soil=0.01 # Bare soil roughness lenght (m)
-leaf_width=0.1 # leaf effective width (m)
+x_LAD=1 # Cambpbell 1990 leaf inclination distribution parameter:[x_LAD=1 for spherical LIDF, x_LAD=0 for vertical LIDF, x_LAD=float(inf) for horzontal LIDF]  
+z0_soil=0.05 # Bare soil roughness lenght (m)
+LANDCOVER=5 # Primary land cover CROP=11, GRASS=2, SHRUB=5, CONIFER=4, BROADLEAVED=3
+leaf_width=0.01 # leaf effective width (m)
 
 #==============================================================================
 # Additional options
 #==============================================================================
 # Soil Heat Flux calculation
-#[1,G_ratio]: default, estimate G as a ratio of Rn_soil, default G_ratio=0.35
-#[0,G_constant] : Use a constant G, usually use G_Constant=0 to ignore the computation of G
-#[2,[time,GAmp, Gshift,Gshape]] : estimate G from Santanello and Friedl with time=decTime
+#1: default, estimate G as a ratio of Rn_soil, default G_ratio=0.35
+#0: Use a constant G, usually use G_Constant=0 to ignore the computation of G
+#2: estimate G from Santanello and Friedl with GAmp the maximum ration amplitude, Gphase, the time shift between G and Rn (hours) and Gshape the typical diurnal shape (hours)
 CalcG=0
 G_ratio=0.35
 G_constant=0
 GAmp=0.35
-Gshift=3
+Gphase=3
 Gshape=24

@@ -1,0 +1,25 @@
+# The order of the columns is not relevant, and neither whethere there are additional columns in the table (they will be ignored if their names do not match any of the possible input variables.
+
+Year 	Year (YYYY)
+DOY 	Day of the Year (0-366)
+Time 	Decimal time (hrs), use the stdlong parameter to set the time zone
+Trad 	Radiometric composite temperature (Celsius)
+Trad_0	Radiometric composite temperature near sunrise (Celsius). OPTIONAL, only needed for DTD model.
+Tc	Canopy component temperature (Celsius). OPTIONAL only needed for the TSEB-2T model
+Ts	Soil component temperature (Celsius). OPTIONAL only needed for the TSEB-2T model
+VZA	View Zenith Angle (Degrees)
+SZA	Solar Zenith Angle (Degrees). OPTIONAL, will be estimated otherwise
+SAA	Solar Azimuth Angle (Degrees). OPTIONAL, will be estimated otherwise
+Ta	Air temperature (Celsius)
+Ta_0	Air temperature near sunrise (Celsius). OPTIONAL only needed for DTD model
+u	Wind speed (m/s)
+ea	Vapor pressure (mb)
+p	Atmospheric pressure (mb). OPTIONAL, will be estimated otherwise
+Sdn	Incoming shortwave irradiance (W/m2)
+Ldn	Incoming longwave irradiance (W/m2). OPTIONAL will be estimated otherwise
+LAI	Effective Leaf Area Index (m2/m2)
+hc	Canopy height (m)
+fc	Fractional cover (0-1). OPTIONAL, will be set to full cover (fc=1) otherwise
+fg	Green fraction (0-1). OPTIONAL, will be set to full green vegetation (fg=1) otherwise
+wc	Canopy with to height ratio (m/m). OPTIONAL, will be set to spherical/squared canopies (wc=1) otherwise
+G	Soil heat flux (W/m2). OPTIONAL, will be estimated otherwise
