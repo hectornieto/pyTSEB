@@ -127,7 +127,11 @@ provided by default and compare the resulting outputs with the files stored in *
 ## Contributors
 - **Hector Nieto** <hnieto@ias.csic.es> <hector.nieto.solana@gmail.com> main developer
 - **William P. Kustas** TSEB modeling, tester 
+<<<<<<< HEAD
 - **Radoslaw Guzinski** DTD code developer, tester
+=======
+- **Radoslaw Guzinsi** DTD code developer, tester
+>>>>>>> d96f38c99dc29d032c3f9c2d0832f9f35c50cdb3
 - **Ana Andreu** tester
 
 ## License
