@@ -375,7 +375,7 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
 
             H_C=rho * c_p * (Tc - T_AC)/ R_x
             LE_C=delta_R_n-H_C
-            flag=1
+            flag=3
             # Check for daytime canopy latent heat fluxes
             if LE_C < 0:
                 LE_C=0
@@ -593,7 +593,7 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
         # Check daytime soil latent heat fluxes
         if LE_S < 0: #and R_n_soil > 0 and delta_R_n > 0:
             LE_S=0
-            flag=1
+            flag=3
             H_S=R_n_soil1-G
             Ts,T_AC=CalcT_S_Series(Tr_K_1,Ta_K_1,R_a,R_x,R_s,f_theta,H_S,rho,c_p)
             flag,Tc=CalcT_C(Tr_K_1, Ts, f_theta)
@@ -614,14 +614,13 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
                     return [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,
                         LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,Ri,count]
                 H_C=rho * c_p* (Tc - T_AC)/ R_x
-                if Resistance_flag== 0:
-                    deltaT=(Tr_K_1 - Tr_K_0) - (Ta_K_1- Ta_K_0)#based on equation from Guzinski et. al., 2014 
-                    R_s = res.CalcR_S_Kustas(u_S, deltaT)
-                    R_s=max( 1e-3,R_s)
+                deltaT=(Tr_K_1 - Tr_K_0) - (Ta_K_1- Ta_K_0)#based on equation from Guzinski et. al., 2014 
+                R_s = res.CalcR_S_Kustas(u_S, deltaT)
+                R_s=max( 1e-3,R_s)
                 T_AC = (( Ta_K_1/R_a + Ts/R_s + Tc/R_x )/(1.0/R_a + 1.0/R_s + 1.0/R_x))
                 H_S=rho*c_p*(Ts-T_AC)/(R_s)
                 G=R_n_soil-H_S
-                flag=2
+                flag=5
         # calculate total fluxes
         H = H_C + H_S
         LE = LE_C + LE_S
