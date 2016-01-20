@@ -988,7 +988,7 @@ class PyTSEB():
             num_lines = sum(1 for line in open(self.InputFile,'r'))
             infid=open(self.InputFile,'r')
             # Read the first line of the file headers
-            self.inputNames=infid.readline().rstrip(' \n'r')
+            self.inputNames=infid.readline().rstrip(' \n\r')
             self.inputNames=self.inputNames.split('\t')
         except IOError:
             print('Error reading input file : '+self.InputFile)
