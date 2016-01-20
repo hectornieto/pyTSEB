@@ -356,7 +356,7 @@ class PyTSEB():
             elif line[0]=='#': #skip comment line
                 continue
             elif '=' in line:
-                string=line.strip('\n').strip('\r').split('#')[0] # Remove comments in case they exist
+                string=line.split('#')[0].rstrip(' \r\n') # Remove comments in case they exist
                 field,value=string.split('=')
                 for var in input_vars:
                     if var==field:
@@ -987,8 +987,8 @@ class PyTSEB():
         try:
             num_lines = sum(1 for line in open(self.InputFile,'r'))
             infid=open(self.InputFile,'r')
-            # Read the firs line of the file headers
-            self.inputNames=infid.readline().strip('\n').strip('\r')
+            # Read the first line of the file headers
+            self.inputNames=infid.readline().rstrip(' \n'r')
             self.inputNames=self.inputNames.split('\t')
         except IOError:
             print('Error reading input file : '+self.InputFile)
@@ -1015,7 +1015,7 @@ class PyTSEB():
                 if progress>=progress_bar[progress_id]:
                     print(str(progress_bar[progress_id])+ '% ')
                     progress_id=progress_id+1
-            indata=indata.strip('\n').strip('\r') # remove the carriage returns at the end of the line
+            indata=indata.strip(' \n\r') # remove the carriage returns at the end of the line
             indata=indata.split('\t') # Split the string by tabs to have a list of values
             # Get the Year, Doy of the Year and Time: i.e.: finds the column where 'Year' is placed and get the value from indata
             Year,DOY,Time=(float(indata[self.inputNames.index('Year')]),float(indata[self.inputNames.index('DOY')]),float(indata[self.inputNames.index('Time')]))
