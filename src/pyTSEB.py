@@ -201,6 +201,7 @@ class PyTSEB():
         update the fields in the widgets'''
         
         InputFile=self.GetInputFileName(title='Select Input Configuration File')
+        if not InputFile:return
         configdata=self.parseInputConfig(InputFile,isImage=self.isImage)
         # Update the widget fields
         self.w_model.value=configdata['TSEB_MODEL']
@@ -256,7 +257,12 @@ class PyTSEB():
         ''' Pops-up a file dialog and creates/overwrites the configuration file selected to 
         write the fields from the widgets'''
         OutputFile=self.GetOutputFileName(title='Select Output Configuration File')
-        fid=open(OutputFile,'w')
+        if not OutputFile: return
+        try:
+            fid=open(OutputFile,'w')
+        except IOError:
+            print('Could not write ' +OutputFile)
+            return
         fid.write('# Input files\n')
         if self.isImage:
             fid.write('Input_LST='+str(self.w_LSTtxt.value)+'\n')
@@ -464,9 +470,10 @@ class PyTSEB():
             from tkinter.filedialog import askopenfilename
             import tkinter as tk
         root=tk.Tk()
-        root.deiconify()
+        root.withdraw()
         InputFile = askopenfilename(title=title) # show an "Open" dialog box and return the path to the selected file
         root.destroy() # Destroy the GUI
+        if InputFile=='':return None
         return InputFile
     
     def on_output_clicked(self,b):
@@ -483,9 +490,10 @@ class PyTSEB():
             from tkinter.filedialog import asksaveasfilename
             import tkinter as tk
         root=tk.Tk()
-        root.deiconify()
+        root.withdraw()
         OutputFile = asksaveasfilename(title=title) # show an "Open" dialog box and return the path to the selected file
         root.destroy()  # Destroy the GUI
+        if OutputFile=='':return None
         return OutputFile
     
     def SurfaceProperties(self):
