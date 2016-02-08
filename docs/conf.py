@@ -32,8 +32,7 @@ sys.path.insert(0, os.path.abspath('../src/'))
 # ones.
 extensions = [
     'sphinx.ext.autodoc', 'sphinx.ext.napoleon', 'sphinx.ext.autosummary',
-                  'IPython.sphinxext.ipython_directive',
-	'sphinx.ext.mathjax' 
+                  	'sphinx.ext.mathjax' 
 ]
 
 # Add any paths that contain templates here, relative to this directory.
