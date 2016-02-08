@@ -18,34 +18,54 @@
 Created on Apr 6 2015
 @author: Hector Nieto (hnieto@ias.csic.es)
 
-Modified on Dec 30 2015
+Modified on Jan 27 2016
 @author: Hector Nieto (hnieto@ias.csic.es)
 
+DESCRIPTION
+===========
 Routines for calculating the clumping index for both randomly placed canopies and
-structured row crops such as vineyards
+structured row crops such as vineyards.
+
+PACKAGE CONTENTS
+================
+* :func:`CalcOmega0_Kustas` Nadir viewing clmping factor.
+* :func:`CalcOmega_Kustas` Clumping index at an incidence angle.
 """
 def CalcOmega0_Kustas(LAI, f_C,x_LAD=1,isLAIeff=True):
-    ''' 
-    Calculates the nadir viewing clmping factor
+    ''' Nadir viewing clmping factor
+
+    Estimates the clumping factor forcing equal gap fraction between the real canopy
+    and the homogeneous case, after [Kustas1999]_.
          
     Parameters
     ----------  
-    LAI : Leaf Area Index, it can be either the effective LAI or the real LAI 
-        , default input LAI is effective
-    f_C : Apparent fractional cover, estimated from large gaps, means that
-        are still gaps within the canopy to be quantified
-    x_LAD : x parameter for the ellipsoildal Leaf Angle Distribution function of 
-    Campbell 1988 [default=1, spherical LIDF]
-    isLAIeff :  boolean varible to define whether the input LAI is effective or 
-    real
+    LAI : float
+        Leaf Area Index, it can be either the effective LAI or the real LAI 
+        , default input LAI is effective.
+    f_C : float
+        Apparent fractional cover, estimated from large gaps, means that
+        are still gaps within the canopy to be quantified.
+    x_LAD : float, optional
+        Chi parameter for the ellipsoildal Leaf Angle Distribution function of 
+        [Campbell1988]_ [default=1, spherical LIDF].
+    isLAIeff :  bool, optional
+        Defines whether the input LAI is effective or local.
     
     Returns
+    -------
+    omega0 : float
+        clumping index at nadir.
+
+    References
     ----------
-    omega0 : clumping index at nadir
-    
-    Based on Kustas and Norman 1999. Evaluation of soil and vegetation heat flux
-    predictions using a simple two-source model with radiometric temperatures
-    for partial canopy cover.  Agricultural and Forest Meteorology 94 '''
+    .. [Kustas1999] William P Kustas, John M Norman, Evaluation of soil and vegetation heat
+        flux predictions using a simple two-source model with radiometric temperatures for
+        partial canopy cover, Agricultural and Forest Meteorology, Volume 94, Issue 1,
+        Pages 13-29, http://dx.doi.org/10.1016/S0168-1923(99)00005-2.
+    .. [Campbell1998] Campbell, G. S. & Norman, J. M. (1998), An introduction to environmental
+        biophysics. Springer, New York
+        https://archive.org/details/AnIntroductionToEnvironmentalBiophysics.
+ '''
     
     from math import log,exp, sqrt,radians, tan
     
@@ -67,19 +87,30 @@ def CalcOmega0_Kustas(LAI, f_C,x_LAD=1,isLAIeff=True):
     return omega0
 
 def CalcOmega_Kustas(omega0,theta,wc=1):
-    '''
-    Estimates the clumpnig index for a given incidence angle assuming randomnly placed canopies
+    ''' Clumping index at an incidence angle.
+
+    Estimates the clumping index for a given incidence angle assuming randomnly placed canopies.
     
     Parameters
     ----------
-    theta: incidence angle (degrees)
-    D :  canopy witdth to height ratio, [default = 1]
+    omega0 : float
+        clumping index at nadir, estimated for instance by :func:`CalcOmega0_Kustas`.
+    theta : float
+        incidence angle (degrees).
+    wc :  float, optional
+        canopy witdth to height ratio, [default = 1].
 
-    Based on Kustas and Norman 1999. Evaluation of soil and vegetation heat flux
-    predictions using a simple two-source model with radiometric temperatures
-    for partial canopy cover.  Agricultural and Forest Meteorology 94,
-    after Campbell and Norman 1998. An Introduction to Environmental Biophysics.
-    Springer, New York, 286 pp
+    Returns
+    -------
+    Omega : float
+        Clumping index at an incidenc angle.
+
+    References
+    ----------
+    .. [Kustas1999] William P Kustas, John M Norman, Evaluation of soil and vegetation heat
+        flux predictions using a simple two-source model with radiometric temperatures for
+        partial canopy cover, Agricultural and Forest Meteorology, Volume 94, Issue 1,
+        Pages 13-29, http://dx.doi.org/10.1016/S0168-1923(99)00005-2.
     '''
     
     from math import exp,radians

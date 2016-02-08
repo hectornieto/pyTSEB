@@ -14,16 +14,30 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""
+'''
 Created on Apr 6 2015
-@author: Hector Nieto (hnieto@ias.csic.es)
+@author: Hector Nieto (hnieto@ias.csic.es).
 
-Modified on Dec 30 2015
-@author: Hector Nieto (hnieto@ias.csic.es)
+Modified on Jan 27 2016
+@author: Hector Nieto (hnieto@ias.csic.es).
 
-Routines for estimating variables related to the net shortwave and longwave radiation
-for soil and canopy layers
-"""
+DESCRIPTION
+===========
+This package contains functions for estimating the net shortwave and longwave radiation
+for soil and canopy layers. Additional packages needed are.
+
+* :doc:`meteoUtils` for the estimation of meteorological variables.
+
+PACKAGE CONTENTS
+================
+* :func:`CalcDifuseRatio` estimation of fraction of difuse shortwave radiation.
+* :func:`CalcEmiss_atm` Atmospheric emissivity.
+* :func:`CalcKbe_Campbell` Beam extinction coefficient.
+* :func:`CalcLnKustas` Net longwave radiation for soil and canopy layers.
+* :func:`CalcRnOSEB` Net radiation in a One Source Energy Balance model.
+* :func:`CalcSnCampbell` Net shortwave radiation. 
+'''
+
 
 #==============================================================================
 # List of constants used in the netRadiation Module
@@ -34,24 +48,39 @@ sb=5.670373e-8
 import meteoUtils as met
 
 def CalcDifuseRatio(Sdn,sza,Wv=1,press=1013.25):
-    ''' Partitions the incoming solar radiation into PAR and non-PAR and
-    diffuse and direct beam component of the solar spectrum 
-    of the solar spectrum
+    '''Fraction of difuse shortwave radiation.
+
+    Partitions the incoming solar radiation into PAR and non-PR and
+    diffuse and direct beam component of the solar spectrum.
     
     Parameters
     ----------
-    Sdn : Incoming shortwave radiation (W m-2)
-    sza : Solar Zenith Angle (degrees)
-    Wv : Total column precipitable water vapour (g cm-2), default 1 g cm-2
-    press : atmospheric pressure (mb), default at sea level (1013mb)
+    Sdn : float
+        Incoming shortwave radiation (W m-2).
+    sza : float
+        Solar Zenith Angle (degrees).
+    Wv : float, optional
+        Total column precipitable water vapour (g cm-2), default 1 g cm-2.
+    press : float, optional
+        atmospheric pressure (mb), default at sea level (1013mb).
+        
     Returns
     -------
-    difvis : diffuse fraction in the visible region
-    difnir : diffuse fraction in the NIR region
-    fvis : fration of total visible radiation
-    fnir : fraction of total NIR radiation
+    difvis : float
+        diffuse fraction in the visible region.
+    difnir : float
+        diffuse fraction in the NIR region.
+    fvis : float
+        fration of total visible radiation.
+    fnir : float
+        fraction of total NIR radiation.
     
-    based on Weiss & Normat 1985, following same strategy in Cupid's RADIN4 subroutine.
+    References
+    ----------
+    .. [Weiss1985] Weiss and Norman (1985) Partitioning solar radiation into direct and diffuse,
+        visible and near-infrared components, Agricultural and Forest Meteorology,
+        Volume 34, Issue 2, Pages 205-213,
+        http://dx.doi.org/10.1016/0168-1923(85)90020-6.
     '''
     from math import radians, cos,exp, log10
     coszen=abs(cos(radians(sza)))
@@ -105,64 +134,104 @@ def CalcDifuseRatio(Sdn,sza,Wv=1,press=1013.25):
     return difvis,difnir, fvis,fnir
 
 def CalcEmiss_atm(ea,Ta_K):
-    '''Estimates the effective atmospheric emissivity for clear sky
+    '''Atmospheric emissivity
+    
+    Estimates the effective atmospheric emissivity for clear sky.
 
     Parameters
     ----------
-    ea : atmospheric vapour pressure (mb)
-    Ta_K : air temperature (Kelvi)
+    ea : float
+        atmospheric vapour pressure (mb).
+    Ta_K : float
+        air temperature (Kelvin).
     
     Returns
     -------
-    emiss_air : effective atmospheric emissivity
-    
-    based on Eq. 11 of Brutsaert (1975)'''
+    emiss_air : float
+        effective atmospheric emissivity.
+
+    References
+    ----------    
+    .. [Brutsaert1975] Brutsaert, W. (1975) On a derivable formula for long-wave radiation
+        from clear skies, Water Resour. Res., 11(5), 742-744,
+        htpp://dx.doi.org/10.1029/WR011i005p00742.'''
+
     emiss_air=1.24*(ea/Ta_K)**(1./7.)
     return emiss_air
 
 def CalcKbe_Campbell(theta,x_LAD=1):
-    ''' Calculates the beam extinction coefficient based on Cambpell ellipsoidal
-        leaf inclination distribution function
+    ''' Beam extinction coefficient
+
+    Calculates the beam extinction coefficient based on [Campbell1998]_ ellipsoidal
+    leaf inclination distribution function.
     
     Parameters
     ----------
-    theta : incidence zenith angle (degrees)
-    x_LAD : x parameter for the ellipsoidal Leaf Angle Distribution function, 
-        use x_LAD=1 for a spherical LAD
+    theta : float
+        incidence zenith angle (degrees).
+    x_LAD : float, optional
+        Chi parameter for the ellipsoidal Leaf Angle Distribution function, 
+        use x_LAD=1 for a spherical LAD.
     
     Returns
     -------
-    K_be : beam extinction coefficient
+    K_be : float
+        beam extinction coefficient.
+    x_LAD: float, optional
+        x parameter for the ellipsoidal Leaf Angle Distribution function, 
+        use x_LAD=1 for a spherical LAD.
     
-    based on Eq. from Cambpell and Norman 1998'''
-    
+    References
+    ----------
+    .. [Campbell1998] Campbell, G. S. & Norman, J. M. (1998), An introduction to environmental
+        biophysics. Springer, New York
+        https://archive.org/details/AnIntroductionToEnvironmentalBiophysics.
+    '''
+        
     from math import tan, radians,sqrt
     theta=radians(theta)
     K_be=sqrt(x_LAD**2+tan(theta)**2)/(x_LAD+1.774*(x_LAD+1.182)**-0.733)
     return K_be
     
 def CalcLnKustas (T_C, T_S, Lsky, LAI, emisVeg, emisGrd,x_LAD=1):
-    ''' Estimates the net longwave radiation for soil and canopy layers
+    ''' Net longwave radiation for soil and canopy layers
+
+    Estimates the net longwave radiation for soil and canopy layers unisg based on equation 2a
+    from [Kustas1999]_ and incorporated the effect of the Leaf Angle Distribution based on [Campbell1998]_
     
     Parameters
     ----------
-    T_C : Canopy temperature (K)
-    T_S : Soil temperature (K)
-    Lsky : Downwelling atmospheric longwave radiation (w m-2)
-    LAI : Leaf (Plant) Area Index
-    emisVeg : Broadband emissivity of vegetation cover
-    emisGrd : Broadband emissivity of soil
-    x_LAD: x parameter for the ellipsoidal Leaf Angle Distribution function, 
-        use x_LAD=1 for a spherical LAD
+    T_C : float
+        Canopy temperature (K).
+    T_S : float
+        Soil temperature (K).
+    Lsky : float
+        Downwelling atmospheric longwave radiation (w m-2).
+    LAI : float
+        Effective Leaf (Plant) Area Index.
+    emisVeg : float
+        Broadband emissivity of vegetation cover.
+    emisGrd : float
+        Broadband emissivity of soil.
+    x_LAD: float, optional
+        x parameter for the ellipsoidal Leaf Angle Distribution function, 
+        use x_LAD=1 for a spherical LAD.
 
     Returns
     -------
-    L_nC : Net longwave radiation of canopy (W m-2)
-    L_nS : Net longwave radiation of soil (W m-2)   
+    L_nC : float
+        Net longwave radiation of canopy (W m-2).
+    L_nS : float
+        Net longwave radiation of soil (W m-2).   
 
+    References
+    ----------
+    .. [Kustas1999] Kustas and Norman (1999) Evaluation of soil and vegetation heat
+        flux predictions using a simple two-source model with radiometric temperatures for
+        partial canopy cover, Agricultural and Forest Meteorology, Volume 94, Issue 1,
+        Pages 13-29, http://dx.doi.org/10.1016/S0168-1923(99)00005-2.
+    '''
 
-    based on equation 2a from Kustas & Norman, Agricultural and Forest Meteorology 94 (1999),
-    and incorporated the effect of the Leaf Angle Distribution based on Campbell and Norman 1998'''
     from math import exp,sqrt,log,cos,sin,radians
     # Integrate to get the diffuse transmitance
     taud=0
@@ -185,20 +254,30 @@ def CalcLnKustas (T_C, T_S, Lsky, LAI, emisVeg, emisGrd,x_LAD=1):
     return L_nC,L_nS
 
 def CalcRnOSEB(Sdn,Lsky, T_R, emis, albedo):
-    '''Estimates surface net radiation assuming a single layer
+    ''' Net radiation in a One Source Energy Balance model
+
+    Estimates surface net radiation assuming a single `big leaf` layer.
         
     Parameters
     ----------
-    R_sin : incoming shortwave radiation (W m-2)
-    Lsky : Incoming longwave radiation (W m-2)      
-    T_R : Radiometric surface temperature (K)
-    emis : Broadband emissivity
-    albedoVeg : Broadband short wave albedo
+    Sdn : float
+        incoming shortwave radiation (W m-2).
+    Lsky : float
+        Incoming longwave radiation (W m-2).   
+    T_R : float
+        Radiometric surface temperature (K).
+    emis : float
+        Broadband emissivity.
+    albedoVeg : float
+        Broadband short wave albedo.
     
     Returns
     -------
-    R_s : Net shortwave radiation (W m-2)
-    R_l : Net longwave radiation (W m-2)'''
+    R_s : float
+        Net shortwave radiation (W m-2).
+    R_l : float
+        Net longwave radiation (W m-2).
+    '''
     # outgoing shortwave radiation
     R_sout = Sdn * albedo
     # outgoing long wave radiation
@@ -209,34 +288,58 @@ def CalcRnOSEB(Sdn,Lsky, T_R, emis, albedo):
     
 def CalcSnCampbell (LAI, sza, Sdn_dir, Sdn_dif, fvis,fnir, rho_leaf_vis,
                     tau_leaf_vis,rho_leaf_nir, tau_leaf_nir, rsoilv, rsoiln,x_LAD=1):
-    ''' Estimate net shorwave radiation for soil and canopy below a canopy using the Campbell
-        and Norman Radiative Transfer Model
+    ''' Net shortwave radiation 
+
+    Estimate net shorwave radiation for soil and canopy below a canopy using the [Campbell1998]_
+    Radiative Transfer Model, and implemented in [Kustas1999]_
     
     Parameters
     ----------
-    LAI : Leaf (Plant) Area Index
-    sza : Sun Zenith Angle (degrees)
-    Sdn : Broadband incoming shortwave radiation (W m-2)
-    difvis : diffuse fraction in the visible region
-    difnir : diffuse fraction in the NIR region
-    fvis : fration of total visible radiation
-    fnir : fraction of total NIR radiation
-    rho_leaf_vis : Broadband leaf bihemispherical reflectance in the visible region (400-700nm)
-    tau_leaf_vis : Broadband leaf bihemispherical transmittance in the visible region (400-700nm)
-    rho_leaf_nir : Broadband leaf bihemispherical reflectance in the NIR region (700-2500nm)
-    tau_leaf_nir : Broadband leaf bihemispherical transmittance in the NIR region (700-2500nm)
-    rsoilv : Broadband soil bihemispherical reflectance in the visible region (400-700nm)
-    rsoiln : Broadband soil bihemispherical reflectance in the NIR region (700-2500nm)
-    x_LAD : x parameter for the ellipsoildal Leaf Angle Distribution function of 
-        Campbell 1988 [default=1, spherical LIDF]
+    LAI : float
+        Effective Leaf (Plant) Area Index.
+    sza : float
+        Sun Zenith Angle (degrees).
+    Sdn_dir : float
+        Broadband incoming beam shortwave radiation (W m-2).
+    Sdn_dir : float
+        Broadband incoming beam shortwave radiation (W m-2).
+    fvis : float
+        fration of total visible radiation.
+    fnir : float
+        fraction of total NIR radiation.
+    rho_leaf_vis : float
+        Broadband leaf bihemispherical reflectance in the visible region (400-700nm).
+    tau_leaf_vis : float
+        Broadband leaf bihemispherical transmittance in the visible region (400-700nm).
+    rho_leaf_nir : float
+        Broadband leaf bihemispherical reflectance in the NIR region (700-2500nm).
+    tau_leaf_nir : float
+        Broadband leaf bihemispherical transmittance in the NIR region (700-2500nm).
+    rsoilv : float
+        Broadband soil bihemispherical reflectance in the visible region (400-700nm).
+    rsoiln : float
+        Broadband soil bihemispherical reflectance in the NIR region (700-2500nm).
+    x_LAD : float,  optional
+        x parameter for the ellipsoildal Leaf Angle Distribution function of 
+        Campbell 1988 [default=1, spherical LIDF].
     
     Returns
     -------
-    Rn_sw_veg : Canopy net shortwave radiation (W m-2)
-    Rn_sw_soil : Soil net shortwave radiation (W m-2)
-    
-    based on analytical solutions from Goudriaan 1988 
-    and summarized in Campbell & Norman 1998'''
+    Rn_sw_veg : float
+        Canopy net shortwave radiation (W m-2).
+    Rn_sw_soil : float
+        Soil net shortwave radiation (W m-2).
+
+    References
+    ----------    
+    .. [Campbell1998] Campbell, G. S. & Norman, J. M. (1998), An introduction to environmental
+        biophysics. Springer, New York
+        https://archive.org/details/AnIntroductionToEnvironmentalBiophysics.
+    .. [Kustas1999] Kustas and Norman (1999) Evaluation of soil and vegetation heat
+        flux predictions using a simple two-source model with radiometric temperatures for
+        partial canopy cover, Agricultural and Forest Meteorology, Volume 94, Issue 1,
+        Pages 13-29, http://dx.doi.org/10.1016/S0168-1923(99)00005-2.
+    '''
     
     from math import radians, cos, sin, tan, log, sqrt, exp
     #calculate aborprtivity

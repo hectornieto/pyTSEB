@@ -18,10 +18,39 @@
 Created on Apr 6 2015
 @author: Hector Nieto (hnieto@ias.csic.es)
 
-Modified on Dec 30 2015
+Modified on Jan 27 2016
 @author: Hector Nieto (hnieto@ias.csic.es)
 
-Routines for calculating the resistances for heat and momentum trasnport
+DESCRIPTION
+===========
+This module includes functions for calculating the resistances for
+heat and momentum trasnport for both One- and Two-Source Energy Balance models.
+Additional functions needed in are imported from the following packages
+
+* :doc:`meteoUtils` for the estimation of meteorological variables.
+* :doc:`MOsimilarity` for the estimation of the Monin-Obukhov length and stability functions.
+
+PACKAGE CONTENTS
+================
+Resistances
+-----------
+* :func:`CalcR_A` Aerodynamic resistance.
+* :func:`CalcR_S_Kustas` [Kustas1999]_ soil resistance.
+* :func:`CalcR_X_Norman` [Norman1995]_ canopy boundary layer resistance.
+
+Stomatal conductance
+--------------------
+* :func:`CalcStomatalConductanceTSEB` TSEB stomatal conductance.
+* :func:`CalcStomatalConductanceOSEB` OSEB stomatal conductance.
+* :func:`CalcCoef_m2mmol` Conversion factor from stomatal conductance from m s-1 to mmol m-2 s-1.
+
+Estimation of roughness
+-----------------------
+* :func:`CalcD_0` Zero-plane displacement height.
+* :func:`CalcRoughness` Roughness for different land cover types.
+* :func:`CalcZ_0M` Aerodynamic roughness lenght.
+* :func:`Raupach` Roughness and displacement height factors for discontinuous canopies.
+
 """
 
 #==============================================================================
@@ -48,38 +77,58 @@ import MOsimilarity as MO
 import meteoUtils as met
 
 def CalcD_0 (h_C):
-    ''' Calculates the zero-plane displacement height based on a 
-    fixed ratio of canopy height
+    ''' Zero-plane displacement height
+
+    Calculates the zero-plane displacement height based on a 
+    fixed ratio of canopy height.
     
     Parameters
     ----------
-    h_C : canopy height (m)
+    h_C : float
+        canopy height (m).
     
     Returns
     -------
-    d_0 : zero-plane displacement height (m)'''
+    d_0 : float
+        zero-plane displacement height (m).'''
     
     d_0 = h_C * 0.65
     return d_0
 
 def CalcRoughness (LAI, hc,wc=1,landcover=11):
-    ''' Retrieves Surface roughness and zero displacement height for vegetated surfaces
+    ''' Surface roughness and zero displacement height for different vegetated surfaces.
+
+    Calculates the roughness using different approaches depending we are dealing with
+    crops or grasses (fixed ratio of canopy height) or shrubs and forests,depending of LAI
+    and canopy shape, after [Schaudt2000]_
     
     Parameters
     ----------
-    LAI : Leaf (Plant) Area Index
-    hc : Canopy height (m)
-    wc : Canopy height to width ratio
-    landcover : landcover type, use 11 for crops, 2 for grass, 5 for shrubs,
+    LAI : float
+        Leaf (Plant) Area Index.
+    hc : float
+        Canopy height (m)
+    wc : float, optional
+        Canopy height to width ratio.
+    landcover : int, optional
+        landcover type, use 11 for crops, 2 for grass, 5 for shrubs,
         4 for conifer forests and 3 for broadleaved forests.
     
     Returns
     -------
-    z_0M : aerodynamic roughness length for momentum trasport (m)
-    d : Zero-plane displacement height (m)
+    z_0M : float
+        aerodynamic roughness length for momentum trasport (m).
+    d : float
+        Zero-plane displacement height (m).
     
-    based on Schaudt and Dickinson (200)
-    Agricultural and Forest Meteorology 104 (2000) 143-155'''
+    References
+    ----------
+    .. [Schaudt2000] K.J Schaudt, R.E Dickinson, An approach to deriving roughness length
+        and zero-plane displacement height from satellite data, prototyped with BOREAS data,
+        Agricultural and Forest Meteorology, Volume 104, Issue 2, 8 August 2000, Pages 143-155,
+        http://dx.doi.org/10.1016/S0168-1923(00)00153-2.
+    '''
+
     from math import exp,pi
     #Needleleaf canopies
     if landcover == CONIFER:
@@ -125,25 +174,40 @@ def CalcRoughness (LAI, hc,wc=1,landcover=11):
 
 def CalcR_A (z_T, ustar, L, d_0, z_0H, useRi=False, z_star=False):
     ''' Estimates the aerodynamic resistance to heat transport based on the
-    MO similarity theory
+    MO similarity theory.
     
     Parameters
     ----------
-    z_T : air temperature measurement height (m)
-    ustar : friction velocity (m s-1)
-    L : Monin Obukhov Length or Richardson number for stability (see useRi variable)
-    d_0 : zero-plane displacement height (m)
-    z_0M : aerodynamic roughness length for momentum trasport (m)
-    z_0H : aerodynamic roughness length for heat trasport (m)
-    useRi : boolean variable to use Richardsond number instead of the MO length
-    z_star : height of the roughness sublayer (RSL), optional, if used and zstar>0 
-        the adiabatic correction in the RSL will be computed
+    z_T : float
+        air temperature measurement height (m).
+    ustar : float
+        friction velocity (m s-1).
+    L : float
+        Monin Obukhov Length or Richardson number for stability (see useRi variable).
+    d_0 : float
+        zero-plane displacement height (m).
+    z_0M : float
+        aerodynamic roughness length for momentum trasport (m).
+    z_0H : float
+        aerodynamic roughness length for heat trasport (m).
+    useRi : bool, optional
+        boolean variable to use Richardsond number instead of the MO length.
+    z_star : float or None, optional
+        height of the roughness sublayer (RSL), optional, if used and zstar>0 
+        the adiabatic correction in the RSL will be computed.
     
     Returns
     -------
-    R_A : aerodyamic resistance to heat transport in the surface layer (s m-1)
+    R_A : float
+        aerodyamic resistance to heat transport in the surface layer (s m-1).
 
-    based on equation (10) from Norman et. al., 2000 (DTD paper)'''
+    References
+    ----------        
+    .. [Norman1995] J.M. Norman, W.P. Kustas, K.S. Humes, Source approach for estimating
+        soil and vegetation energy fluxes in observations of directional radiometric
+        surface temperature, Agricultural and Forest Meteorology, Volume 77, Issues 3-4,
+        Pages 263-293, http://dx.doi.org/10.1016/0168-1923(95)02265-Y.
+    '''
 
     from math import log
     if ustar==0:return float('inf')
@@ -167,18 +231,30 @@ def CalcR_A (z_T, ustar, L, d_0, z_0H, useRi=False, z_star=False):
     return R_A
    
 def CalcR_S_Kustas (u_S, deltaT):
-    ''' Estimates aerodynamic resistance at the  soil boundary layer
+    ''' Aerodynamic resistance at the  soil boundary layer.
+
+    Estimates the aerodynamic resistance at the  soil boundary layer based on the
+    original equations in TSEB [Kustas1999]_.
 
     Parameters
     ----------
-    u_S : wind speed at the soil boundary layer (s m-1)
-    deltaT : Surface to air temperature gradient (K)
+    u_S : float
+        wind speed at the soil boundary layer (m s-1).
+    deltaT : float
+        Surface to air temperature gradient (K).
     
     Returns
     -------
-    R_S : Aerodynamic resistance at the  soil boundary layer (s m-1)
-    
-    based on Kustas and Norman 1999'''
+    R_S : float
+        Aerodynamic resistance at the  soil boundary layer (s m-1).
+   
+    References
+    ----------
+    .. [Kustas1999] William P Kustas, John M Norman, Evaluation of soil and vegetation heat
+        flux predictions using a simple two-source model with radiometric temperatures for
+        partial canopy cover, Agricultural and Forest Meteorology, Volume 94, Issue 1,
+        Pages 13-29, http://dx.doi.org/10.1016/S0168-1923(99)00005-2.
+    '''
     if u_S==0:return float('inf')
 
     if deltaT<0.0:
@@ -187,19 +263,33 @@ def CalcR_S_Kustas (u_S, deltaT):
     return R_S
 
 def CalcR_X_Norman(LAI, leaf_width, u_d_zm):
-    ''' Estimates aerodynamic resistance at the canopy boundary layer
+    ''' Estimates aerodynamic resistance at the canopy boundary layer.
+
+    Estimates the aerodynamic resistance at the  soil boundary layer based on the
+    original equations in TSEB [Norman1995]_.
 
     Parameters
     ----------
-    LAI : Leaf (Plant) Area Index
-    leaf_width : efective leaf width size (m)
-    u_d_zm : wind speed at d+zm
+    F : float
+        local Leaf Area Index.
+    leaf_width : float
+        efective leaf width size (m).
+    u_d_zm : float
+        wind speed at the height of momomentum source-sink. .
     
     Returns
     -------
-    R_x : Aerodynamic resistance at the canopy boundary layer (s m-1)
-    
-    based on eq. A.8 in Norman et al 1995'''
+    R_x : float
+        Aerodynamic resistance at the canopy boundary layer (s m-1).
+
+    References
+    ----------    
+    .. [Norman1995] J.M. Norman, W.P. Kustas, K.S. Humes, Source approach for estimating
+        soil and vegetation energy fluxes in observations of directional radiometric
+        surface temperature, Agricultural and Forest Meteorology, Volume 77, Issues 3-4,
+        Pages 263-293, http://dx.doi.org/10.1016/0168-1923(95)02265-Y.
+    '''
+
     if u_d_zm==0:return float('inf')
     #C_dash = 130.0 # Original value proposed by McNaughton & Van der Hurk 1995
     C_dash_F = KN_C_dash/LAI
@@ -207,46 +297,78 @@ def CalcR_X_Norman(LAI, leaf_width, u_d_zm):
     return R_x
   
 def CalcZ_0H (z_0M,kB=2):
-    '''Estimate the aerodynamic routhness length for heat trasport
+    '''Estimate the aerodynamic routhness length for heat trasport.
     
-    Parameter
-    ---------
-    z_0M : aerodynamic roughness lenght for momentum transport (m)
-    kB : kB parameter, default = 2
+    Parameters
+    ----------
+    z_0M : float
+        aerodynamic roughness length for momentum transport (m).
+    kB : float
+        kB parameter, default = 0.
     
-    Results
+    Returns
     -------
-    z_0H : aerodynamic roughness lenght for momentum transport (m)
+    z_0H : float
+        aerodynamic roughness length for momentum transport (m).
+    
+    References
+    ----------
+    .. [Norman1995] J.M. Norman, W.P. Kustas, K.S. Humes, Source approach for estimating
+        soil and vegetation energy fluxes in observations of directional radiometric
+        surface temperature, Agricultural and Forest Meteorology, Volume 77, Issues 3-4,
+        Pages 263-293, http://dx.doi.org/10.1016/0168-1923(95)02265-Y.
+    '''
 
-    based on equation from section 2.2 of Norman et. al., 2000 (DTD paper)'''
     from math import exp
     z_OH = z_0M/exp(kB)
     return z_OH
     
 def CalcZ_0M (h_C):
-    '''Estimate the aerodynamic routhness length for momentum trasport 
-    as a ratio of canopy height
+    ''' Aerodynamic roughness lenght.
+
+    Estimates the aerodynamic roughness length for momentum trasport 
+    as a ratio of canopy height.
     
-    Parameter
-    ---------
-    h_C : Canopy height (m)
+    Parameters
+    ----------
+    h_C : float
+        Canopy height (m).
     
-    Results
+    Returns
     -------
-    z_0M : aerodynamic roughness lenght for momentum transport (m)'''
+    z_0M : float
+        aerodynamic roughness length for momentum transport (m).'''
+
     z_OM = h_C * 0.125
     return z_OM
 
 def Raupach(lambda_):
-    '''Estimate the roughness and displacement height factors based on Raupack 1994 
+    '''Roughness and displacement height factors for discontinuous canopies
+
+    Estimated based on the frontal canopy leaf area, based on Raupack 1994 model,
+    after [Schaudt2000]_
     
-    Parameter
-    ---------
-    lambda_ : roughness desnsity or frontal area index
+    Parameters
+    ----------
+    lambda_ : float
+        roughness desnsity or frontal area index.
     
-    Results
+    Returns
     -------
-    z_0M : aerodynamic roughness lenght for momentum transport (m)'''   
+    z0M_factor : float
+        height ratio of roughness length for momentum transport
+    d_factor : float
+        height ratio of zero-plane displacement height
+
+    References
+    ----------
+    .. [Schaudt2000] K.J Schaudt, R.E Dickinson, An approach to deriving roughness length
+        and zero-plane displacement height from satellite data, prototyped with BOREAS data,
+        Agricultural and Forest Meteorology, Volume 104, Issue 2, 8 August 2000, Pages 143-155,
+        http://dx.doi.org/10.1016/S0168-1923(00)00153-2.
+
+    '''   
+
     from math import exp,sqrt
     z0M_factor=0.125
     d_factor=0.65

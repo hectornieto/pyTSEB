@@ -66,7 +66,7 @@ If any of those additional variables are not found in the table they will be int
 
 ## Configure the TSEB run
 ### Load or save a configuration file
-A configuration file contains all the information required by pyTSEB to run without further user interaction, for instance by running *MAIN_TSEB_LocalImage.py* or *MAIN_TSEB_PointTimeSeries.py* scripts. An example of configuration file can be found [here](./Config_LocalImage.txt "Configuration file for processing an image") 
+A configuration file contains all the information required by pyTSEB to run without further user interaction, for instance by running *MAIN_TSEB_LocalImage.py* or *MAIN_TSEB_PointTimeSeries.py* scripts. An example of configuration file can be found [here](../Config_LocalImage.txt "Configuration file for processing an image") 
 
 You can load one of these configuration files to fill all or some of the inputs required in the notebook GUI. Just press the button `Load Configuration File` and browse to the configuration file you want to load. All the valid information in the file will be appended to the GUI.
 
@@ -80,7 +80,7 @@ In the case of the optional inputs for the image version, you can also type in t
 ### pyTSEB parametrization
 Finally, a set of tabs are displayed to configure additional parameters in pyTSEB, before running pyTSEB it is recommended to check along all the tabs to ensure that all the values are correct.
 
-* TSEB Model: allows to choose which TSEB model is going to be run, click on the button with the model name you want... also remember that the input data has to be prepared for this type of model run, i.e. *Component Temperatures* needs as inputs canopy and soil temperature, see [Prepare the data](#Prepare-the-data)
+* TSEB Model: allows to choose which TSEB model is going to be run, click on the button with the model name you want... also remember that the input data has to be prepared for this type of model run, i.e. *Component Temperatures* needs as inputs canopy and soil temperature, see [Prepare the data](#prepare-the-data)
 
 * Site Description: introduce the site area coordinates (latitude and logitude in decimal degrees), the altitude above mean sea level (meters), the time zone used in the time information, and the height of measurement of air speed and temperature. Lat and lon are used to estimate solar angles together with observation time and time zone, if solar angles are missing in the input. The altitude to estimate barometric pressure if missing. Measurement heights are used for wind profile estimation and resistances to heat transport.
 
@@ -89,6 +89,9 @@ Finally, a set of tabs are displayed to configure additional parameters in pyTSE
 * Spectral Properties. Set the bihemispherical reflectance and transmittance of individual leaves and the reflectance of the soil background. Set these properties for the PAR region (400-700nm) and for the NIR (700-2500nm). Also set the broadband hemispherical emissivity of leaves and soil.
 
 * Canopy Description. Max alphaPT sets the a priori Priestley-Taylor parameter for potential canopy transpiration (default=1.26). LIDF param. set the Chi parameter of the Campbell's ellipsoidal leaf inclination distribution function (default Chi=1 for sphericall leaves) to estimate radiation transmission through the canopy. Leaf width set the characteristic size of the leaves used for estimating the canopy boundary resistance. Soil roughness sets the surface aerodynamic roughness for the bare soil, used in the estimation of the wind profile near the soil surface. Land cover type is used to estimate surface roughness: if CROPS or GRASS (lc=2 and 11) a simple ratio of the canopy height is used, if BROADLEAVED, CONIFER, or SHRUB (4,4 and 5 respectively), pyTSEB use the Dickinson and Schaudt & Dickinson (2000), based on LAI, fc, and hc.
+Check `Canopy in Rows` to calculate radiation partioning in row crops, in that case you have to provide the predominant row crop direction (degrees) and the height of the first living branch as a ratio of the total canopy height (hb=0 if canopy starts at the soil level)
+
+* Resistance model. Select which model to use in estimating the canopy boundary and soil resistances to heat and momentum transport. If Kustas and Norman 1999 model is selected you can also change the empirical coefficients used in Rx and Rs.
 
 * Additional options. Set how soil heat flux is estimated. If `Ratio of soil net radiation` is used a fixed ratio of the Rn_soil is applied (G=Gratio*Rn_soil, Gratio=0.35 by default). If `Constant or measured value` is selected the model will force G to be either the value typed in the corresponding cell (i.e. use 0 to ignore the soil heat flux in the energy balance) or, in the case of the point time series version, pyTSEB will use the values at the input table, in case a column named 'G' is present. If `Time dependent (Santanello & Friedl)` pyTSEB will estimate G as a sinusoidal time varying ratio of Rn_soil, with a maximum value corresponding to the Amplitude (default=0.35), a temporal shift from the peak of net radiation (+3h by default) and a shape (i.e. frequency, default=24h)
 
@@ -129,6 +132,7 @@ pyTSEB might produce some *more* unrealible data that can be tracked with the qu
 * 255: Arithmetic error. BAD data, it should be discarded
 
 In addition for the component temperatures TSEB (TSEB-2T)
+
 * 1: negative canopy latent heat flux, forced to zero
 * 2: negative canopy sensible heat flux, forced to zero
 * 4: negative soil sensible heat flux, forced to zero

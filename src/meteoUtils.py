@@ -18,10 +18,26 @@
 Created on Apr 6 2015
 @author: Hector Nieto (hnieto@ias.csic.es)
 
-Modified on Dec 30 2015
+Modified on feb 3 2016
 @author: Hector Nieto (hnieto@ias.csic.es)
 
-Routines for ancillary calculations in TSEB
+DESCRIPTION
+===========
+This package contains functions for estimating meteorological variables needed
+in resistance energy balance models.
+
+PACKAGE CONTENTS
+================
+* :func:`CalcC_p` Heat capacity of air at constant pressure.
+* :func:`CalcLambda(Ta_K)` Latent heat of vaporization.
+* :func:`CalcPressure` Barometric pressure.
+* :func:`CalcPsicr` Psicrometric constant.
+* :func:`CalcRho` Density of air.
+* :func:`CalcStephanBoltzmann` Stephan-Boltzmann law for blackbody radiation emission.
+* :func:`CalcTheta_s` Sun Zenith Angle.
+* :func:`Get_SunAngles` Sun Zenith and Azimuth Angles.
+* :func:`CalcVaporPressure` Saturation water vapour pressure.
+* :func:`CalcDeltaVaporPressure` Slope of saturation water vapour pressure.
 '''
 
 #==============================================================================
@@ -42,19 +58,23 @@ R_d=287.04
 
 
 def CalcC_p (p, ea):
-    ''' Calculates the heat capacity of air at constant pressure
+    ''' Calculates the heat capacity of air at constant pressure.
     
     Parameters
     ----------
-    p : total air pressure (dry air + water vapour) (mb)
-    ea : water vapor pressure at reference height above canopy (mb)
+    p : float
+        total air pressure (dry air + water vapour) (mb).
+    ea : float
+        water vapor pressure at reference height above canopy (mb).
     
     Returns
     -------
-    c_p : heat capacity of (moist) air at constant pressure (J kg-1 K-1)
+    c_p : heat capacity of (moist) air at constant pressure (J kg-1 K-1).
     
+    References
+    ----------
     based on equation (6.1) from Maarten Ambaum (2010): 
-    Thermal Physics of the Atmosphere (pp 109)'''
+    Thermal Physics of the Atmosphere (pp 109).'''
 
     # first calculate specific humidity, rearanged eq (5.22) from Maarten Ambaum (2010), (pp 100)
     q = epsilon * ea / (p + (epsilon - 1.0)*ea)
@@ -63,99 +83,125 @@ def CalcC_p (p, ea):
     return c_p
     
 def CalcLambda(Ta_K):
-    '''Calculates the latent heat of vaporization
+    '''Calculates the latent heat of vaporization.
     
-    Parameter
-    ---------
-    Ta_K : Air temperature (Kelvin)
+    Parameters
+    ----------
+    Ta_K : float
+        Air temperature (Kelvin).
     
-    Results
+    Returns
     -------
-    Lambda : Latent heat of vaporisation (MJ kg-1)
+    Lambda : float
+        Latent heat of vaporisation (MJ kg-1).
     
+    References
+    ----------
     based on Eq. 3-1 Allen FAO98 '''
     Lambda = 2.501 - (2.361e-3* (Ta_K-273.15) ) 
     return Lambda
 
 def CalcPressure(z):
-    ''' Calculates the barometric pressure above sea level
+    ''' Calculates the barometric pressure above sea level.
     
-    Parameter
-    ---------
-    z: height above sea level (m)
+    Parameters
+    ----------
+    z: float
+        height above sea level (m).
     
     Returns
     -------
-    p: air pressure (mb)'''
+    p: float
+        air pressure (mb).'''
     
     p=1013.25*(1.0-2.225577e-5*z)**5.25588
     return p
 
 def CalcPsicr(p,Lambda):
-    ''' Calculates the psicrometric constant
+    ''' Calculates the psicrometric constant.
      
-    Parameter
-    ---------
-    p : atmopheric pressure (mb)
-    Lambda : latent heat of vaporzation (MJ kg-1)
+    Parameters
+    ----------
+    p : float
+        atmopheric pressure (mb).
+    Lambda : float
+        latent heat of vaporzation (MJ kg-1).
     
     Returns
     -------
-    psicr : Psicrometric constant (mb C-1)'''
+    psicr : float
+        Psicrometric constant (mb C-1).'''
     
     psicr=0.00163*p/(Lambda)
     return psicr
     
 def CalcRho (p, ea, Ta_K):
-    '''Calculates the density of air
+    '''Calculates the density of air.
     
     Parameters
     ----------
-    p : total air pressure (dry air + water vapour) (mb)
-    ea : water vapor pressure at reference height above canopy (mb)
-    Ta_K : air temperature at reference height (Kelvin)
+    p : float
+        total air pressure (dry air + water vapour) (mb).
+    ea : float
+        water vapor pressure at reference height above canopy (mb).
+    Ta_K : float
+        air temperature at reference height (Kelvin).
     
     Returns
     -------
-    rho : density of air (kg m-3)
+    rho : float
+        density of air (kg m-3).
 
-    based on equation (2.6) from Brutsaert (2005): Hydrology - An Introduction (pp 25)'''
+    References
+    ----------
+    based on equation (2.6) from Brutsaert (2005): Hydrology - An Introduction (pp 25).'''
     
     # p is multiplied by 100 to convert from mb to Pascals
     rho = ((p*100.0)/(R_d * Ta_K )) * (1.0 - (1.0 - epsilon) * ea / p)
     return rho
 
 def CalcStephanBoltzmann(T_K):
-    '''Calculates the total energy radiated by a blackbody
+    '''Calculates the total energy radiated by a blackbody.
     
-    Parameter
-    ---------
-    T_K : body temperature (Kelvin)
+    Parameters
+    ----------
+    T_K : float
+        body temperature (Kelvin)
     
     Returns
     -------
-    M : Emitted radiance (W m-2)'''
+    M : float
+        Emitted radiance (W m-2)'''
     
     M=sb*T_K**4
     return M
     
 def CalcTheta_s (xlat,xlong,stdlng,doy,year,ftime):
-    '''Calculates the Sun Zenith Angle (SZA)
+    '''Calculates the Sun Zenith Angle (SZA).
     
     Parameters
     ----------
-    xlat - latitude of the site (degrees)
-    xlong - longitude of the site (degrees)
-    stdlng - central longitude of the time zone of the site (degrees)
-    doy - day of year of measurement (1-366)
-    year - year of measurement 
-    ftime - time of measurement (decimal hours)
+    xlat : float
+        latitude of the site (degrees).
+    xlong : float
+        longitude of the site (degrees).
+    stdlng : float
+        central longitude of the time zone of the site (degrees).
+    doy : float
+        day of year of measurement (1-366).
+    year : float
+        year of measurement .
+    ftime : float
+        time of measurement (decimal hours).
     
     Returns
     -------
-    theta_s : Sun Zenith Angle (degrees)
+    theta_s : float
+        Sun Zenith Angle (degrees).
     
-    Adpopted from Martha Anderson's fortran code for ALEXI which in turn was based on Cupid'''
+    References
+    ----------
+    Adpopted from Martha Anderson's fortran code for ALEXI which in turn was based on Cupid.'''
     
     from math import pi, radians,sin, cos, asin, acos, degrees
     pid180 = pi/180
@@ -185,20 +231,28 @@ def CalcTheta_s (xlat,xlong,stdlng,doy,year,ftime):
     return theta_s
 
 def Get_SunAngles(lat,lon,stdlon,doy,ftime):
-    '''Calculates the Sun Zenith and Azimuth Angles (SZA & SAA)
+    '''Calculates the Sun Zenith and Azimuth Angles (SZA & SAA).
     
     Parameters
     ----------
-    lat - latitude of the site (degrees)
-    long - longitude of the site (degrees)
-    stdlon - central longitude of the time zone of the site (degrees)
-    doy - day of year of measurement (1-366)
-    ftime - time of measurement (decimal hours)
+    lat : float
+        latitude of the site (degrees).
+    long : float
+        longitude of the site (degrees).
+    stdlng : float
+        central longitude of the time zone of the site (degrees).
+    doy : float
+        day of year of measurement (1-366).
+    ftime : float
+        time of measurement (decimal hours).
     
     Returns
     -------
-    sza : Sun Zenith Angle (degrees)
-    saa : Sun Azimuth Angle (degrees)
+    sza : float
+        Sun Zenith Angle (degrees).
+    saa : float
+        Sun Azimuth Angle (degrees).
+     
     '''
   
     from math import pi, sin, cos, asin, acos, radians, degrees
@@ -225,15 +279,17 @@ def Get_SunAngles(lat,lon,stdlon,doy,ftime):
     return sza,saa
 
 def CalcVaporPressure(T_K):
-    '''Calculate the saturation water vapour pressure
+    '''Calculate the saturation water vapour pressure.
     
-    Parameter
-    ---------
-    T_K : temperature (K)
+    Parameters
+    ----------
+    T_K : float
+        temperature (K).
     
-    Results
+    Returns
     -------
-    ea : saturation water vapour pressure (mb)'''
+    ea : float
+        saturation water vapour pressure (mb).'''
    
     from math import exp
     T_C=T_K-273.15
@@ -241,15 +297,17 @@ def CalcVaporPressure(T_K):
     return ea
     
 def CalcDeltaVaporPressure(T_K):
-    '''Calculate the slope of saturation water vapour pressure
+    '''Calculate the slope of saturation water vapour pressure.
     
-    Parameter
-    ---------
-    T_K : temperature (K)
+    Parameters
+    ----------
+    T_K : float
+        temperature (K).
     
-    Results
+    Returns
     -------
-    s : slope of the saturation water vapour pressure (kPa K-1)'''
+    s : float
+        slope of the saturation water vapour pressure (kPa K-1)'''
    
     from math import exp
     T_C=T_K-273.15

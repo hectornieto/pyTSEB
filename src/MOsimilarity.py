@@ -18,11 +18,35 @@
 Created on Apr 6 2015
 @author: Hector Nieto (hnieto@ias.csic.es)
 
-Modified on Dec 30 2015
+Modified on Jan 27 2016
 @author: Hector Nieto (hnieto@ias.csic.es)
 
-Routines for estimating variables related to the Monin-Obukhov (MO) Similarity Theory,
-such as  MO lenght and adiabatic correctors for heat and momentum transport
+DESCRIPTION
+===========
+This package contains the main routines for estimating variables related to the Monin-Obukhov (MO) Similarity Theory,
+such as  MO length, adiabatic correctors for heat and momentum transport and wind profile through a canopy. It
+requires the following package.
+
+* :doc:`meteoUtils` for the estimation of meteorological variables.
+
+PACKAGE CONTENTS
+================
+* :func:`CalcL` Monin-Obukhov length.
+* :func:`CalcRichardson` Richardson number.
+* :func:`CalcU_star` Friction velocity.
+
+Stability correction functions
+------------------------------
+* :func:`CalcPsi_H` Adiabatic correction factor for heat transport.
+* :func:`CalcPsi_M` Adiabatic correction factor for momentum transport.
+* :func:`CalcPsi_M_B92` Adiabatic correction factor for momentum transport [Brutsaert1992]_.
+
+Wind profile functions
+----------------------
+* :func:`CalcU_C` [Norman1995]_ canopy wind speed.
+* :func:`CalcU_Goudriaan` [Goudriaan1977]_ wind speed profile below the canopy.
+* :func:`CalcA_Goudriaan` [Goudriaan1977]_ wind attenuation coefficient below the canopy.
+
 """
 
 #==============================================================================
@@ -40,23 +64,32 @@ i_w=0.5
 import meteoUtils as met
 
 def CalcL (ustar, Ta_K, rho, c_p, H, LE):
-    '''Calculates the Monin-Obukhov lenght
+    '''Calculates the Monin-Obukhov length.
 
     Parameters
     ----------
-    ustar : friction velocity (m s-1)
-    Ta_K : air temperature (Kelvin)
-    rho : air density (kg m-3)
-    c_p : Heat capacity of air at constant pressure (J kg-1 K-1)
-    H : sensible heat flux (W m-2)
-    LE : latent heat flux (W m-2)
+    ustar : float
+        friction velocity (m s-1).
+    Ta_K : float
+        air temperature (Kelvin).
+    rho : float
+        air density (kg m-3).
+    c_p : float
+        Heat capacity of air at constant pressure (J kg-1 K-1).
+    H : float
+        sensible heat flux (W m-2).
+    LE : float
+        latent heat flux (W m-2).
     
     Returns
     -------
-    L : Obukhov stability length (m)
-
-    based on equation (2.46) from Brutsaert (2005): 
-    Hydrology - An Introduction (pp 46)'''
+    L : float
+        Obukhov stability length (m).
+    
+    References
+    ----------
+    .. [Brutsaert2005] Brutsaert, W. (2005). Hydrology: an introduction (Vol. 61, No. 8).
+        Cambridge: Cambridge University Press.'''
 
     # first convert latent heat into rate of surface evaporation (kg m-2 s-1)
     Lambda = met.CalcLambda(Ta_K)*1e6 #in J kg-1
@@ -71,18 +104,23 @@ def CalcL (ustar, Ta_K, rho, c_p, H, LE):
     return L
     
 def CalcPsi_H (zoL):
-    ''' Calculates the adiabatic correction factor for heat transport
+    ''' Calculates the adiabatic correction factor for heat transport.
     
-    Parameter
-    ---------
-    zoL : stability coefficient (unitless)
+    Parameters
+    ----------
+    zoL : float
+        stability coefficient (unitless).
     
     Returns
     -------
-    Psi_H : adiabatic corrector factor fof heat transport (unitless)
-    
-    based on equations (2.59) for stable and (2.64) for unstable of Brutsaert, 2005 
-    "Hydrology, an introduction" book'''
+    Psi_H : float
+        adiabatic corrector factor fof heat transport (unitless).
+        
+    References
+    ----------
+    .. [Brutsaert2005] Brutsaert, W. (2005). Hydrology: an introduction (Vol. 61, No. 8).
+        Cambridge: Cambridge University Press.
+    '''
     
     from math import log
     Psi_H = 0.0
@@ -101,18 +139,23 @@ def CalcPsi_H (zoL):
     return Psi_H
 
 def CalcPsi_M (zoL):
-    ''' Calculates the adiabatic correction factor for momentum transport
+    ''' Adiabatic correction factor for momentum transport.
     
-    Parameter
-    ---------
-    zoL : stability coefficient (unitless)
+    Parameters
+    ----------
+    zoL : float
+        stability coefficient (unitless).
     
     Returns
     -------
-    Psi_M : adiabatic corrector factor fof momentum transport (unitless)
-    
-    based on equations (2.59) for stable and (2.63) for unstable of Brutsaert, 2005 
-    "Hydrology, an introduction" book'''
+    Psi_M : float
+        adiabatic corrector factor fof momentum transport (unitless).
+
+    References
+    ----------
+    .. [Brutsaert2005] Brutsaert, W. (2005). Hydrology: an introduction (Vol. 61, No. 8).
+        Cambridge: Cambridge University Press.
+    '''
 
     from math import log, pi,atan
     Psi_M = 0.0
@@ -134,19 +177,24 @@ def CalcPsi_M (zoL):
     return Psi_M
 
 def CalcPsi_M_B92 (zoL):
-    ''' Calculates the adiabatic correction factor for momentum transport
+    ''' Adiabatic correction factor for momentum transport [Brutsaert1992]_
     
-    Parameter
-    ---------
-    zoL : stability coefficient (unitless)
+    Parameters
+    ----------
+    zoL : float
+        stability coefficient (unitless).
     
     Returns
     -------
-    Psi_M : adiabatic corrector factor fof momentum transport (unitless)
+    Psi_M : float
+        adiabatic corrector factor fof momentum transport (unitless).
     
-    based on equation (15) for unstable conditions of Brutsaert, 1992 
-    "Stability correction fucntions for the mean wind speed and temperatures 
-    in the unstable surface layer. Geophysical Research Letters, 19 (5), 479-472'''
+    References
+    ----------
+    .. [Brutsaert1992] Brutsaert, W. (1992). Stability correction functions for the mean wind speed and
+        temperature in the unstable surface layer. Geophysical research letters, 19(5), 469-472,
+        http://dx.doi.org/10.1029/92GL00084.
+    '''
 
     from math import log, pi
     Psi_M = 0.0
@@ -172,48 +220,76 @@ def CalcPsi_M_B92 (zoL):
     return Psi_M
 
 def CalcRichardson (u, z_u, d_0, T_R0, T_R1, T_A0, T_A1):
-    '''Estimates the Bulk Richardson number for turbulence using 
-        time difference temperatures
+    '''Richardson number.
+
+    Estimates the Bulk Richardson number for turbulence using 
+    time difference temperatures.
     
     Parameters
     ----------
-    u : Wind speed (m s-1)
-    z_u : Wind speed measurement height (m)
-    d_0 : Zero-plane displacement height (m)
-    T_R0 : radiometric surface temperature at time 0 (K)
-    T_R1 : radiometric surface temperature at time 1 (K)
-    T_A0 : air temperature at time 0 (K)
-    T_A1 : air temperature at time 1 (K)
+    u : float
+        Wind speed (m s-1).
+    z_u : float
+        Wind speed measurement height (m).
+    d_0 : float
+        Zero-plane displacement height (m).
+    T_R0 : float
+        radiometric surface temperature at time 0 (K).
+    T_R1 : float
+        radiometric surface temperature at time 1 (K).
+    T_A0 : float
+        air temperature at time 0 (K).
+    T_A1 : float
+        air temperature at time 1 (K).
     
     Returns
     -------
-    Ri : Richardson number
+    Ri : float
+        Richardson number.
 
-    based on equation (12) from Norman et. al., 2000 (DTD paper)'''
+    References
+    ----------
+    .. [Norman2000] Norman, J. M., W. P. Kustas, J. H. Prueger, and G. R. Diak (2000),
+        Surface flux estimation using radiometric temperature: A dual-temperature-difference
+        method to minimize measurement errors, Water Resour. Res., 36(8), 2263-2274,
+        http://dx.doi.org/10.1029/2000WR900033.
+    '''
 
     # See eq (2) from Louis 1979
     Ri = -(gravity * (z_u - d_0) / T_A1) * (((T_R1 - T_R0) - (T_A1 - T_A0)) / u**2)
     return Ri
 
 def CalcU_C (u, h_C, d_0, z_0M, z_u,L):
-    '''Estimates the wind speed at the canopy interface
+    '''[Norman1995]_ wind speed at the canopy
     
     Parameters
     ----------
-    u : Wubd speed measured at heigth z_u (m s-1)
-    h_C : canopy height (m)
-    d_0 : zero-plane displacement height
-    z_0M : aerodynamic roughness lenght for momentum transport (m)
-    z_u: Height of measurement of wind speeed
-    L: Monin Obukhov Lenght
+    u : float
+        Wind speed measured at heigth z_u (m s-1).
+    h_C : float
+        canopy height (m).
+    d_0 : float
+        zero-plane displacement height.
+    z_0M : float
+        aerodynamic roughness length for momentum transport (m).
+    z_u:  float
+        Height of measurement of wind speeed.
+    L : float
+     Monin Obukhov length.
     
     Returns
     -------
-    u_C : wind speed at the canop interface (m s-1)
+    u_C : float
+        wind speed at the canop interface (m s-1).
     
-    based on equations from appendix B of Normal et al., 1995:
-    Source approach for estimating soil and vegetation energy fluxes in 
-    observations of directional radiometric surface temperature'''
+    References
+    ----------
+    .. [Norman1995] J.M. Norman, W.P. Kustas, K.S. Humes, Source approach for estimating
+        soil and vegetation energy fluxes in observations of directional radiometric
+        surface temperature, Agricultural and Forest Meteorology, Volume 77, Issues 3-4,
+        Pages 263-293,
+        http://dx.doi.org/10.1016/0168-1923(95)02265-Y.
+    '''
 
     from math import log
     Psi_M= CalcPsi_M((h_C - d_0)/L)
@@ -222,23 +298,35 @@ def CalcU_C (u, h_C, d_0, z_0M, z_u,L):
     return u_C
 
 def CalcU_Goudriaan (u_C, h_C, LAI, leaf_width, z):
-    '''Estimates the wind speed at a given height below the canopy
+    '''Estimates the wind speed at a given height below the canopy.
     
     Parameters
     ----------
-    U_C : Windspeed at the canopy interface (m s-1)
-    h_C : canopy height (m)
-    LAI : Efective Leaf (Plant) Area Index
-    leaf_width : effective leaf width size (m)
-    z : heigh at which the windsped will be estimated
+    U_C : float
+        Windspeed at the canopy interface (m s-1).
+    h_C : float
+        canopy height (m).
+    LAI : float
+        Efective Leaf (Plant) Area Index.
+    leaf_width : float
+        effective leaf width size (m).
+    z : float
+        heigh at which the windsped will be estimated.
     
     Returns
     -------
-    u_z : wind speed at height z (m s-1)
+    u_z : float
+        wind speed at height z (m s-1).
     
-    based on equations from appendix B of Normal et al., 1995:
-    Source approach for estimating soil and vegetation energy fluxes in 
-    observations of directional radiometric surface temperature'''
+    References
+    ----------
+    .. [Norman1995] J.M. Norman, W.P. Kustas, K.S. Humes, Source approach for estimating
+        soil and vegetation energy fluxes in observations of directional radiometric
+        surface temperature, Agricultural and Forest Meteorology, Volume 77, Issues 3-4,
+        Pages 263-293,
+        http://dx.doi.org/10.1016/0168-1923(95)02265-Y.
+    .. [Goudriaan1977] Goudriaan (1977) Crop micrometeorology: a simulation study
+ '''
 
     from math import exp
     a=CalcA_Goudriaan (h_C,LAI,leaf_width) # extinction factor for wind speed
@@ -250,18 +338,22 @@ def CalcA_Goudriaan (h_C,LAI,leaf_width):
     
     Parameters
     ----------    
-    h_C : canopy height (m)
-    LAI : Efective Leaf (Plant) Area Index
-    leaf_width : effective leaf width size (m)
+    h_C : float
+        canopy height (m)
+    LAI : float
+        Efective Leaf (Plant) Area Index
+    leaf_width : float
+        effective leaf width size (m)
 
     Returns
     -------
-    a : exctinction coefficient for wind speed through the canopy
+    a : float
+        exctinction coefficient for wind speed through the canopy
     
-    based on equations  4.49 and 4.45 of Goudriaan 1977:
-    Crop micrometeorology: a simulation study'''
-    # Asuming a uniform leaf area density
-    from math import pi
+    References
+    ----------
+    .. [Goudriaan1977] Goudriaan (1977) Crop micrometeorology: a simulation study
+    '''
 
     # Equation in Norman et al. 1995
     k3_prime=0.28
@@ -269,27 +361,32 @@ def CalcA_Goudriaan (h_C,LAI,leaf_width):
 
     return a
     
-def CalcU_star (u, z_u, L, d_0,z_0M, useRi=False, z_star=False):
-    '''Calculates the friction velocity
+def CalcU_star (u, z_u, L, d_0,z_0M, useRi=False):
+    '''Friction velocity.
     
     Parameters
     ----------
-    u : wind speed above the surface (m s-1)
-    z_u : wind speed measurement height (m)
-    L : Obukhov stability length (m) or Richardson number, see useRi variable
-    d_0 : zero-plane displacement height (m)
-    z_0M : aerodynamic roughness lenght for momentum transport (m)
-    useRi : Boolean variable to use the Richardson number istead of MO lenght 
-        for adiabatic correction factors
-    z_star : height of the roughness sublayer (RSL), optional, if used and zstar>0 
-        the adiabatic correction in the RSL will be computed
+    u : float
+        wind speed above the surface (m s-1).
+    z_u : float
+        wind speed measurement height (m).
+    L : float
+        Obukhov stability length (m) or Richardson number, see useRi variable.
+    d_0 : float
+        zero-plane displacement height (m).
+    z_0M : float
+        aerodynamic roughness length for momentum transport (m).
+    useRi : bool, optional 
+        Use the Richardson number istead of MO length for adiabatic correction factors.
  
-    rearanged equation (2.54) from Brutsaert (2005): Hydrology - An Introduction (pp 47)''' 
-
+    References
+    ----------
+    .. [Brutsaert2005] Brutsaert, W. (2005). Hydrology: an introduction (Vol. 61, No. 8).
+        Cambridge: Cambridge University Press.
+    ''' 
     from math import log
     Psi_M=0.0
     Psi_M0=0.0
-    Psi_M_star=0.0
     if useRi: 
         #use the approximation Ri ~ (z-d_0)./L from end of section 2.	2 from Norman et. al., 2000 (DTD paper) 
         Psi_M = CalcPsi_M(L);
@@ -299,7 +396,5 @@ def CalcU_star (u, z_u, L, d_0,z_0M, useRi=False, z_star=False):
         if L == 0.0: L=1e-36
         Psi_M= CalcPsi_M((z_u - d_0)/L)
         Psi_M0 = CalcPsi_M(z_0M/L)
-    if z_star>0 and z_u <= z_star:
-        Psi_M_star=CalcPsi_M_star(z_u, L, d_0,z_0M,z_star)
-    u_star = u * k / ( log( (z_u - d_0) / z_0M ) - Psi_M + Psi_M0 +Psi_M_star)
+    u_star = u * k / ( log( (z_u - d_0) / z_0M ) - Psi_M + Psi_M0)
     return u_star

@@ -18,10 +18,53 @@
 Created on Apr 6 2015
 @author: Hector Nieto (hnieto@ias.csic.es)
 
-Modified on Dec 30 2015
+Modified on Jan 27 2016
 @author: Hector Nieto (hnieto@ias.csic.es)
 
-TSEB main modules
+DESCRIPTION
+===========
+This package contains the main routines inherent of Two Source Energy Balance `TSEB` models.
+Additional functions needed in TSEB, such as computing of net radiation or estimating the
+resistances to heat and momentum transport are imported.
+
+* :doc:`netRadiation` for the estimation of net radiation and radiation partitioning.
+* :doc:`ClumpingIndex` for the estimatio of canopy clumping index.
+* :doc:`meteoUtils` for the estimation of meteorological variables.
+* :doc:`resistances` for the estimation of the resistances to heat and momentum transport.
+* :doc:`MOsimilarity` for the estimation of the Monin-Obukhov length and MOST-related variables.
+
+PACKAGE CONTENTS
+================
+
+TSEB models
+-----------
+* :func:`TSEB_2T` TSEB using derived/measured canopy and soil component temperatures.
+* :func:`TSEB_PT` Priestley-Taylor TSEB using a single observation of composite radiometric temperature.
+* :func:`DTD` Dual-Time Differenced TSEB using composite radiometric temperatures at two times: early morning and near afternoon.
+
+OSEB models
+-----------
+* :func:`OSEB`. One Source Energy Balance Model.
+* :func:`OSEB_BelowCanopy`. One Source Energy Balance Model of baresoil/understory beneath a canopy.
+* :func:`OSEB_Canopy`. One Source Energy Balance Model of a very dense canopy, i.e. `Big-leaf` model.
+
+Ancillary functions
+-------------------
+* :func:`CalcFthetaCampbell`. Gap fraction estimation.
+* :func:`CalcG_TimeDiff`. Santanello & Friedl (2003) [Santanello2003]_ soil heat flux model.
+* :func:`CalcG_Ratio`. Soil heat flux as a fixed fraction of net radiation [Choudhury1987]_.
+* :func:`CalcH_C`. canopy sensible heat flux in a parallel resistance network.
+* :func:`CalcH_C_PT`. Priestley- Taylor Canopy sensible heat flux.
+* :func:`CalcH_DTD_parallel`. Priestley- Taylor Canopy sensible heat flux for DTD and resistances in parallel.
+* :func:`CalcH_DTD_series`. Priestley- Taylor Canopy sensible heat flux for DTD and resistances in series.
+* :func:`CalcH_S`. Soil heat flux with resistances in parallel.
+* :func:`CalcT_C`. Canopy temperature form composite radiometric temperature.
+* :func:`CalcT_C_Series.` Canopy temperature from canopy sensible heat flux and resistance in series.
+* :func:`CalcT_CS_Norman`. Component temperatures from dual angle composite radiometric tempertures.
+* :func:`CalcT_CS_4SAIL`. Component temperatures from dual angle composite radiometric tempertures. Using 4SAIl for the inversion.
+* :func:`Get4SAILEmissionParam`. Effective surface reflectance, and emissivities for soil and canopy using 4SAIL.
+* :func:`CalcT_S`. Soil temperature from form composite radiometric temperature.
+* :func:`CalcT_S_Series`. Soil temperature from soil sensible heat flux and resistance in series.
 '''
 
 import meteoUtils as met
@@ -54,51 +97,96 @@ kB=0.0
 def TSEB_2T(Tc,Ts,Ta_K,u,ea,p,Rn_sw_veg, Rn_sw_soil, Rn_lw_veg, Rn_lw_soil,LAI, 
             hc,z_0M, d_0, zu, zt, 
             leaf_width=0.1,z0_soil=0.01, alpha_PT=1.26,f_c=1,CalcG=[1,0.35]):
-    ''' Calculates the turbulent fluxes by the Two Source Energy Balance model 
-    using canopy and soil temperatures
+    ''' TSEB using component canopy and soil temperatures.
+
+    Calculates the turbulent fluxes by the Two Source Energy Balance model 
+    using canopy and soil component temperatures that were derived or measured
+    previously.
     
     Parameters
     ----------
-    Ts: Soil Temperature (Kelvin)
-    Tc: Canopy Temperature (Kelvin)
-    Ta_K: Air temperature above the canopy (Kelvin)
-    u: Wind speed above the canopy (m s-1)
-    ea: Water vapour pressure above the canopy (mb)
-    p: Atmospheric pressure (mb), use 1013 mb by default
-    Rn_sw_veg:  Canopy net shortwave radiation (W m-2)
-    Rn_sw_soil:  Soil net shortwave radiation (W m-2)
-    Rn_lw_veg:  Canopy net longwave radiation (W m-2)
-    Rn_lw_soil:  Soil net longwave radiation (W m-2)
-    LAI: Effective Leaf Area Index (m2 m-2)
-    hc:  Canopy height (m)
-    z_0M: Aerodynamic surface roughness length for momentum transfer (m)
-    d_0: Zero-plane displacement height (m)
-    zm: Height of measurement of windspeed (m)
-    zh: Height of measurement of air temperature (m)
-    leaf_width: average/effective leaf width (m)
-    z0_soil: bare soil aerodynamic roughness length (m)
-    alpha_PT: Priestley Taylor coeffient for canopy potential transpiration, 
-        use 1.26 by default
-    CalcG : list [Method to calculate soil heat flux,parameters]
-        [1,G_ratio]: default, estimate G as a ratio of Rn_soil, default Gratio=0.35
-        [0,G_constant] : Use a constant G, usually use 0 to ignore the computation of G
-        [2,G_param] : estimate G from Santanello and Friedl with time=decTime
+    Ts : float
+        Soil Temperature (Kelvin).
+    Tc : float
+        Canopy Temperature (Kelvin).
+    Ta_K : float 
+        Air temperature (Kelvin).
+    u : float 
+        Wind speed above the canopy (m s-1).
+    ea : float
+        Water vapour pressure above the canopy (mb).
+    p : float
+        Atmospheric pressure (mb), use 1013 mb by default.
+    Rn_sw_veg : float
+        Canopy net shortwave radiation (W m-2).
+    Rn_sw_soil : float
+        Soil net shortwave radiation (W m-2).
+    Rn_lw_veg : float
+        Canopy net longwave radiation (W m-2).
+    Rn_lw_soil : float
+        Soil net longwave radiation (W m-2).
+    LAI : float
+        Effective Leaf Area Index (m2 m-2).
+    hc : float
+        Canopy height (m).
+    z_0M : float
+        Aerodynamic surface roughness length for momentum transfer (m).
+    d_0 : float
+        Zero-plane displacement height (m).
+    zu : float
+        Height of measurement of windspeed (m).
+    zt : float
+        Height of measurement of air temperature (m).
+    leaf_width : float, optional
+        average/effective leaf width (m).
+    z0_soil : float, optional
+        bare soil aerodynamic roughness length (m).
+    alpha_PT : float, optional
+        Priestley Taylor coeffient for canopy potential transpiration, 
+        use 1.26 by default.
+    CalcG : tuple(int,list), optional
+        Method to calculate soil heat flux,parameters.
+        
+            * (1,G_ratio): default, estimate G as a ratio of Rn_soil, default Gratio=0.35.
+            * (0,G_constant) : Use a constant G, usually use 0 to ignore the computation of G.
+            * (2,G_param) : estimate G from Santanello and Friedl with G_param list of parameters (see :func:`~TSEB.CalcG_TimeDiff`).
     
     Returns
     -------
-    flag: Quality flag, see Appendix for description
-    T_AC: Air temperature at the canopy interface (Kelvin)
-    LE_C: Canopy latent heat flux (W m-2)
-    H_C: Canopy sensible heat flux (W m-2)
-    LE_S: Soil latent heat flux (W m-2)
-    H_S: Soil sensible heat flux (W m-2)
-    G: Soil heat flux (W m-2)
-    R_s: Soil aerodynamic resistance to heat transport (s m-1)
-    R_x: Bulk canopy aerodynamic resistance to heat transport (s m-1)
-    R_a: Aerodynamic resistance to heat transport (s m-1)
-    u_friction: Friction velocity (m s-1)
-    L: Monin-Obuhkov length (m)
-    n_iterations: number of iterations until convergence of L'''
+    flag : int
+        Quality flag, see Appendix for description.
+    T_AC : float
+        Air temperature at the canopy interface (Kelvin).
+    LE_C : float
+        Canopy latent heat flux (W m-2).
+    H_C : float
+        Canopy sensible heat flux (W m-2).
+    LE_S : float
+        Soil latent heat flux (W m-2).
+    H_S : float
+        Soil sensible heat flux (W m-2).
+    G : float
+        Soil heat flux (W m-2).
+    R_s : float
+        Soil aerodynamic resistance to heat transport (s m-1).
+    R_x : float
+        Bulk canopy aerodynamic resistance to heat transport (s m-1).
+    R_a : float
+        Aerodynamic resistance to heat transport (s m-1).
+    u_friction : float
+        Friction velocity (m s-1).
+    L : float
+        Monin-Obuhkov length (m).
+    n_iterations : int
+        number of iterations until convergence of L.
+        
+    References
+    ----------
+    .. [Kustas1997] Kustas, W. P., and J. M. Norman (1997), A two-source approach for estimating
+        turbulent fluxes using multiple angle thermal infrared observations,
+        Water Resour. Res., 33(6), 1495-1508,
+        http://dx.doi.org/10.1029/97WR00704.
+    '''
     
     from math import exp
     #Air density (kg m-3)
@@ -201,74 +289,147 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
             LAI,hc,emisVeg,emisGrd,spectraVeg,spectraGrd,z_0M,d_0,zu,zt,
             leaf_width=0.1,z0_soil=0.01,alpha_PT=1.26,f_c=1.0,f_g=1.0,wc=1.0,
             CalcG=[1,0.35]):
-    '''Calculates the single angle Priestley Taylor TSEB fluxes with resistances 
-    in series
+    '''Priestley-Taylor TSEB
+
+    Calculates the Priestley Taylor TSEB fluxes using a single observation of
+    composite radiometric temperature and using resistances in series.
     
     Parameters
     ----------
-    Tr_K: Land Surface Temperature (Kelvin)
-    vza: View Zenith Angle (Degrees)
-    Ta_K: Air temperature above the canopy (Kelvin)
-    u: Wind speed above the canopy (m s-1)
-    ea: Water vapour pressure above the canopy (mb)
-    p: Atmospheric pressure (mb), use 1013 mb by default
-    Sdn_dir: Direct shortwave irradiance (W m-2)
-    Sdn_dif: Difuse shortwave irradiance (W m-2)
-    fvis: Fraction of difuse radiation PAR
-    fnir: Fraction of difuse radiation NIR (W m-2)
-    sza: Solar Zenith Angle (Degrees)
-    Lsky: Downwelling (Incoming) atmospheric longwave radiation (W m-2)
-    LAI: Effective Leaf Area Index (m2 m-2)
-    hc:  Canopy height (m)
-    emisVeg: leaf emissivity
-    emisGrd: soil emissivity
-    spectraVeg: leaf spectrum. A python dictionary with 
-            spectraVeg= dict('rho_leaf_vis'=leaf bihemispherical reflectance in the 
-            visible (400-700 nm), 'tau_leaf_vis'= leaf bihemispherical transmittance 
-            in the visible (400-700nm), 'rho_leaf_nir'= leaf bihemispherical 
-            reflectance in the optical infrared (700-2500nm), 
-            'tau_leaf_nir'= leaf bihemispherical reflectance in the optical 
-            infrared (700-2500nm)}
-    spectraGrd: soil spectrum. A python dictionary with 
-            spectraGrd= dict('rho rsoilv'=soil bihemispherical reflectance in 
-            the visible (400-700 nm), 'rsoiln'=soil bihemispherical reflectance 
-            in the optical infrared (700-2500nm)
-    z_0M: Aerodynamic surface roughness length for momentum transfer (m)
-    d_0: Zero-plane displacement height (m)
-    zu: Height of measurement of windspeed (m)
-    zt: Height of measurement of air temperature (m)
-    leaf_width: average/effective leaf width (m)
-    z0_soil: bare soil aerodynamic roughness length (m)
-    alpha_PT: Priestley Taylor coeffient for canopy potential transpiration, use 1.26 by default
-    f_c: Fractoinal cover for estimating clumping index, use 1 by default and ignore clumping index
-    f_g: Fraction of vegetation that is green, use f=1 by default
-    wc: Canopy withd to height ratio, use wc=1 by default
-    CalcG : list [Method to calculate soil heat flux,parameters]
-        [1,G_ratio]: default, estimate G as a ratio of Rn_soil, default Gratio=0.35
-        [0,G_constant] : Use a constant G, usually use 0 to ignore the computation of G
-        [2,G_param] : estimate G from Santanello and Friedl with time=decTime
+    Tr_K : float
+        Radiometric composite temperature (Kelvin).
+    vza : float
+        View Zenith Angle (degrees).
+    Ta_K : float 
+        Air temperature (Kelvin).
+    u : float 
+        Wind speed above the canopy (m s-1).
+    ea : float
+        Water vapour pressure above the canopy (mb).
+    p : float
+        Atmospheric pressure (mb), use 1013 mb by default.
+    Sdn_dir : float
+        Beam solar irradiance (W m-2).
+    Sdn_dif : float
+        Difuse solar irradiance (W m-2).
+    fvis : float
+        Fraction of shortwave radiation corresponding to the PAR region (400-700nm).
+    fnir : float
+        Fraction of shortwave radiation corresponding to the NIR region (700-2500nm).
+    sza : float
+        Solar Zenith Angle (degrees).
+    Lsky : float
+        Downwelling longwave radiation (W m-2).
+    LAI : float
+        Effective Leaf Area Index (m2 m-2).
+    hc : float
+        Canopy height (m).
+    emisVeg : float
+        Leaf emissivity.
+    emisGrd : flaot
+        Soil emissivity.
+    spectraVeg : dict('rho_leaf_vis', 'tau_leaf_vis', 'rho_leaf_nir','tau_leaf_nir')
+        Leaf spectrum dictionary.        
+
+            rho_leaf_vis : float
+                leaf bihemispherical reflectance in the visible (400-700 nm).
+            tau_leaf_vis : float
+                leaf bihemispherical transmittance in the visible (400-700nm).
+            rho_leaf_nir : float
+                leaf bihemispherical reflectance in the optical infrared (700-2500nm),
+            tau_leaf_nir : float
+                leaf bihemispherical transmittance in the optical  infrared (700-2500nm).
+    spectraGrd : dict('rho rsoilv', 'rsoiln')
+        Soil spectrum dictonary.
         
+            rsoilv : float
+                soil bihemispherical reflectance in the visible (400-700 nm).
+            rsoiln : float
+                soil bihemispherical reflectance in the optical infrared (700-2500nm).
+    z_0M : float
+        Aerodynamic surface roughness length for momentum transfer (m).
+    d_0 : float
+        Zero-plane displacement height (m).
+    zu : float
+        Height of measurement of windspeed (m).
+    zt : float
+        Height of measurement of air temperature (m).
+    leaf_width : float, optional
+        average/effective leaf width (m).
+    z0_soil : float, optional
+        bare soil aerodynamic roughness length (m).
+    alpha_PT : float, optional
+        Priestley Taylor coeffient for canopy potential transpiration, 
+        use 1.26 by default.
+    x_LAD : float, optional
+        Campbell 1990 leaf inclination distribution function chi parameter.
+    f_c : float, optional
+        Fractional cover.
+    f_g : float, optional
+        Fraction of vegetation that is green.
+    wc : float, optional
+        Canopy width to height ratio.
+    CalcG : tuple(int,list), optional
+        Method to calculate soil heat flux,parameters.
+        
+            * (1,G_ratio): default, estimate G as a ratio of Rn_soil, default Gratio=0.35.
+            * (0,G_constant) : Use a constant G, usually use 0 to ignore the computation of G.
+            * (2,G_param) : estimate G from Santanello and Friedl with G_param list of parameters (see :func:`~TSEB.CalcG_TimeDiff`).
+    
     Returns
     -------
-    flag: Quality flag, see Appendix for description
-    Ts: Soil Temperature (Kelvin)
-    Tc: Canopy Temperature (Kelvin)
-    T_AC: Air temperature at the canopy interface (Kelvin)
-    S_nS:  Soil net shortwave radiation (W m-2)
-    S_nC:  Canopy net shortwave radiation (W m-2)
-    L_nS: Soil net longwave radiation (W m-2)
-    L_nC: Canopy net longwave radiation (W m-2)
-    LE_C: Canopy latent heat flux (W m-2)
-    H_C: Canopy sensible heat flux (W m-2)
-    LE_S: Soil latent heat flux (W m-2)
-    H_S: Soil sensible heat flux (W m-2)
-    G: Soil heat flux (W m-2)
-    R_s: Soil aerodynamic resistance to heat transport (s m-1)
-    R_x: Bulk canopy aerodynamic resistance to heat transport (s m-1)
-    R_a: Aerodynamic resistance to heat transport (s m-1)
-    u_friction: Friction velocity (m s-1)
-    L: Monin-Obuhkov length (m)
-    counter: number of iterations until convergence of L'''    
+    flag : int
+        Quality flag, see Appendix for description.
+    Ts : float
+        Soil temperature  (Kelvin).
+    Tc : float
+        Canopy temperature  (Kelvin).
+    T_AC : float
+        Air temperature at the canopy interface (Kelvin).
+    S_nS : float
+        Soil net shortwave radiation (W m-2)
+    S_nC : float
+        Canopy net shortwave radiation (W m-2)
+    L_nS : float
+        Soil net longwave radiation (W m-2)
+    L_nC : float
+        Canopy net longwave radiation (W m-2)
+    LE_C : float
+        Canopy latent heat flux (W m-2).
+    H_C : float
+        Canopy sensible heat flux (W m-2).
+    LE_S : float
+        Soil latent heat flux (W m-2).
+    H_S : float
+        Soil sensible heat flux (W m-2).
+    G : float
+        Soil heat flux (W m-2).
+    R_s : float
+        Soil aerodynamic resistance to heat transport (s m-1).
+    R_x : float
+        Bulk canopy aerodynamic resistance to heat transport (s m-1).
+    R_a : float
+        Aerodynamic resistance to heat transport (s m-1).
+    u_friction : float
+        Friction velocity (m s-1).
+    L : float
+        Monin-Obuhkov length (m).
+    n_iterations : int
+        number of iterations until convergence of L.
+
+    References
+    ----------
+    .. [Norman1995] J.M. Norman, W.P. Kustas, K.S. Humes, Source approach for estimating
+        soil and vegetation energy fluxes in observations of directional radiometric
+        surface temperature, Agricultural and Forest Meteorology, Volume 77, Issues 3-4,
+        Pages 263-293,
+        http://dx.doi.org/10.1016/0168-1923(95)02265-Y.
+    .. [Kustas1999] William P Kustas, John M Norman, Evaluation of soil and vegetation heat
+        flux predictions using a simple two-source model with radiometric temperatures for
+        partial canopy cover, Agricultural and Forest Meteorology, Volume 94, Issue 1,
+        Pages 13-29,
+        http://dx.doi.org/10.1016/S0168-1923(99)00005-2.
+    '''
     
     # Create the output variables
     [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,
@@ -422,72 +583,144 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
     
     Parameters
     ----------
-    Tr_K_0: Land Surface Temperature at time0, morning (Kelvin)
-    Tr_K_1: Land Surface Temperature at time1, noon (Kelvin)
-    Vza: View Zenith Angle at time 1 (Degrees)
-    Ta_K_0: Air temperature above the canopy at time0, morning (Kelvin)
-    Ta_K_1: Air temperature above the canopy at time1, noon (Kelvin)
-    u: Wind speed above the canopy at time1, noon (m s-1)
-    ea: Water vapour pressure above the canopy at time1, noon (mb)
-    p: Atmospheric pressure at time1, noon (mb), use 1013 mb by default
-    Sdn: Incoming solar radiation at time1, noon (W m-2)
-    sza: Solar Zenith Angle at time1, noon (Degrees)
-    Wv: Total Column Atmopheric Precipiable Water Vapour at time1, noon (g cm-2)
-    Lsky: Downwelling (Incoming) atmospheric longwave radiation at time1, noon (W m-2)
-    LAI: Effective Leaf Area Index (m2 m-2)
-    hc:  Canopy height (m)
-    emisVeg: leaf emissivity
-    emisGrd: soil emissivity
-    spectraVeg: leaf spectrum. A python dictionary with
-            spectraVeg= dict('rho_leaf_vis'=leaf bihemispherical reflectance in the 
-            visible (400-700 nm), 'tau_leaf_vis'= leaf bihemispherical transmittance 
-            in the visible (400-700nm), 'rho_leaf_nir'= leaf bihemispherical 
-            reflectance in the optical infrared (700-2500nm), 
-            'tau_leaf_nir'= leaf bihemispherical reflectance in the optical 
-            infrared (700-2500nm)}
-    spectraGrd: soil spectrum. A python dictionary with
-            spectraGrd= dict('rho rsoilv'=soil bihemispherical reflectance in 
-            the visible (400-700 nm), 'rsoiln'=soil bihemispherical reflectance 
-            in the optical infrared (700-2500nm)
-    z_0M: Aerodynamic surface roughness length for momentum transfer (m)
-    d_0: Zero-plane displacement height (m)
-    zm: Height of measurement of windspeed (m)
-    zh: Height of measurement of air temperature (m)
-    f_g: Fraction of vegetation that is green, use f=1 by default
-    wc: Canopy height to width ratio, use wc=1 by default
-    leaf_width: average/effective leaf width (m)
-    z0_soil: bare soil aerodynamic roughness length (m)
-    alpha_PT: Priestley Taylor coeffient for canopy potential transpiration, use 1.26 by default
-    f_c: Fractoinal cover for estimating clumping index, use 1 by default and ignore clumping index
-    f_g: Fraction of vegetation that is green, use f=1 by default
-    wc: Canopy withd to height ratio, use wc=1 by default
-    CalcG : list [Method to calculate soil heat flux,parameters]
-        [1,G_ratio]: default, estimate G as a ratio of Rn_soil, default Gratio=0.35
-        [0,G_constant] : Use a constant G, usually use 0 to ignore the computation of G
-        [2,G_param] : estimate G from Santanello and Friedl with time=decTime
-       
+    Tr_K_0 : float
+        Radiometric composite temperature around sunrise(Kelvin).
+    Tr_K_1 : float
+        Radiometric composite temperature near noon (Kelvin).
+    vza : float
+        View Zenith Angle near noon (degrees).
+    Ta_K_0 : float 
+        Air temperature around sunrise (Kelvin).
+    Ta_K_1 : float 
+        Air temperature near noon (Kelvin).
+    u : float 
+        Wind speed above the canopy (m s-1).
+    ea : float
+        Water vapour pressure above the canopy (mb).
+    p : float
+        Atmospheric pressure (mb), use 1013 mb by default.
+    Sdn_dir : float
+        Beam solar irradiance (W m-2).
+    Sdn_dif : float
+        Difuse solar irradiance (W m-2).
+    fvis : float
+        Fraction of shortwave radiation corresponding to the PAR region (400-700nm).
+    fnir : float
+        Fraction of shortwave radiation corresponding to the NIR region (700-2500nm).
+    sza : float
+        Solar zenith angle (degrees).
+    Lsky : float
+        Downwelling longwave radiation (W m-2).
+    LAI : float
+        Effective Leaf Area Index (m2 m-2).
+    hc : float
+        Canopy height (m).
+    emisVeg : float
+        Leaf emissivity.
+    emisGrd : flaot
+        Soil emissivity.
+    spectraVeg : dict('rho_leaf_vis', 'tau_leaf_vis', 'rho_leaf_nir','tau_leaf_nir')
+        Leaf spectrum dictionary.        
+            
+            rho_leaf_vis : float
+                leaf bihemispherical reflectance in the visible (400-700 nm).
+            tau_leaf_vis : float
+                leaf bihemispherical transmittance in the visible (400-700nm).
+            rho_leaf_nir : float
+                leaf bihemispherical reflectance in the optical infrared (700-2500nm),
+            tau_leaf_nir : float
+                leaf bihemispherical transmittance in the optical  infrared (700-2500nm).
+    spectraGrd : dict('rho rsoilv', 'rsoiln')
+        Soil spectrum dictonary.
+        
+            rsoilv : float
+                soil bihemispherical reflectance in the visible (400-700 nm).
+            rsoiln : float
+                soil bihemispherical reflectance in the optical infrared (700-2500nm).
+    z_0M : float
+        Aerodynamic surface roughness length for momentum transfer (m).
+    d_0 : float
+        Zero-plane displacement height (m).
+    zu : float
+        Height of measurement of windspeed (m).
+    zt : float
+        Height of measurement of air temperature (m).
+    leaf_width : Optional[float]
+        average/effective leaf width (m).
+    z0_soil : Optional[float]
+        bare soil aerodynamic roughness length (m).
+    alpha_PT : Optional[float]
+        Priestley Taylor coeffient for canopy potential transpiration, 
+        use 1.26 by default.
+    x_LAD : Optional[float]
+        Campbell 1990 leaf inclination distribution function chi parameter.
+    f_c : Optiona;[float]
+        Fractional cover.
+    f_g : Optional[float]
+        Fraction of vegetation that is green.
+    wc : Optional[float]
+        Canopy width to height ratio.
+    CalcG : Optional[tuple(int,list)]
+        Method to calculate soil heat flux,parameters.
+        
+            * (1,G_ratio): default, estimate G as a ratio of Rn_soil, default Gratio=0.35.
+            * (0,G_constant) : Use a constant G, usually use 0 to ignore the computation of G.
+            * (2,G_param) : estimate G from Santanello and Friedl with G_param list of parameters (see :func:`~TSEB.CalcG_TimeDiff`).
+    
     Returns
     -------
-    flag: Quality flag, see Appendix for description
-    Ts: Soil Temperature (Kelvin)
-    Tc: Canopy Temperature (Kelvin)
-    T_AC: Air temperature at the canopy interface (Kelvin)
-    S_nS:  Soil net shortwave radiation (W m-2)
-    S_nC:  Canopy net shortwave radiation (W m-2)
-    L_nS: Soil net longwave radiation (W m-2)
-    L_nC: Canopy net longwave radiation (W m-2)
-    LE_C: Canopy latent heat flux (W m-2)
-    H_C: Canopy sensible heat flux (W m-2)
-    LE_S: Soil latent heat flux (W m-2)
-    H_S: Soil sensible heat flux (W m-2)
-    G: Soil heat flux (W m-2)
-    R_s: Soil aerodynamic resistance to heat transport (s m-1)
-    R_x: Bulk canopy aerodynamic resistance to heat transport (s m-1)
-    R_a: Aerodynamic resistance to heat transport (s m-1)
-    u_friction: Friction velocity (m s-1)
-    L: Monin-Obuhkov length (m)
-    Ri: Richardson number
-    count: number of iterations until convergence of L, it should be 1 as we use Richardson number for estimating the stability'''   
+    flag : int
+        Quality flag, see Appendix for description.
+    Ts : float
+        Soil temperature  (Kelvin).
+    Tc : float
+        Canopy temperature  (Kelvin).
+    T_AC : float
+        Air temperature at the canopy interface (Kelvin).
+    S_nS : float
+        Soil net shortwave radiation (W m-2).
+    S_nC : float
+        Canopy net shortwave radiation (W m-2).
+    L_nS : float
+        Soil net longwave radiation (W m-2).
+    L_nC : float
+        Canopy net longwave radiation (W m-2).
+    LE_C : float
+        Canopy latent heat flux (W m-2).
+    H_C : float
+        Canopy sensible heat flux (W m-2).
+    LE_S : float
+        Soil latent heat flux (W m-2).
+    H_S : float
+        Soil sensible heat flux (W m-2).
+    G : float
+        Soil heat flux (W m-2).
+    R_s : float
+        Soil aerodynamic resistance to heat transport (s m-1).
+    R_x : float
+        Bulk canopy aerodynamic resistance to heat transport (s m-1).
+    R_a : float
+        Aerodynamic resistance to heat transport (s m-1).
+    u_friction : float
+        Friction velocity (m s-1).
+    L : float
+        Monin-Obuhkov length (m).
+    Ri : float
+        Richardson number.
+    n_iterations : int
+        number of iterations until convergence of L.
+
+    References
+    ----------
+    .. [Norman2000] Norman, J. M., W. P. Kustas, J. H. Prueger, and G. R. Diak (2000),
+        Surface flux estimation using radiometric temperature: A dual-temperature-difference
+        method to minimize measurement errors, Water Resour. Res., 36(8), 2263-2274,
+        http://dx.doi.org/10.1029/2000WR900033.
+    .. [Guzinski2015] Guzinski, R., Nieto, H., Stisen, S., and Fensholt, R. (2015) Inter-comparison
+        of energy balance and hydrological models for land surface energy flux estimation over
+        a whole river catchment, Hydrol. Earth Syst. Sci., 19, 2017-2036,
+        http://dx.doi.org/10.5194/hess-19-2017-2015.
+    '''
     
     # Create the output variables
     [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
@@ -649,36 +882,62 @@ def  OSEB(Tr_K,Ta_K,u,ea,p,Sdn,Lsky,emis,albedo,z_0M,d_0,zu,zt, CalcG=[1,0.35]):
 
     Parameters
     ----------
-    Tr_K: Land Surface Temperature (Kelvin)
-    Ta_K: Air temperature above the canopy (Kelvin)
-    u: Wind speed above the canopy (m s-1)
-    ea: Water vapour pressure above the canopy (mb)
-    p: Atmospheric pressure (mb), use 1013 mb by default
-    Sdn: Solar Irradiance (W m-2)
-    Lsky: Downwelling (Incoming) atmospheric longwave radiation (W m-2)
-    emis: surface emissivity
-    albedo: surface broadband albedo
-    z_0M: Aerodynamic surface roughness length for momentum transfer (m)
-    d_0: Zero-plane displacement height (m)
-    zm: Height of measurement of windspeed (m)
-    zh: Height of measurement of air temperature (m)
-    CalcG : list [Method to calculate soil heat flux,parameters]
-        [1,G_ratio]: default, estimate G as a ratio of Rn_soil, default Gratio=0.35
-        [0,G_constant] : Use a constant G, usually use 0 to ignore the computation of G
-        [2,G_param] : estimate G from Santanello and Friedl with time=decTime
+    Tr_K : float
+        Radiometric composite temperature (Kelvin).
+    Ta_K : float 
+        Air temperature (Kelvin).
+    u : float 
+        Wind speed above the canopy (m s-1).
+    ea : float
+        Water vapour pressure above the canopy (mb).
+    p : float
+        Atmospheric pressure (mb), use 1013 mb by default.
+    Sdn : float
+        Solar irradiance (W m-2).
+    Lsky : float
+        Downwelling longwave radiation (W m-2)
+    emis : float
+        Surface emissivity.
+    albedo : float
+        Surface broadband albedo.        
+    z_0M : float
+        Aerodynamic surface roughness length for momentum transfer (m).
+    d_0 : float
+        Zero-plane displacement height (m).
+    zu : float
+        Height of measurement of windspeed (m).
+    zt : float
+        Height of measurement of air temperature (m).
+    CalcG : Optional[tuple(int,list)]
+        Method to calculate soil heat flux,parameters.
+        
+            * (1,G_ratio): default, estimate G as a ratio of Rn_soil, default Gratio=0.35
+            * (0,G_constant) : Use a constant G, usually use 0 to ignore the computation of G
+            * (2,G_param) : estimate G from Santanello and Friedl with G_param list of parameters (see :func:`~TSEB.CalcG_TimeDiff`).
     
     Returns
     -------
-    flag: Quality flag, see Appendix for description
-    S_n:  Net shortwave radiation (W m-2)
-    L_n: Net longwave radiation (W m-2)
-    LE: Bulk latent heat flux (W m-2)
-    H: Bulk sensible heat flux (W m-2)
-    G: Soil heat flux (W m-2)
-    R_a: Aerodynamic resistance to heat transport (s m-1)
-    u_friction: Friction velocity (m s-1)
-    L: Monin-Obuhkov length (m)
-    count: number of iterations until convergence of L'''   
+    flag : int
+        Quality flag, see Appendix for description.
+    S_n : float
+        Net shortwave radiation (W m-2)
+    L_n : float
+        Net longwave radiation (W m-2)
+    LE : float
+        Latent heat flux (W m-2).
+    H : float
+        Sensible heat flux (W m-2).
+    G : float
+        Soil heat flux (W m-2).
+    R_a : float
+        Aerodynamic resistance to heat transport (s m-1).
+    u_friction : float
+        Friction velocity (m s-1).
+    L : float
+        Monin-Obuhkov length (m).
+    n_iterations : int
+        number of iterations until convergence of L.
+    '''
    
     # initially stable conditions
     #Define Variables for iteration
@@ -736,23 +995,37 @@ def  OSEB(Tr_K,Ta_K,u,ea,p,Sdn,Lsky,emis,albedo,z_0M,d_0,zu,zt, CalcG=[1,0.35]):
     return flag,S_n, L_n, LE,H,G,R_a,u_friction, L,n_iterations
   
 def CalcFthetaCampbell(theta,F,wc=1,Omega0=1, x_LAD=1):
-    ''' Calculates the fraction of vegetatinon observed at an angle
+    '''Calculates the fraction of vegetatinon observed at an angle.
     
     Parameters
     ----------
-    theta : Angle of incidence (degrees)
-    F : Real Leaf (Plant) Area Index
-    wc : Ratio of vegetation height versus width, optional (default = 1)
-    Omega0 : Clumping index at nadir, optional (default =1)
-    x_LAD: x parameter for the ellipsoidal Leaf Angle Distribution function, 
-        use x_LAD=1 for a spherical LAD
+    theta : float
+        Angle of incidence (degrees).
+    F : float
+        Real Leaf (Plant) Area Index.
+    wc : float
+        Ratio of vegetation height versus width, optional (default = 1).
+    Omega0 : float
+        Clumping index at nadir, optional (default =1).
+    x_LAD : float
+        Chi parameter for the ellipsoidal Leaf Angle Distribution function, 
+        use x_LAD=1 for a spherical LAD.
     
     Returns
     -------
-    f_theta : fraction of vegetation
-
-    based on equation (3) from Norman et. al., 2000 (DTD paper) and incorporated
-    the effect of the Leaf Angle Distribution based on Campbell and Norman 1998'''
+    f_theta : float
+        fraction of vegetation obsserved at an angle.
+    
+    References
+    ----------
+    .. [Campbell1998] Campbell, G. S. & Norman, J. M. (1998), An introduction to environmental
+        biophysics. Springer, New York
+        https://archive.org/details/AnIntroductionToEnvironmentalBiophysics.
+    .. [Norman1995] J.M. Norman, W.P. Kustas, K.S. Humes, Source approach for estimating
+        soil and vegetation energy fluxes in observations of directional radiometric
+        surface temperature, Agricultural and Forest Meteorology, Volume 77, Issues 3-4,
+        Pages 263-293, http://dx.doi.org/10.1016/0168-1923(95)02265-Y.
+    '''
 
     from math import radians, exp
     # First calcualte the angular clumping factor Omega based on eq (3) from
@@ -765,23 +1038,34 @@ def CalcFthetaCampbell(theta,F,wc=1,Omega0=1, x_LAD=1):
     return ftheta
 
 def CalcG_TimeDiff (R_n, G_param=[12.0,0.35, 3.0,24.0]):
-    '''' Estimates Soil Heat Flux as function of time and net radiation
+    ''' Estimates Soil Heat Flux as function of time and net radiation.
     
     Parameters
     ----------
-    R_n : Net radiation (W m-2)
-    G_param = list with parameters required=[time, A,phase_shift,B]
-        time: time of interest (decimal hours)
-        A: maximum value of G/Rn, amplitude, default=0.35
-        phase_shift : shift of peak G relative to solar noon (default 3hrs after noon)
-        B: shape of G/Rn, default 24 hrs
+    R_n : float
+        Net radiation (W m-2).
+    G_param : tuple(float,float,float,float)
+        tuple with parameters required (time, Amplitude,phase_shift,shape).
+        
+            time: float 
+                time of interest (decimal hours).
+            Amplitude : float 
+                maximum value of G/Rn, amplitude, default=0.35.
+            phase_shift : float
+                shift of peak G relative to solar noon (default 3hrs after noon).
+            shape : float
+                shape of G/Rn, default 24 hrs.
     
     Returns
-    ------
-    G : Soil heat flux (W m-2)
-    
-    based on Eq (4) from Santanello and Friedl, 2003, 
-    Diurnal Covariation in Soil Heat Flux and Net Radiation'''
+    -------
+    G : float
+        Soil heat flux (W m-2).
+
+    References
+    ----------
+    .. [Santanello2003] Joseph A. Santanello Jr. and Mark A. Friedl, 2003: Diurnal Covariation in
+        Soil Heat Flux and Net Radiation. J. Appl. Meteor., 42, 851-862,
+        http://dx.doi.org/10.1175/1520-0450(2003)042<0851:DCISHF>2.0.CO;2.'''
     
     from math import cos, pi
     # Get parameters
@@ -794,57 +1078,83 @@ def CalcG_TimeDiff (R_n, G_param=[12.0,0.35, 3.0,24.0]):
     return G
 
 def CalcG_Ratio(Rn_soil,G_ratio=0.35):
-    '''' Estimates Soil Heat Flux as ratio of net soil radiation
+    '''Estimates Soil Heat Flux as ratio of net soil radiation.
     
     Parameters
     ----------
-    Rn_soil : Net soil radiation (W m-2)
+    Rn_soil : float
+        Net soil radiation (W m-2).
+    G_ratio : float, optional
+        G/Rn_soil ratio, default=0.35.
     
     Returns
-    ------
-    G : Soil heat flux (W m-2)
-    
-    based on Eq (3a) from Choudhuri et al (1987) 
-    Agricultural and Forest Meteorology, 39 (1987) 283-297'''
+    -------
+    G : float
+        Soil heat flux (W m-2).
+
+    References
+    ----------
+    .. [Choudhury1987] B.J. Choudhury, S.B. Idso, R.J. Reginato, Analysis of an empirical model
+        for soil heat flux under a growing wheat crop for estimating evaporation by an
+        infrared-temperature based energy balance equation, Agricultural and Forest Meteorology,
+        Volume 39, Issue 4, 1987, Pages 283-297,
+        http://dx.doi.org/10.1016/0168-1923(87)90021-9.
+    '''
 
     G= G_ratio*Rn_soil
     return G
 
 def CalcH_C (T_C, T_A, R_A, rho, c_p):
-    '''Calculates canopy sensible heat flux in a parallel resistance network
+    '''Calculates canopy sensible heat flux in a parallel resistance network.
     
     Parameters
     ----------
-    T_C : Canopy temperature (K)
-    T_A : Air temperature (K)
-    R_A : Aerodynamic resistance to heat transport (s m-1)
-    rho : air density (kg m-3)
-    c_p : Heat capacity of air at constant pressure (J kg-1 K-1)
+    T_C : float
+        Canopy temperature (K).
+    T_A : float
+        Air temperature (K).
+    R_A : float
+        Aerodynamic resistance to heat transport (s m-1).
+    rho : float
+        air density (kg m-3).
+    c_p : float
+        Heat capacity of air at constant pressure (J kg-1 K-1).
     
     Returns
     -------
-    H_C : Canopy sensible heat flux (W m-2)'''
+    H_C : float
+        Canopy sensible heat flux (W m-2).'''
 
     H_C = rho*c_p*(T_C-T_A)/R_A
     return H_C
 
 def  CalcH_C_PT (delta_R_ni, f_g, T_a_K, P, c_p, alpha):
-    '''Calculates canopy sensible heat flux based on the Priestley and Taylor formula
+    '''Calculates canopy sensible heat flux based on the Priestley and Taylor formula.
     
     Parameters
     ----------
-    delta_R_ni : net radiation divergence of the vegetative canopy (W m-2)
-    f_g - fraction of vegetative canopy that is green
-    T_a_K - air temperature (Kelvin)
-    P - air pressure (mb)
-    c_p - heat capacity of moist air (J kg-1 K-1)
-    alpha - the Priestly Taylor parameter
+    delta_R_ni : float
+        net radiation divergence of the vegetative canopy (W m-2).
+    f_g : float
+        fraction of vegetative canopy that is green.
+    T_a_K : float
+        air temperature (Kelvin).
+    P : float
+        air pressure (mb).
+    c_p : float
+        heat capacity of moist air (J kg-1 K-1).
+    alpha : float 
+        the Priestley Taylor parameter.
     
     Returns
     -------
-    H_C : Canopy sensible heat flux (W m-2)
+    H_C : float
+        Canopy sensible heat flux (W m-2).
 
-    based on Eq (4) from Norman et. al., 2000 (DTD paper)'''  
+    References
+    ----------
+    Equation 14 in [Norman1995]_
+    '''  
 
     # slope of the saturation pressure curve (kPa./deg C)
     s = met.CalcDeltaVaporPressure( T_a_K)
@@ -858,28 +1168,47 @@ def  CalcH_C_PT (delta_R_ni, f_g, T_a_K, P, c_p, alpha):
     return H_C
 
 def CalcH_DTD_parallel (T_R1, T_R0, T_A1, T_A0, rho, c_p, f_theta1, R_S1, R_A1, R_AC1, H_C1):
-    '''Calculates the DTD total sensible heat flux at time 1 with resistances in parallel
+    '''Calculates the DTD total sensible heat flux at time 1 with resistances in parallel.
     
     Parameters
     ----------
-    T_R1 : radiometric surface temperature at time t1 (K)
-    T_R0 : radiometric surface temperature at time t0 (K)
-    T_A1 : air temperature at time t1 (K)
-    T_A0 : air temperature at time t0 (K)
-    rho : air density at time t1 (kg m-3)
-    cp : heat capacity of moist air (J kg-1 K-1)
-    f_theta_1 : fraction of radiometer field of view that is occupied by vegetative cover at time t1
-    R_S1 - resistance to heat transport from the soil surface at time t1 (s m-1)
-    R_A1 - resistance to heat transport in the surface layer at time t1 (s m-1)
-    R_A1 - resistance to heat transport at the canopy interface at time t1 (s m-1)
-    H_C1	- canopy sensible heat flux at time t1 (W m-2)
+    T_R1 : float
+        radiometric surface temperature at time t1 (K).
+    T_R0 : float
+        radiometric surface temperature at time t0 (K).
+    T_A1 : float
+        air temperature at time t1 (K).
+    T_A0 : float
+        air temperature at time t0 (K).
+    rho : float
+        air density at time t1 (kg m-3).
+    cp : float
+        heat capacity of moist air (J kg-1 K-1).
+    f_theta_1 : float
+        fraction of radiometer field of view that is occupied by vegetative cover at time t1.
+    R_S1 : float
+        resistance to heat transport from the soil surface at time t1 (s m-1).
+    R_A1 : float
+        resistance to heat transport in the surface layer at time t1 (s m-1).
+    R_A1 : float
+        resistance to heat transport at the canopy interface at time t1 (s m-1).
+    H_C1 : float
+        canopy sensible heat flux at time t1 (W m-2).
     
     Returns
     -------
-    H : Total sensible heat flux at time t1 (W m-2)
-    
-    based on equation (5) from Norman et. al., 2000 (DTD paper) 
-    modified for two view zenith angles by Guzinski et al (2013)'''
+    H : float
+        Total sensible heat flux at time t1 (W m-2).
+
+    References
+    ----------
+    .. [Guzinski2013] Guzinski, R., Anderson, M. C., Kustas, W. P., Nieto, H., and Sandholt, I. (2013)
+        Using a thermal-based two source energy balance model with time-differencing to
+        estimate surface energy fluxes with day-night MODIS observations,
+        Hydrol. Earth Syst. Sci., 17, 2809-2825,
+        http://dx.doi.org/10.5194/hess-17-2809-2013.
+    '''
+
 
     #% Ignore night fluxes
     H = (rho*c_p *(((T_R1-T_R0)-(T_A1-T_A0))/((1.0-f_theta1)*(R_A1+R_S1))) +
@@ -891,62 +1220,99 @@ def CalcH_DTD_series(T_R1, T_R0, T_A1, T_A0, rho, c_p, f_theta, R_S, R_A, R_x, H
     
     Parameters
     ----------
-    T_R1 : radiometric surface temperature at time t1 (K)
-    T_R0 : radiometric surface temperature at time t0 (K)
-    T_A1 : air temperature at time t1 (K)
-    T_A0 : air temperature at time t0 (K)
-    rho : air density at time t1 (kg m-3)
-    cp : heat capacity of moist air (J kg-1 K-1)
-    f_theta_1 : fraction of radiometer field of view that is occupied by vegetative cover at time t1
-    R_S1 - resistance to heat transport from the soil surface at time t1 (s m-1)
-    R_A1 - resistance to heat transport in the surface layer at time t1 (s m-1)
-    R_x - Bulk canopy resistance to heat transport at time t1 (s m-1)
-    H_C1	- canopy sensible heat flux at time t1 (W m-2)
+    T_R1 : float
+        radiometric surface temperature at time t1 (K).
+    T_R0 : float
+        radiometric surface temperature at time t0 (K).
+    T_A1 : float
+        air temperature at time t1 (K).
+    T_A0 : float
+        air temperature at time t0 (K).
+    rho : float
+        air density at time t1 (kg m-3).
+    cp : float
+        heat capacity of moist air (J kg-1 K-1).
+    f_theta : float
+        fraction of radiometer field of view that is occupied by vegetative cover at time t1.
+    R_S : float
+        resistance to heat transport from the soil surface at time t1 (s m-1).
+    R_A : float
+        resistance to heat transport in the surface layer at time t1 (s m-1).
+    R_x : float
+        Canopy boundary resistance to heat transport at time t1 (s m-1).
+    H_C : float
+        canopy sensible heat flux at time t1 (W m-2).
     
     Returns
     -------
-    H : Total sensible heat flux at time t1 (W m-2)
-    
-    based on equation (5) from Norman et. al., 2000 (DTD paper) 
-    modified for two view zenith angles by Guzinski et al (2014)'''
+    H : float
+        Total sensible heat flux at time t1 (W m-2).
+
+    References
+    ----------
+    .. [Guzinski2014] Guzinski, R., Nieto, H., Jensen, R., and Mendiguren, G. (2014)
+        Remotely sensed land-surface energy fluxes at sub-field scale in heterogeneous
+        agricultural landscape and coniferous plantation, Biogeosciences, 11, 5021-5046,
+        http://dx.doi.org/10.5194/bg-11-5021-2014.
+    '''
     H = rho*c_p*((T_R1-T_R0)-(T_A1-T_A0))/((1.0-f_theta)*R_S + R_A) + \
         H_C*((1.0-f_theta)*R_S - f_theta*R_x)/((1.0-f_theta)*R_S + R_A)
     return H
      
 def CalcH_S (T_S, T_A, R_A, R_S, rho, c_p):
-    '''Calculates soil sensible heat flux in a parallel resistance network
+    '''Calculates soil sensible heat flux in a parallel resistance network.
     
     Parameters
     ----------
-    T_S : Soil temperature (K)
-    T_A : Air temperature (K)
-    R_A : Aerodynamic resistance to heat transport (s m-1)
-    R_A : Aerodynamic resistance at the soil boundary layer (s m-1)
-    rho : air density (kg m-3)
-    c_p : Heat capacity of air at constant pressure (J kg-1 K-1)
+    T_S : float
+        Soil temperature (K).
+    T_A : float
+        Air temperature (K).
+    R_A : float
+        Aerodynamic resistance to heat transport (s m-1).
+    R_A : float
+        Aerodynamic resistance at the soil boundary layer (s m-1).
+    rho : float
+        air density (kg m-3).
+    c_p : float
+        Heat capacity of air at constant pressure (J kg-1 K-1).
    
     Returns
     -------
-    H_C : Canopy sensible heat flux (W m-2)'''
+    H_C : float
+        Canopy sensible heat flux (W m-2).
+
+    References
+    ----------
+    Equation 7 in [Norman1995]_
+    '''
 
     H_S = rho*c_p*((T_S-T_A)/(R_S+R_A))
     return H_S
     
 def  CalcT_C (T_R, T_S, f_theta):
-    '''Estimates canopy temperature from the directional LST
+    '''Estimates canopy temperature from the directional composite radiometric temperature.
     
     Parameters
     ----------
-    T_R : Directional Radiometric Temperature (K)
-    T_S : Soil Temperature (K)
-    f_theta : Fraction of vegetation observed
+    T_R : float
+        Directional Radiometric Temperature (K).
+    T_S : float
+        Soil Temperature (K).
+    f_theta : float
+        Fraction of vegetation observed.
 
     Returns
     -------
-    flag : Error flag if inversion not possible (255)
-    T_C : Canopy temperature (K)
-    
-    based from equation 1 from Norman 1995'''
+    flag : int
+        Error flag if inversion not possible (255).
+    T_C : float
+        Canopy temperature (K).
+
+    References
+    ----------
+    Eq. 1 in [Norman1995]_
+    '''
     
     if ( T_R**4 - (1.0 - f_theta)*T_S**4 ) >0:
         T_C = ( ( T_R**4 - (1.0 - f_theta)*T_S**4 ) /f_theta)**0.25
@@ -959,25 +1325,37 @@ def  CalcT_C (T_R, T_S, f_theta):
 
 def CalcT_C_Series(Tr_K,Ta_K, R_a, R_x, R_s, f_theta, H_C, rho, c_p):
     '''Estimates canopy temperature from canopy sensible heat flux and 
-        resistance network in series
+    resistance network in series.
     
     Parameters
     ----------
-    Tr_K : Directional Radiometric Temperature (K)
-    Ta_K : Air Temperature (K)
-    R_a : Aerodynamic resistance to heat transport (s m-1)
-    R_x : Bulk aerodynamic resistance to heat transport at the canopy boundary layer (s m-1)
-    R_s : Aerodynamic resistance to heat transport at the soil boundary layer (s m-1)
-    f_theta : Fraction of vegetation observed
-    H_C : Sensible heat flux of the canopy (W m-2)
-    rho : Density of air (km m-3)
-    c_p : Heat capacity of air at constant pressure (J kg-1 K-1)
+    Tr_K : float
+        Directional Radiometric Temperature (K).
+    Ta_K : float
+        Air Temperature (K).
+    R_a : float
+        Aerodynamic resistance to heat transport (s m-1).
+    R_x : float
+        Bulk aerodynamic resistance to heat transport at the canopy boundary layer (s m-1).
+    R_s : float
+        Aerodynamic resistance to heat transport at the soil boundary layer (s m-1).
+    f_theta : float
+        Fraction of vegetation observed.
+    H_C : float
+        Sensible heat flux of the canopy (W m-2).
+    rho : float
+        Density of air (km m-3).
+    c_p : float
+        Heat capacity of air at constant pressure (J kg-1 K-1).
     
     Returns
     -------
-    T_c : Canopy temperature (K)
+    T_c : float
+        Canopy temperature (K).
     
-    based on eqs. A5-A13 from Norman et al 1995'''
+    References
+    ----------
+    Eqs. A5-A13 in [Norman1995]_'''
     
     T_R_K_4=Tr_K**4
     # equation A7 from Norman 1995, linear approximation of temperature of the canopy
@@ -995,27 +1373,41 @@ def CalcT_C_Series(Tr_K,Ta_K, R_a, R_x, R_s, f_theta, H_C, rho, c_p):
     return Tc
    
 def CalcT_CS_Norman (F, vza_n, vza_f, T_n, T_f,wc=1,x_LAD=1, omega0=1):
-    '''Estimates canopy and soil temperature by analytical inversion of Eq 1 in Norman 1995
-    of two directional radiometric observations. Ignoring shawows
+    '''Estimates canopy and soil temperature by analytical inversion of Eq 1 in [Norman1995]
+    of two directional radiometric observations. Ignoring shawows.
     
     Parameters
     ----------
-    LAI : Real Leaf (Plant) Area Index
-    vza_n : View Zenith Angle during the nadir observation (degrees)
-    vza_f : View Zenith Angle during the oblique observation (degrees)
-    T_n : Radiometric temperature in the nadir obsevation (K)
-    T_f : Radiometric temperature in the oblique observation (K)
-    wc : Canopy height to width ratio, use wc=1 by default
-    x_LAD : x parameter for the ellipsoildal Leaf Angle Distribution function of 
-        Campbell 1988 [default=1, spherical LIDF]
-    omega0 : Clumping index at nadir, use omega0=1 by default
+    F : float
+        Real Leaf (Plant) Area Index.
+    vza_n : float
+        View Zenith Angle during the nadir observation (degrees).
+    vza_f : float
+        View Zenith Angle during the oblique observation (degrees).
+    T_n : float
+        Radiometric temperature in the nadir obsevation (K).
+    T_f : float
+        Radiometric temperature in the oblique observation (K).
+    wc : float,optional
+        Canopy height to width ratio, use wc=1 by default.
+    x_LAD : float,optional
+        Chi parameter for the ellipsoildal Leaf Angle Distribution function of 
+        Campbell 1988 [default=1, spherical LIDF].
+    omega0 : float,optional
+        Clumping index at nadir, use omega0=1 by default.
     
     Returns
     -------
-    Tc : Canopy temperature (K)
-    Ts : Soil temperature (K)
+    Tc : float
+        Canopy temperature (K).
+    Ts : float
+        Soil temperature (K).
     
-    based on inversion of Eq. 1 in Norman et al. (1995)'''
+    References
+    ----------
+    inversion of Eq. 1 in [Norman1995]_
+    '''
+
 
     # Calculate the fraction of vegetation observed by each angle
     f_theta_n=CalcFthetaCampbell(vza_n, F, wc=wc,Omega0=omega0,x_LAD=x_LAD)
@@ -1030,20 +1422,27 @@ def CalcT_CS_Norman (F, vza_n, vza_f, T_n, T_f,wc=1,x_LAD=1, omega0=1):
     return Tc_K, Ts_K
 
 def  CalcT_S (T_R, T_C, f_theta):
-    '''Estimates soil temperature from the directional LST
+    '''Estimates soil temperature from the directional LST.
     
     Parameters
     ----------
-    T_R : Directional Radiometric Temperature (K)
-    T_C : Canopy Temperature (K)
-    f_theta : Fraction of vegetation observed
+    T_R : float
+        Directional Radiometric Temperature (K).
+    T_C : float
+        Canopy Temperature (K).
+    f_theta : float
+        Fraction of vegetation observed.
 
     Returns
     -------
-    flag : Error flag if inversion not possible (255)
-    T_S : Soil temperature (K)
+    flag : float
+        Error flag if inversion not possible (255).
+    T_S: float
+        Soil temperature (K).
     
-    based from equation 1 from Norman 1995'''
+    References
+    ----------
+    Eq. 1 in [Norman1995]_'''
 
     if ( T_R**4 - f_theta*T_C**4 ) >0:
         T_S = ( ( T_R**4 - f_theta*T_C**4) /(1.0 - f_theta))**0.25
@@ -1055,26 +1454,39 @@ def  CalcT_S (T_R, T_C, f_theta):
 
 def CalcT_S_Series(Tr_K,Ta_K,R_a,R_x,R_s,f_theta,H_S,rho,c_p):
     '''Estimates soil temperature from soil sensible heat flux and 
-        resistance network in series
+    resistance network in series.
     
     Parameters
     ----------
-    Tr_K : Directional Radiometric Temperature (K)
-    Ta_K : Air Temperature (K)
-    R_a : Aerodynamic resistance to heat transport (s m-1)
-    R_x : Bulk aerodynamic resistance to heat transport at the canopy boundary layer (s m-1)
-    R_s : Aerodynamic resistance to heat transport at the soil boundary layer (s m-1)
-    f_theta : Fraction of vegetation observed
-    H_S : Sensible heat flux of the soil (W m-2)
-    rho : Density of air (km m-3)
-    c_p : Heat capacity of air at constant pressure (J kg-1 K-1)
-    
+    Tr_K : float
+        Directional Radiometric Temperature (K).
+    Ta_K : float
+        Air Temperature (K).
+    R_a : float
+        Aerodynamic resistance to heat transport (s m-1).
+    R_x : float
+        Bulk aerodynamic resistance to heat transport at the canopy boundary layer (s m-1).
+    R_s : float
+        Aerodynamic resistance to heat transport at the soil boundary layer (s m-1).
+    f_theta : float
+        Fraction of vegetation observed.
+    H_S : float
+        Sensible heat flux of the soil (W m-2).
+    rho : float
+        Density of air (km m-3).
+    c_p : float
+        Heat capacity of air at constant pressure (J kg-1 K-1).
+        
     Returns
     -------
-    T_s : Soil temperature (K)
-    T_ac : Air temperature at the canopy interface (K)
+    T_s: float
+        Soil temperature (K).
+    T_c : float
+        Air temperature at the canopy interface (K).
     
-    based on eqs. A15-A19 from Norman et al 1995'''
+    References
+    ----------
+    Eqs. A15-A19 from [Norman1995]_'''
 
     #Eq. A.15 Norman 1995
     T_ac_lin=(((Ta_K/R_a)+(Tr_K/(f_theta*R_x))-

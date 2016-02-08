@@ -16,8 +16,58 @@
 
 """
 Created on Thu Jan  7 16:37:45 2016
+@author: Hector Nieto (hnieto@ias.csic.es)
 
-@author: hector
+Modified on Jan  27 2016
+@author: Hector Nieto (hnieto@ias.csic.es)
+
+DESCRIPTION
+===========
+This package contains the class object for configuring and running TSEB for both
+an image with constant meteorology forcing and a time-series of tabulated data.
+
+EXAMPLES
+========
+The easiest way to get a feeling of TSEB and its configuration is throuh the ipython/jupyter notebooks. 
+
+Jupyter notebook pyTSEB GUI
+---------------------------
+To configure TSEB for processing a time series of tabulated data, type in a ipython terminal or a jupyter notebook.
+
+.. code-block:: ipython
+
+    import pyTSEB # Import pyTSEB module
+    tseb=pyTSEB.PyTSEB() # Create a PyTSEB instance
+    tseb.PointTimeSeriesWidget() # Launches the GUI
+
+then to run pyTSEB.
+
+.. code-block:: ipython
+
+    tseb.GetDataTSEBWidgets(isImage=False)# Get the data from the widgets
+    tseb.RunTSEBLocalImage()# Run TSEB
+
+Similarly, to configure and run TSEB for an image.
+
+.. code-block:: ipython
+
+    import pyTSEB # Import pyTSEB module
+    tseb=pyTSEB.PyTSEB() # Create a PyTSEB instance
+    tseb.PointLocalImageWidget() # Launches the GUI
+    tseb.GetDataTSEBWidgets(isImage=True)# Get the data from the widgets
+    tseb.RunTSEBLocalImage()# Run TSEB
+
+Parsing directly a configuration file
+-------------------------------------
+You can also parse direcly into TSEB a configuration file previouly created.
+
+>>> tseb=PyTSEB()
+>>> configData=tseb.parseInputConfig(configFile,isImage=True) #Read the data from the configuration file into a python dictionary
+>>> tseb.GetDataTSEB(configData,isImage=True) # Parse the data from the dictionary to TSEB
+>>> tseb.RunTSEBLocalImage() # Run TSEB
+
+see the guidelines for input and configuration file preparation in :doc:`README_Notebooks`.
+
 """
 
 class PyTSEB():
@@ -79,7 +129,7 @@ class PyTSEB():
         self.input_point_vars=['InputFile']
         
     def PointTimeSeriesWidget(self):
-        ''' Creates the widgets needed to setup TSEB for running over a point time series'''
+        '''Creates a jupyter notebook GUI for running TSEB for a point time series dataset'''
         import ipywidgets as widgets
         from IPython.display import display
         # Load and save configuration buttons
@@ -111,15 +161,15 @@ class PyTSEB():
         display(tabs)
         display(self.w_saveconfig)
         # Handle interactions        
-        self.w_CalcG.on_trait_change(self.on_G_change, 'value')
-        self.w_input.on_click(self.on_input_clicked)    
-        self.w_output.on_click(self.on_output_clicked)
+        self.w_CalcG.on_trait_change(self._on_G_change, 'value')
+        self.w_input.on_click(self._on_input_clicked)    
+        self.w_output.on_click(self._on_output_clicked)
         self.isImage=False
-        self.w_loadconfig.on_click(self.on_loadconfig_clicked)
-        self.w_saveconfig.on_click(self.on_saveconfig_clicked)
+        self.w_loadconfig.on_click(self._on_loadconfig_clicked)
+        self.w_saveconfig.on_click(self._on_saveconfig_clicked)
                
     def LocalImageWidget(self):
-        ''' Creates the widgets needed to setup TSEB for running over an image'''
+        '''Creates a jupyter notebook GUI for running TSEB for an image'''
         import ipywidgets as widgets
         from IPython.display import display
         # Load and save configuration buttons
@@ -181,24 +231,24 @@ class PyTSEB():
         display(tabs)
         display(self.w_saveconfig) 
         # Handle interactions
-        self.w_LST.on_click(self.on_inputLST_clicked)    
-        self.w_VZA.on_click(self.on_inputVZA_clicked)    
-        self.w_LAI.on_click(self.on_inputLAI_clicked)  
-        self.w_Fc.on_click(self.on_inputFc_clicked)  
-        self.w_Fg.on_click(self.on_inputFg_clicked)  
-        self.w_Hc.on_click(self.on_inputHc_clicked)  
-        self.w_Wc.on_click(self.on_inputWc_clicked)
-        self.w_mask.on_click(self.on_inputmask_clicked)
-        self.w_output.on_click(self.on_output_clicked)    
-        self.w_model.on_trait_change(self.on_model_change,'value')
-        self.w_CalcG.on_trait_change(self.on_G_change, 'value')
-        self.isImage=True
-        self.w_loadconfig.on_click(self.on_loadconfig_clicked)
-        self.w_saveconfig.on_click(self.on_saveconfig_clicked)
+        self.w_LST.on_click(self._on_inputLST_clicked)    
+        self.w_VZA.on_click(self._on_inputVZA_clicked)    
+        self.w_LAI.on_click(self._on_inputLAI_clicked)  
+        self.w_Fc.on_click(self._on_inputFc_clicked)  
+        self.w_Fg.on_click(self._on_inputFg_clicked)  
+        self.w_Hc.on_click(self._on_inputHc_clicked)  
+        self.w_Wc.on_click(self._on_inputWc_clicked)
+        self.w_mask.on_click(self._on_inputmask_clicked)
+        self.w_output.on_click(self._on_output_clicked)    
+        self.w_model.on_trait_change(self._on_model_change,'value')
+        self.w_CalcG.on_trait_change(self._on_G_change, 'value')
+        self.w_loadconfig.on_click(self._on_loadconfig_clicked)
+        self.w_saveconfig.on_click(self._on_saveconfig_clicked)
 
-    def on_loadconfig_clicked(self,b):
-        ''' Pops-up a file dialog and reads the configuration file selected to 
-        update the fields in the widgets'''
+        self.isImage=True
+
+    def _on_loadconfig_clicked(self,b):
+        '''Reads a configuration file and parses its data into the GUI'''
         
         InputFile=self.GetInputFileName(title='Select Input Configuration File')
         if not InputFile:return
@@ -253,9 +303,8 @@ class PyTSEB():
         else:
             self.w_inputtxt.value=str(configdata['InputFile']).strip('"')
 
-    def on_saveconfig_clicked(self,b):
-        ''' Pops-up a file dialog and creates/overwrites the configuration file selected to 
-        write the fields from the widgets'''
+    def _on_saveconfig_clicked(self,b):
+        '''Opens a configuration file and writes the parameters in the GUI into the file'''
         OutputFile=self.GetOutputFileName(title='Select Output Configuration File')
         if not OutputFile: return
         try:
@@ -336,8 +385,7 @@ class PyTSEB():
         print('Saved Configuration File')
                   
     def parseInputConfig(self,InputFile,isImage=False):
-        ''' Parser to get the information from an ascii configuration file
-        Returs a dictionary with all the fields found in the file'''
+        ''' Parses the information contained in a configuration file into a dictionary''' 
         # look for the following variable names
         from re import match
         if isImage:
@@ -377,7 +425,8 @@ class PyTSEB():
             options={'Priestley Taylor':'TSEB_PT', 'Dual-Time Difference':'DTD', 'Component Temperatures':'TSEB_2T'},
             value=self.model)
         
-    def on_model_change(self,name, value):
+    def _on_model_change(self,name, value):
+        '''Behaviour when TSEB model is changed'''
         if value=='DTD':
             self.w_Ta_0.visible=True
         else:
@@ -385,7 +434,7 @@ class PyTSEB():
    
 
     def DefineSiteDescription(self):
-        ''' Widget to define the site characteristics'''
+        '''Widgets for site description parameters'''
         import ipywidgets as widgets
 
         self.w_lat=widgets.BoundedFloatText(value=self.lat,min=-90,max=90,description='Lat.',width=100)
@@ -399,7 +448,7 @@ class PyTSEB():
                     widgets.HBox([self.w_zu,self.w_zt])], background_color='#EEE')
         
     def SpectralProperties(self):
-        ''' Widget to define the spectral properties of the vegeation/soil'''
+        '''Widgets for site spectral properties'''
         import ipywidgets as widgets
         self.w_rhovis=widgets.BoundedFloatText(value=self.rhovis,min=0,max=1,description='Leaf refl. PAR',width=80)
         self.w_tauvis=widgets.BoundedFloatText(value=self.tauvis,min=0,max=1,description='Leaf trans. PAR',width=80)
@@ -414,7 +463,7 @@ class PyTSEB():
                     widgets.HBox([self.w_rsoilv,self.w_rsoiln,self.w_emisVeg,self.w_emisSoil])], background_color='#EEE')
     
     def Meteorology(self):
-        ''' Widget to set the meteorological forcing'''
+        '''Widgets for meteorological forcing'''
         import ipywidgets as widgets
         self.w_DOY=widgets.BoundedFloatText(value=1,min=1,max=366,description='Day of Year',width=80)
         self.w_Time=widgets.BoundedFloatText(value=12,min=0,max=24,description='Dec. Time (h)',width=80)
@@ -432,35 +481,44 @@ class PyTSEB():
                                     metText,
                                     widgets.HBox([self.w_Ldn,self.w_p])], background_color='#EEE')
          
-    def on_input_clicked(self,b):
+    def _on_input_clicked(self,b):
+        '''Behaviour when clicking the input file button'''
         self.w_inputtxt.value=str(self.GetInputFileName(title='Select Input Text File'))
 
-    def on_inputLST_clicked(self,b):
+    def _on_inputLST_clicked(self,b):
+        '''Behaviour when clicking the LST input file button'''
         self.w_LSTtxt.value=str(self.GetInputFileName(title='Select Radiometric Temperature Image'))
 
-    def on_inputVZA_clicked(self,b):
+    def _on_inputVZA_clicked(self,b):
+        '''Behaviour when clicking the LST VZA file button'''
         self.w_VZAtxt.value=self.GetInputFileName(title='Select View Zenith Angle Image')
 
-    def on_inputLAI_clicked(self,b):
+    def _on_inputLAI_clicked(self,b):
+        '''Behaviour when clicking the LAI input file button'''
         self.w_LAItxt.value=self.GetInputFileName(title='Select Leaf Area Index Image')
 
-    def on_inputFc_clicked(self,b):
+    def _on_inputFc_clicked(self,b):
+        '''Behaviour when clicking the Fc input file button'''
         self.w_Fctxt.value=self.GetInputFileName(title='Select Fractional Cover Image')
 
-    def on_inputFg_clicked(self,b):
+    def _on_inputFg_clicked(self,b):
+        '''Behaviour when clicking the Fg input file button'''
         self.w_Fgtxt.value=self.GetInputFileName(title='Select Green Fraction Image')
 
-    def on_inputHc_clicked(self,b):
+    def _on_inputHc_clicked(self,b):
+        '''Behaviour when clicking the Hc input file button'''
         self.w_Hctxt.value=self.GetInputFileName(title='Select Canopy Height Image')
 
-    def on_inputWc_clicked(self,b):
+    def _on_inputWc_clicked(self,b):
+        '''Behaviour when clicking the Wc input file button'''
         self.w_Wctxt.value=self.GetInputFileName(title='Select Canopy Width/Height Ratio Image')
 
-    def on_inputmask_clicked(self,b):
+    def _on_inputmask_clicked(self,b):
+        '''Behaviour when clicking the processing mask input file button'''
         self.w_masktxt.value=self.GetInputFileName(title='Select Image Mask')
 
     def GetInputFileName(self, title='Select Input File'):
-        ''' Input filename selection widget'''
+        '''Creates a Tkinter input file dialog'''
         import sys
         # Import Tkinter GUI widgets
         if sys.version_info.major==2:
@@ -476,11 +534,12 @@ class PyTSEB():
         if InputFile=='':return None
         return InputFile
     
-    def on_output_clicked(self,b):
+    def _on_output_clicked(self,b):
+        '''Behaviour when clicking the output file button'''
         self.w_outputtxt.value=self.GetOutputFileName()
 
     def GetOutputFileName(self, title='Select Output File'):
-        ''' Output filename selection widget'''
+        '''Creates a Tkinter output file dialog'''
         import sys
         # Import Tkinter GUI widgets
         if sys.version_info.major==2:
@@ -497,7 +556,7 @@ class PyTSEB():
         return OutputFile
     
     def SurfaceProperties(self):
-        ''' Widget to set the land surface properties'''
+        '''Widgets for canopy properties'''
         import ipywidgets as widgets
         self.w_PT=widgets.BoundedFloatText(value=self.max_PT,min=0,description="Max. alphaPT",width=80)
         self.w_LAD=widgets.BoundedFloatText(value=self.x_LAD,min=0,description="LIDF param.",width=80)
@@ -515,7 +574,7 @@ class PyTSEB():
     
    
     def AdditionalOptionsPoint(self):
-        ''' Widget for additional calculation options in TSEB'''
+        '''Widgets for additional TSEB options'''
         import ipywidgets as widgets
         self.CalcGOptions()
         self.optPage=widgets.VBox([
@@ -526,7 +585,7 @@ class PyTSEB():
             widgets.HBox([self.w_GAmp,self.w_Gphase,self.w_Gshape])], background_color='#EEE')
 
     def CalcGOptions(self):
-        ''' Widget to set algorithm for soil heat flux calculation'''
+        '''Widgets for method for computing soil heat flux'''
         import ipywidgets as widgets
         self.w_CalcG=widgets.ToggleButtons(description='Select method for soil heat flux',
             options={'Ratio of soil net radiation':1, 'Constant or measured value':0, 'Time dependent (Santanelo & Friedl)':2},value=self.CalcG, width=300)
@@ -543,8 +602,8 @@ class PyTSEB():
         self.w_Gshape=widgets.BoundedFloatText(value=self.Gshape,min=0,max=24,description='Time shape (h)',width=80)
         self.w_Gshape.visible=False
 
-    def on_G_change(self,name, value):
-        ''' Makes visible/invisible the parameters according to the option in G'''
+    def _on_G_change(self,name, value):
+        '''Behaviour when changing the soil heat flux model'''
         if value==0:
             self.w_Gratio.visible=False
             self.w_Gconstant.visible=True
@@ -568,7 +627,7 @@ class PyTSEB():
             self.w_Gshape.visible=True
 
     def GetDataTSEBWidgets(self,isImage):
-        ''' Parses the data in the widgets to the RunTSEB input variables'''
+        '''Parses the parameters in the GUI to TSEB variables for running TSEB'''
         self.TSEB_MODEL=self.w_model.value
         self.lat,self.lon,self.alt,self.stdlon,self.z_u,self.z_t=(self.w_lat.value,
                 self.w_lon.value,self.w_alt.value,float(self.w_stdlon.value)*15,
@@ -608,7 +667,7 @@ class PyTSEB():
             self.InputFile=self.w_inputtxt.value
 
     def GetDataTSEB(self,configdata,isImage):
-        ''' Parses the data directly from a configuratio file to the RunTSEB input variables'''
+        '''Parses the parameters in a configuration file directly to TSEB variables for running TSEB'''
         self.TSEB_MODEL=configdata['TSEB_MODEL']
         self.lat,self.lon,self.alt,self.stdlon,self.z_u,self.z_t=(float(configdata['lat']),
                 float(configdata['lon']),float(configdata['altitude']),float(configdata['stdlon']),
@@ -649,7 +708,7 @@ class PyTSEB():
             self.InputFile=str(configdata['InputFile']).strip('"')
     
     def RunTSEBLocalImage(self):
-        ''' Runs TSEB for an image'''
+        ''' Runs TSEB for all the pixel in an image'''
         import TSEB
         import numpy as np
         import gdal
@@ -868,7 +927,7 @@ class PyTSEB():
         print('Saved Files')
 
     def OpenGDALImage(self,inputString,dims,variable):
-        '''Opens a GDAL sigle band image and returs an array'''
+        '''Open a GDAL image and returns and array with its first band'''
         import gdal
         import numpy as np
         success=True
@@ -885,7 +944,7 @@ class PyTSEB():
         return success,array
 
     def WriteTifOutput(self,outfile,output,geo, prj, fields):
-        '''Creates the output GDAL GeoTIFF'''
+        '''Writes the arrays of an output dictionary which keys match the list in fields to a GeoTIFF '''
         import gdal
         import numpy as np
         rows,cols=np.shape(output['H1'])
@@ -903,7 +962,7 @@ class PyTSEB():
         del ds
 
     def getOutputStructure(self):
-        '''Defines a list with all the outputs from TSEB'''        
+        ''' Output fields in TSEB'''        
         outputStructure = (
         # resistances
         'R_A1',   #resistance to heat transport in the surface layer (s/m) at time t1
@@ -939,7 +998,7 @@ class PyTSEB():
         return outputStructure
             
     def CheckDataPointSeriers(self):
-        '''Checks that the input ascii file complies with all the required fiels to run TSEB'''
+        '''Checks that all the data required for TSEB is contained in an input ascci table'''
         success=False
         # Mandatory Input Fields
         MandatoryFields_TSEB_PT=('Year','DOY','Time','Trad','VZA','Ta','u','ea','Sdn','LAI','hc')
@@ -967,7 +1026,7 @@ class PyTSEB():
         return True
     
     def RunTSEBPointSeries(self):
-        '''Runs TSEB for a tabulated point time series'''
+        ''' Runs TSEB for all the pixel in an image'''
         import TSEB
         import ipywidgets as widgets
         from IPython.display import display
