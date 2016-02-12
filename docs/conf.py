@@ -267,7 +267,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
   (master_doc, 'pyTSEB', 'pyTSEB Documentation',
-   author, 'pyTSEB', 'One line description of project.',
+   author, 'pyTSEB', 'A python Two Source Energy Balance model for estimation of evapotranspiration with remote sensing data.',
    'Miscellaneous'),
 ]
 
