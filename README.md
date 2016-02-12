@@ -117,7 +117,7 @@ Monin-Obukhov length, friction velocity and wind profiles
 heat capacity of air or latent heat of vaporization.
 
 ## API Reference
-see pydocs at each module
+http://pytseb.readthedocs.org/en/latest/index.html
 
 ## Tests
 The folder *./Input* contains examples for running TSEB in a tabulated time series (*ExampleTableInput.txt*) 
