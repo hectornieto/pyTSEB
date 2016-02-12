@@ -92,6 +92,8 @@ exclude_patterns = ['_build']
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'pyTSEBdoc'
 
+html_theme = 'default'
+
 # -- Options for LaTeX output ---------------------------------------------
 
 latex_elements = {
