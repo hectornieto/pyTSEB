@@ -3,15 +3,15 @@
 Year 	Year (YYYY)
 DOY 	Day of the Year (0-366)
 Time 	Decimal time (hrs), use the stdlong parameter to set the time zone
-Trad 	Radiometric composite temperature (Celsius)
-Trad_0	Radiometric composite temperature near sunrise (Celsius). OPTIONAL, only needed for DTD model.
-Tc	Canopy component temperature (Celsius). OPTIONAL only needed for the TSEB-2T model
-Ts	Soil component temperature (Celsius). OPTIONAL only needed for the TSEB-2T model
+Trad 	Radiometric composite temperature (Kelvin)
+Trad_0	Radiometric composite temperature near sunrise (Kelvin). OPTIONAL, only needed for DTD model.
+Tc	Canopy component temperature (Kelvin). OPTIONAL only needed for the TSEB-2T model
+Ts	Soil component temperature (Kelvin). OPTIONAL only needed for the TSEB-2T model
 VZA	View Zenith Angle (Degrees)
 SZA	Solar Zenith Angle (Degrees). OPTIONAL, will be estimated otherwise
 SAA	Solar Azimuth Angle (Degrees). OPTIONAL, will be estimated otherwise
-Ta	Air temperature (Celsius)
-Ta_0	Air temperature near sunrise (Celsius). OPTIONAL only needed for DTD model
+Ta	Air temperature (Kelvin)
+Ta_0	Air temperature near sunrise (Kelvin). OPTIONAL only needed for DTD model
 u	Wind speed (m/s)
 ea	Vapor pressure (mb)
 p	Atmospheric pressure (mb). OPTIONAL, will be estimated otherwise
