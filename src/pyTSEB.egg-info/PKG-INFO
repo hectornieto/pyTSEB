@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: pyTSEB
-Version: 1.0.0
+Version: 1.0.1
 Summary: Two Source Energy Balance (TSEB) Models to estimate sensible and latent heat flux (evapotranspiration) from radiometric surface temperature data
 Home-page: https://github.com/hectornieto/pyTSEB/
 Author: Hector Nieto
@@ -10,15 +10,28 @@ Description: # PyTSEB
         
         ## Synopsis
         
-        This project contains Two Source Energy Models (Priestley-Taylor **TSEB-PT**, 
+        This project contains *Python* code for *Two Source Energy Balance* models (Priestley-Taylor **TSEB-PT**, 
         Dual Time Difference **DTD** and TSEB with component soil and canopy temperatures **TSEB-2T**) 
-        for estimating sensible and latent heat flux (evapotrannpiration) based on measurements of radiometric surface temperature. 
+        for estimating sensible and latent heat flux (evapotranspiration) based on measurements of radiometric surface temperature. 
         
         The project consists on 
         
         1. lower-level modules with the basic functions needed in any resistance energy balance model 
         
         2. higher-level scripts for easily running TSEB with tabulated data and/or satellite/airborne imagery.
+        
+        ## Installation
+        
+        Download and copy the project in your local system, then type
+        
+        `python setup.py install` 
+        
+        if you want to install pyTSEB and its low-level modules in your python distribution. 
+        
+        The following python libraries will be required for running TSEB over an image:
+        
+        - Numpy
+        - GDAL
         
         ## Code Example
         ### High-level example
@@ -46,61 +59,29 @@ Description: # PyTSEB
         file *Config_PointTimeSeries.txt*
         
         ### Low-level example
+        You can run any TSEB model or any related process in python by importing the module *TSEB*. 
+        It will also import the ancillary modules (*resitances.py* as `res`, *netRadiation* as `rad`,
+        *MOsimilarity.py* as `MO`, *ClumpingIndex.py* as `CI` and *meteoUtils.py* as `met`)
+        
         ```python
-        import TSEB
-        TSEB.TSEB_PT(Tr_K, vza, Ta_K, u, ea, p, Sdn_dir, Sdn_dif, fvis, fnir, sza, Lsky, LAI, hc, emisVeg, emisGrd, spectraVeg, spectraGrd, z_0M, d_0, zu, zt)
+        import TSEB 
+        output=TSEB.TSEB_PT(Tr_K, vza, Ta_K, u, ea, p, Sdn_dir, Sdn_dif, fvis, fnir, sza, Lsky, LAI, hc, emisVeg, emisGrd, spectraVeg, spectraGrd, z_0M, d_0, zu, zt)
         ```
         
-        >where 
-        Tr_K: Land Surface Temperature (Kelvin),
-        vza: View Zenith Angle (Degrees),
-        Ta_K: Air temperature above the canopy (Kelvin),
-        u: Wind speed above the canopy (m s-1),
-        ea: Water vapour pressure above the canopy (mb),
-        p: Atmospheric pressure (mb)
-        Sdn: Incoming solar radiation (W m-2),
-        sza: Solar Zenith Angle (Degrees),
-        Lsky: Downwelling atmospheric longwave radiation (W m-2),
-        LAI: Effective Leaf Area Index (m2 m-2),
-        hc:  Canopy height (m),
-        emisVeg: leaf emissivity,
-        emisGrd: soil emissivity,
-        spectraVeg: leaf spectrum, 
-        >>spectraVeg= dict('rho_leaf_vis'=leaf bihemispherical reflectance in the visible (400-700 nm), 
-        'tau_leaf_vis'= leaf bihemispherical transmittance in the visible (400-700nm), 
-        'rho_leaf_nir'=leaf bihemispherical reflectance in the optical infrared (700-2500nm),
-        'tau_leaf_nir'= leaf bihemispherical reflectance in the optical infrared (700-2500nm).
+        you can type
+        `help(TSEB.TSEB_PT)`
+        > to understand better the inputs needed and the outputs returned
         
-        >spectraGrd: soil spectrum,
-        >>spectraGrd= dict('rho rsoilv'=soil bihemispherical reflectance in the visible (400-700 nm),
-        'rsoiln'=soil bihemispherical reflectance in the optical infrared (700-2500nm)
+        the direct and difuse shortwave radiation (`Sdn_dir`, `Sdn_dif`, `fvis`, `fnir`) and the downwelling longwave radiation (`Lsky`) can be estimated by
         
-        >z_0M: Aerodynamic surface roughness length for momentum transfer (m),
-        d_0: Zero-plane displacement height (m),
-        zu: Height of measurement of windspeed (m),
-        zt: Height of measurement of air temperature (m)
-        
-        Calculates the single angle Priestley Taylor TSEB fluxes with resistances in series and returns the following:
-        
-        >[Quality flag,
-        Soil Temperature (Kelvin),
-        Canopy Temperature (Kelvin),
-        Air temperature at the canopy interface (Kelvin),
-        Soil net shortwave radiation (W m-2),
-        Canopy net shortwave radiation (W m-2),
-        Soil net longwave radiation (W m-2),
-        Canopy net longwave radiation (W m-2),
-        Canopy latent heat flux (W m-2),
-        Canopy sensible heat flux (W m-2),
-        Soil latent heat flux (W m-2),
-        Soil sensible heat flux (W m-2),
-        Soil heat flux (W m-2),
-        Soil aerodynamic resistance to heat transport (s m-1),
-        Bulk canopy aerodynamic resistance to heat transport (s m-1),
-        Aerodynamic resistance to heat transport (s m-1),
-        Friction velocity (m s-1),
-        Monin-Obuhkov length (m),
-        number of iterations until convergence]
+        ```python
+        emisAtm = TSEB.rad.CalcEmiss_atm(ea,Ta_K_1) # Estimate atmospheric emissivity from vapour pressure (mb) and air Temperature (K)
+        Lsky = emisAtm * TSEB.met.CalcStephanBoltzmann(Ta_K_1) # in W m-2
+        difvis,difnir, fvis,fnir=TSEB.rad.CalcDifuseRatio(Sdn,sza,press=p, Wv=1) # fraction of difuse and PAR/NIR radiation from shortwave irradiance (W m-2, solar zenith angle, atmospheric pressure and precipitable water vapour )
+        Skyl=difvis*fvis+difnir*fnir # broadband difuse fraction
+        Sdn_dir=Sdn*(1.0-Skyl)
+        Sdn_dif=Sdn*Skyl
+        ```
            
         ## Basic Contents
         ### High-level modules
@@ -143,31 +124,19 @@ Description: # PyTSEB
         > functions for estimating meteorolgical-related variables such as density of air, 
         heat capacity of air or latent heat of vaporization.
         
-        ## Installation
-        
-        Download and copy the project in your local system, then type
-        
-        `python setup.py install` 
-        
-        if you want to install pyTSEB and its low-level modules in your python distribution. 
-        
-        The following python libraries will be required for running TSEB over an image:
-        
-        - Numpy
-        - GDAL
-         
-        
         ## API Reference
         see pydocs at each module
         
         ## Tests
-        The folder *./Input* contains examples for running TSEB in a tabulated time series (*BalsaBlanca_Input.txt*) 
-        and in an image (*20140809_gallo_lodi_\*.tif*). Just run the high-level scripts with the configuration files 
-        provied by default and compare the resulting outputs with the files stored in *./Output/*
+        The folder *./Input* contains examples for running TSEB in a tabulated time series (*ExampleTableInput.txt*) 
+        and in an image (*ExampleImage_\< variable >.tif*). Just run the high-level scripts with the configuration files 
+        provided by default and compare the resulting outputs with the files stored in *./Output/*
         
         ## Contributors
         - **Hector Nieto** <hnieto@ias.csic.es> <hector.nieto.solana@gmail.com> main developer
-        - **William P. Kustas**
+        - **William P. Kustas** TSEB modeling, tester 
+        - **Radoslaw Guzinski** DTD code developer, tester
+        - **Ana Andreu** tester
         
         ## License
         pyTSEB: a Python Two Source Energy Balance Model
@@ -189,12 +158,11 @@ Description: # PyTSEB
         
 Keywords: TSEB,Two Source Energy Balance,Resistance Energy Balance,OSEB,One Source Energy Balance,DTD,Dual Time Differenced,Remote Sensing
 Platform: UNKNOWN
-Classifier: Development Status :: 5 - Production/Stable
+Classifier: Development Status :: Beta
 Classifier: Intended Audience :: Science/Research
 Classifier: Topic :: Scientific/Engineering :: Agricultural Science
 Classifier: Topic :: Scientific/Engineering :: Hydrology
 Classifier: Topic :: Software Development :: Libraries :: Python Modules
-Classifier: License :: OSI Approved :: GNU Library or Lesser General Public License (LGPL)
+Classifier: License :: OSI Approved :: GNU General Public License (GPL)
 Classifier: Programming Language :: Python
 Classifier: Programming Language :: Python :: 3
-Classifier: Programming Language :: Python :: 2

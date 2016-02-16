@@ -467,8 +467,8 @@ class PyTSEB():
         import ipywidgets as widgets
         self.w_DOY=widgets.BoundedFloatText(value=1,min=1,max=366,description='Day of Year',width=80)
         self.w_Time=widgets.BoundedFloatText(value=12,min=0,max=24,description='Dec. Time (h)',width=80)
-        self.w_Ta_1=widgets.BoundedFloatText(value=0,min=-273.15,max=1e6,description='Tair (C)',width=80)
-        self.w_Ta_0=widgets.BoundedFloatText(value=0,min=-273.15,max=1e6,description='Tair sunrise (C)',width=80)
+        self.w_Ta_1=widgets.BoundedFloatText(value=0,min=0,max=1e6,description='Tair (K)',width=80)
+        self.w_Ta_0=widgets.BoundedFloatText(value=0,min=0,max=1e6,description='Tair sunrise (K)',width=80)
         self.w_Ta_0.visible=False
         self.w_Sdn=widgets.BoundedFloatText(value=0,min=0,max=1e6,description='SW irradiance (W/m2)',width=80)
         self.w_u=widgets.BoundedFloatText(value=0.01,min=0.01,max=1e6,description='Windspeed (m/s)',width=80)
@@ -785,9 +785,9 @@ class PyTSEB():
         Sdn_dir=self.Sdn*(1.0-Skyl)
         Sdn_dif=self.Sdn*Skyl
         # incoming long wave radiation
-        Ta_K_1=self.Ta_1+273.15
+        Ta_K_1=self.Ta_1
         if self.TSEB_MODEL=='DTD':
-            Ta_K_0=self.Ta_0+273.15
+            Ta_K_0=self.Ta_0
         try:
             Lsky=float(self.Ldn)
         except:
@@ -842,8 +842,8 @@ class PyTSEB():
             vza=inDataArray['VZA'][row,col]
             if self.TSEB_MODEL=='DTD':
                 #Run DTD
-                Tr_K_0=inDataArray['T_R0'][row,col]+273.15
-                Tr_K_1=inDataArray['T_R1'][row,col]+273.15
+                Tr_K_0=inDataArray['T_R0'][row,col]
+                Tr_K_1=inDataArray['T_R1'][row,col]
                 [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,Ri,n_iterations]=[0]*20
                 [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,Ri,
                      n_iterations]=TSEB.DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,self.u,self.ea,p,Sdn_dir,Sdn_dif,fvis,fnir,
@@ -852,7 +852,7 @@ class PyTSEB():
                         CalcG=self.CalcG)
             elif self.TSEB_MODEL=='TSEB_PT':        
                 #Run TSEB
-                Tr_K_1=inDataArray['T_R1'][row,col]+273.15
+                Tr_K_1=inDataArray['T_R1'][row,col]
                 [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,n_iterations]=[0]*19
                 [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,
                      n_iterations]=TSEB.TSEB_PT(Tr_K_1,vza,Ta_K_1,self.u,self.ea,p,Sdn_dir,Sdn_dif,fvis,fnir,sza,Lsky,lai,
@@ -860,8 +860,8 @@ class PyTSEB():
                         f_c=fc,f_g=f_g,wc=wc,leaf_width=self.leaf_width,z0_soil=self.z0_soil,alpha_PT=self.Max_alpha_PT,
                         CalcG=self.CalcG)
             elif self.TSEB_MODEL=='TSEB_2T':
-                Tc=inDataArray['T_C'][row,col]+273.15
-                Ts=inDataArray['T_S'][row,col]+273.15
+                Tc=inDataArray['T_C'][row,col]
+                Ts=inDataArray['T_S'][row,col]
                 #Run TSEB with Component Temperature
                 [flag, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,counter]=[0]*17
                 if lai==0:# Bare Soil, One Source Energy Balance Model
@@ -1108,15 +1108,15 @@ class PyTSEB():
             Sdn_dif=Sdn*Skyl # Diffuse irradiance
             # Get the temperatures
             if self.TSEB_MODEL=='TSEB_PT' or self.TSEB_MODEL=='DTD':# Radiometric composite temperature
-                Ta_K_1=float(indata[self.inputNames.index('Ta')])+273.15
-                Tr_K_1=float(indata[self.inputNames.index('Trad')])+273.15
+                Ta_K_1=float(indata[self.inputNames.index('Ta')])
+                Tr_K_1=float(indata[self.inputNames.index('Trad')])
                 if self.TSEB_MODEL=='DTD': # Get the near sunrise temperatures
-                    Ta_K_0=float(indata[self.inputNames.index('Ta_0')])+273.15
-                    Tr_K_0=float(indata[self.inputNames.index('Trad_0')])+273.15
+                    Ta_K_0=float(indata[self.inputNames.index('Ta_0')])
+                    Tr_K_0=float(indata[self.inputNames.index('Trad_0')])
             elif self.TSEB_MODEL=='TSEB_2T': # one air temperature observation amd two component temperatures
-                Ta_K_1=float(indata[self.inputNames.index('Ta')])+273.15
-                Tc=float(indata[self.inputNames.index('Tc')])+273.15
-                Ts=float(indata[self.inputNames.index('Ts')])+273.15
+                Ta_K_1=float(indata[self.inputNames.index('Ta')])
+                Tc=float(indata[self.inputNames.index('Tc')])
+                Ts=float(indata[self.inputNames.index('Ts')])
 
             # incoming long wave radiation
             ea=float(indata[self.inputNames.index('ea')])
