@@ -8,12 +8,12 @@ Welcome to pyTSEB's documentation!
 
 Summary
 -------
-The Two Source Energy Balance model computes the turbulent fluxes for two layers, soil and vegetation, where both layers are allow to interact between them. Therefore allowing an analogy between the flux transport and the *Ohm's Law* for transport of electricity, the sensible *H* and latent :math:`\lambda E` heat fluxes can be represented as in 
+The Two Source Energy Balance (TSEB) model computes the turbulent fluxes for two layers, soil and vegetation, with the interaction between the layers being allowed. Therefore, following an analogy between the flux transport and the *Ohm's Law* for transport of electricity, the network of sensible *H* and latent :math:`\lambda E` heat flux transfers can be thought of as being in series and represented as in: 
 
 .. image:: TSEB_Scheme.png
 	:alt: TSEB resistance network in series
 
-where :math:`\lambda E` is estimated as a residual of the surface energy balance.
+In the TSEB scheme :math:`\lambda E` is usually estimated as a residual of the surface energy balance:
 
 .. math::
 	\lambda{}E_{S}&\approx R_{n,S}-G-H_{S}\\
@@ -29,7 +29,7 @@ with
 	H_{S}&=\rho_{air} C_{p}\frac{T_{S}-T_{AC}}{r_{s}}
 
 
-where :math:`\rho_{air}` is the density of air, :math:`C_{p}` is the heat capacity of air at constant pressure, :math:`T_{AC}` is the air temperature at the canopy interface:
+In the above equations :math:`\rho_{air}` is the density of air, :math:`C_{p}` is the heat capacity of air at constant pressure, :math:`T_{AC}` is the air temperature at the canopy interface:
 
 .. math::
 	T_{AC}=\frac{\frac{T_A}{r_a}+\frac{T_C}{r_x}+\frac{T_S}{r_s}}{\frac{1}{r_a}+\frac{1}{r_x}+\frac{1}{r_s}}
@@ -41,13 +41,17 @@ where :math:`\rho_{air}` is the density of air, :math:`C_{p}` is the heat capaci
 	\sigma T_{rad}^4\left(\theta\right)=f_c\left(\theta\right)\sigma\,T_{C}^4+\left[1-f_{c}\left(\theta\right)\right]\sigma\,T_{S}^4
 
 
-with :math:`f_c\left(\theta\right)` is the fraction of vegetation observed by a sensor pointing at a zenith angle :math:`\theta`
+with :math:`f_c\left(\theta\right)` representing the fraction of vegetation observed by a sensor pointing at a zenith angle :math:`\theta`
 
 .. math::
 	f_c\left(\theta\right)=1-\exp\left[-\kappa_{be}\left(\theta\right)\mathrm{LAI}\right]
 
 
-and :math:`\kappa_{be}\left(\theta\right)=\frac{\sqrt{\chi^2+\tan^2\theta}}{\chi+1.774\left(\chi+1.182\right)^{-0.733}}` is the extintion coefficient of a canopy with a leaf angle distribution function defined by the Cambpell 1990 :math:`\chi` parameter
+and :math:`\kappa_{be}\left(\theta\right)=\frac{\sqrt{\chi^2+\tan^2\theta}}{\chi+1.774\left(\chi+1.182\right)^{-0.733}}` being the extinction coefficient of a canopy with a leaf angle distribution function defined by the Cambpell 1990 :math:`\chi` parameter.
+
+:math:`r_{a}`, :math:`r_{x}` and :math:`r_{s}` are the resistances to heat and momentum transfer in the surface layer, from the leaf canopy and from the soil surface respectively. 
+
+
 
 Contents
 --------
