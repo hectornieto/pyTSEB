@@ -55,3 +55,9 @@ docs/_build/
 
 # PyBuilder
 target/
+
+# Temporary files
+*.*~
+
+# Jupyter Notebooks Checkpoints
+.ipynb_checkpoints/
