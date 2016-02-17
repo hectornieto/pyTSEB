@@ -521,7 +521,6 @@ class PyTSEB():
         root, askopenfilename, _ = self._setup_tkinter()
         InputFile = askopenfilename(parent = root, title=title) # show an "Open" dialog box and return the path to the selected file
         root.destroy() # Destroy the GUI
-        if InputFile=='':return None
         return InputFile
     
     def _on_output_clicked(self,b):
@@ -532,7 +531,6 @@ class PyTSEB():
         root, _, asksaveasfilename = self._setup_tkinter()
         OutputFile = asksaveasfilename(title=title) # show an "Open" dialog box and return the path to the selected file
         root.destroy()  # Destroy the GUI
-        if OutputFile=='':return None
         return OutputFile
 
     def _setup_tkinter(self):
