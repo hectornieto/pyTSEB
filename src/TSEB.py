@@ -473,14 +473,14 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
     if flag ==255:
         return [flag, Tr_K, Tc, Ta_K,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
                 R_s,R_x,R_a,u_friction, L,counter]
-    # First guess of net longwave radiation
-    L_nC, L_nS = rad.CalcLnKustas (Tc, Ts, Lsky, LAI,emisVeg, emisGrd)
-    delta_R_n = L_nC + S_nC
-    R_n_soil=S_nS+L_nS
-    # loop for estimating alphaPT
+    
     # loop for estimating stability, stop when difference in consecutives L is below 0.01
     for n_iterations in range(max_iterations):
         flag=0
+        # Calculate net longwave radiation with current values of Tc and Ts
+        L_nC, L_nS = rad.CalcLnKustas (Tc, Ts, Lsky, LAI,emisVeg, emisGrd)
+        delta_R_n = L_nC + S_nC
+        R_n_soil=S_nS+L_nS
         # calculate the aerodynamic resistances
         R_a=res.CalcR_A ( zt, u_friction, L, d_0, z_0H)
         # Calculate wind speed at the canopy height
@@ -504,10 +504,6 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
                     R_s,R_x,R_a,u_friction, L,counter]
         R_s=res.CalcR_S_Kustas(u_S, Ts-Ta_K)
         R_s=max( 1e-3,R_s)
-        # Calculate Net Longwave radition for soil and canopy, with Ts and Tc already known        
-        L_nC, L_nS = rad.CalcLnKustas (Tc, Ts, Lsky, LAI,emisVeg, emisGrd)
-        delta_R_n = L_nC + S_nC
-        R_n_soil=S_nS+L_nS
         # get air temperature at canopy interface in Celsius
         T_AC = (( Ta_K/R_a + Ts/R_s + Tc/R_x )
             /(1.0/R_a + 1.0/R_s + 1.0/R_x))
@@ -787,12 +783,13 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
     if flag ==255:
         return [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
                 R_s,R_x,R_a,u_friction, L,Ri,count]
-    # First guess of net longwave radiation
-    L_nC, L_nS = rad.CalcLnKustas (Tc, Ts, Lsky, LAI_eff,emisVeg, emisGrd)
-    delta_R_n = L_nC + S_nC
-    R_n_soil=S_nS+L_nS
+    
     # loop for estimating stability, stop when difference in consecutives L is below 0.01
     for n_iterations in range(max_iterations):
+        # Calculate net longwave radiation with current values of Tc and Ts
+        L_nC, L_nS = rad.CalcLnKustas (Tc, Ts, Lsky, LAI_eff,emisVeg, emisGrd)
+        delta_R_n = L_nC + S_nC
+        R_n_soil=S_nS+L_nS
         # calculate sensible heat flux of the canopy
         H_C= CalcH_C_PT(delta_R_n, f_g, Ta_K_1, p, c_p, alpha_PT)
         # calculate total sensible heat flux at time t1
@@ -804,10 +801,6 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
         if flag ==255:
             return [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
                 R_s,R_x,R_a,u_friction, L,Ri,count]
-        # Calculate the net longwave radiation
-        L_nC, L_nS = rad.CalcLnKustas (Tc, Ts, Lsky, LAI,emisVeg, emisGrd)
-        delta_R_n = L_nC + S_nC
-        R_n_soil=S_nS+L_nS
         LE_C=delta_R_n-H_C
        # calculate ground heat flux
         if CalcG[0]==0:
@@ -846,7 +839,6 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
                 if flag ==255:
                     return [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,
                         LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,Ri,count]
-                H_C=rho * c_p* (Tc - T_AC)/ R_x
                 deltaT=(Tr_K_1 - Tr_K_0) - (Ta_K_1- Ta_K_0)#based on equation from Guzinski et. al., 2014 
                 R_s = res.CalcR_S_Kustas(u_S, deltaT)
                 R_s=max( 1e-3,R_s)
