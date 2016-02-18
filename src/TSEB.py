@@ -218,7 +218,7 @@ def TSEB_2T(Tc,Ts,Ta_K,u,ea,p,Rn_sw_veg, Rn_sw_soil, Rn_lw_veg, Rn_lw_soil,LAI,
     u_old=1e36
     #First Guess Friction Velocity 
     max_iterations=ITERATIONS
-    u_friction=CalcU_star (u, zu, L, d_0,z_0M)
+    u_friction=MO.CalcU_star (u, zu, L, d_0,z_0M)
     u_friction =max(u_friction_min, u_friction)
     #Start the Monin-Obukhov iteration
     for n_iterations in range(max_iterations):
@@ -759,7 +759,7 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
     #Real LAI
     F=LAI/f_c
     omega0=CI.CalcOmega0_Kustas(LAI, f_c, isLAIeff=True)
-    Omega=CI.CalcOmega_Kustas(omega0,sza_1,wc=wc)
+    Omega=CI.CalcOmega_Kustas(omega0,sza,wc=wc)
     f_theta = CalcFthetaCampbell(vza, F, wc=wc,Omega0=omega0)   #Fraction of vegetation observed by the sensor
     # Calculate wind profiles
     u_C=MO.CalcU_C (u, hc, d_0, z_0M,zu,L)
@@ -822,18 +822,18 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
         R_s = res.CalcR_S_Kustas(u_S, deltaT)
         # calculate latent heat from the ground
         H_S = H - H_C
-        LE_S = R_n_soil1 - H_S - G
+        LE_S = R_n_soil - H_S - G
         # Check daytime soil latent heat fluxes
         if LE_S < 0: #and R_n_soil > 0 and delta_R_n > 0:
             LE_S=0
             flag=3
-            H_S=R_n_soil1-G
+            H_S=R_n_soil-G
             Ts,T_AC=CalcT_S_Series(Tr_K_1,Ta_K_1,R_a,R_x,R_s,f_theta,H_S,rho,c_p)
             flag,Tc=CalcT_C(Tr_K_1, Ts, f_theta)
             if flag ==255:
                 return [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,
                         LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,Ri,count]
-            H_C=rho1 * c_p* (Tc - T_AC)/ R_x
+            H_C=rho * c_p* (Tc - T_AC)/ R_x
             LE_C=delta_R_n-H_C
             flag=1
             # Check for daytime canopy latent heat fluxes
@@ -858,7 +858,7 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
         H = H_C + H_S
         LE = LE_C + LE_S
         #Monin-Obukhov Lenght
-        L=MO.CalcL (u_friction, Ta_K_1, rho, c_p, H1, LE1)
+        L=MO.CalcL (u_friction, Ta_K_1, rho, c_p, H, LE)
         #Difference of Heat Flux between interations
         L_diff=abs(L-L_old)/abs(L_old)
         L_old=L

@@ -518,20 +518,9 @@ class PyTSEB():
         self.w_masktxt.value=self.GetInputFileName(title='Select Image Mask')
 
     def GetInputFileName(self, title='Select Input File'):
-        '''Creates a Tkinter input file dialog'''
-        import sys
-        # Import Tkinter GUI widgets
-        if sys.version_info.major==2:
-            from tkFileDialog import askopenfilename
-            import Tkinter as tk
-        else:
-            from tkinter.filedialog import askopenfilename
-            import tkinter as tk
-        root=tk.Tk()
-        root.withdraw()
-        InputFile = askopenfilename(title=title) # show an "Open" dialog box and return the path to the selected file
+        root, askopenfilename, _ = self._setup_tkinter()
+        InputFile = askopenfilename(parent = root, title=title) # show an "Open" dialog box and return the path to the selected file
         root.destroy() # Destroy the GUI
-        if InputFile=='':return None
         return InputFile
     
     def _on_output_clicked(self,b):
@@ -539,21 +528,41 @@ class PyTSEB():
         self.w_outputtxt.value=self.GetOutputFileName()
 
     def GetOutputFileName(self, title='Select Output File'):
-        '''Creates a Tkinter output file dialog'''
+        root, _, asksaveasfilename = self._setup_tkinter()
+        OutputFile = asksaveasfilename(title=title) # show an "Open" dialog box and return the path to the selected file
+        root.destroy()  # Destroy the GUI
+        return OutputFile
+
+    def _setup_tkinter(self):
+        '''Creates a Tkinter input file dialog'''
         import sys
         # Import Tkinter GUI widgets
         if sys.version_info.major==2:
-            from tkFileDialog import asksaveasfilename
+            from tkFileDialog import askopenfilename, asksaveasfilename
             import Tkinter as tk
         else:
-            from tkinter.filedialog import asksaveasfilename
+            from tkinter.filedialog import askopenfilename, asksaveasfilename
             import tkinter as tk
+        
+        # Code below is to make sure the file dialog appears above the 
+        # terminal/browser
+        # Based on http://stackoverflow.com/questions/3375227/how-to-give-tkinter-file-dialog-focus
+
+        # Make a top-level instance and hide since it is ugly and big.
         root=tk.Tk()
         root.withdraw()
-        OutputFile = asksaveasfilename(title=title) # show an "Open" dialog box and return the path to the selected file
-        root.destroy()  # Destroy the GUI
-        if OutputFile=='':return None
-        return OutputFile
+
+        # Make it almost invisible - no decorations, 0 size, top left corner.
+        root.overrideredirect(True)
+        root.geometry('0x0+0+0')
+        
+        # Show window again and lift it to top so it can get focus,
+        # otherwise dialogs will end up behind the terminal.
+        root.deiconify()
+        root.lift()
+        root.focus_force()
+        
+        return root, askopenfilename, asksaveasfilename    
     
     def SurfaceProperties(self):
         '''Widgets for canopy properties'''
