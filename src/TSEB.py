@@ -742,7 +742,7 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
     u_friction = MO.CalcU_star(u, zu, Ri, d_0,z_0M, useRi=True)    
     u_C = MO.CalcU_C(u_friction, hc, d_0, z_0M)
     u_S=MO.CalcU_Goudriaan (u_C, hc, LAI, leaf_width, z0_soil)
-    # deltaT based on equation from Guzinski et. al., 2014    
+    # deltaT based on equation from Guzinski et. al., 2015    
     deltaT=(Tr_K_1 - Tr_K_0) - (Ta_K_1- Ta_K_0)    
     R_s=res.CalcR_S_Kustas(u_S, deltaT)
     
