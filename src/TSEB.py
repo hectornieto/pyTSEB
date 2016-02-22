@@ -473,7 +473,19 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
     if flag ==255:
         return [flag, Tr_K, Tc, Ta_K,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
                 R_s,R_x,R_a,u_friction, L,counter]
-    
+    # calculate the aerodynamic resistances
+    R_a=res.CalcR_A ( zt, u_friction, L, d_0, z_0H)
+    # Calculate wind speed at the canopy height
+    U_C=MO.CalcU_C (u_friction, hc, d_0, z_0M)
+    # Calculate soil and canopy resistances
+    u_S=MO.CalcU_Goudriaan (U_C, hc, LAI, leaf_width, z0_soil)
+    u_d_zm = MO.CalcU_Goudriaan (U_C, hc, LAI, leaf_width,d_0+z_0M)
+    R_x=res.CalcR_X_Norman(F, leaf_width, u_d_zm)
+    R_s=res.CalcR_S_Kustas(u_S, Ts-Ta_K)
+    R_s=max( 1e-3,R_s)
+    R_x=max( 1e-3,R_x)
+    R_a=max( 1e-3,R_a)
+
     # loop for estimating stability, stop when difference in consecutives L is below 0.01
     for n_iterations in range(max_iterations):
         L_diff=abs(L-L_old)/abs(L_old)
@@ -504,22 +516,9 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
             delta_R_n = L_nC + S_nC
             R_n_soil=S_nS+L_nS
             
-            # calculate the aerodynamic resistances
-            R_a=res.CalcR_A ( zt, u_friction, L, d_0, z_0H)
-            # Calculate wind speed at the canopy height
-            U_C=MO.CalcU_C (u_friction, hc, d_0, z_0M)
-            # Calculate soil and canopy resistances
-            u_S=MO.CalcU_Goudriaan (U_C, hc, LAI, leaf_width, z0_soil)
-            u_d_zm = MO.CalcU_Goudriaan (U_C, hc, LAI, leaf_width,d_0+z_0M)
-            R_x=res.CalcR_X_Norman(F, leaf_width, u_d_zm)
-            R_s=res.CalcR_S_Kustas(u_S, Ts-Ta_K)
-            R_s=max( 1e-3,R_s)
-            R_x=max( 1e-3,R_x)
-            R_a=max( 1e-3,R_a)
-            
             # calculate the canopy and soil temperatures using the Priestley Taylor appoach
             # first we assume potential canopy transpiration
-            H_C = CalcH_C_PT(delta_R_n, f_g, Ta_K, p, c_p, alpha_PT)
+            H_C = CalcH_C_PT(delta_R_n, f_g, Ta_K, p, c_p, alpha_PT_rec)
             Tc= CalcT_C_Series(Tr_K,Ta_K, R_a, R_x, R_s, f_theta, H_C, rho, c_p)
             # get soil temperature in Kelvin
             flag,Ts = CalcT_S(Tr_K, Tc, f_theta)
@@ -705,6 +704,14 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
     # Create the output variables
     [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
          R_s,R_x,R_a,u_friction,L,Ri,count]=[0 for i in range(20)]
+    if LAI==0: # One Source Energy Balance
+        z_0M=z0_soil
+        d_0=5*z_0M
+        spectraGrd=fvis*spectraGrd['rsoilv']+fnir* spectraGrd['rsoiln']
+        [flag,S_nS, L_nS, LE_S,H_S,G,R_a,u_friction, L,counter]=OSEB(Tr_K_1,
+            Ta_K_1,u,ea,p,Sdn_dir+ Sdn_dif,Lsky,emisGrd,spectraGrd,z_0M,d_0,zu,zt,CalcG=CalcG)
+        return [flag, Tr_K_1, Tc, Ta_K_1,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
+                R_s,R_x,R_a,u_friction, L,counter]
     
     # Calculate the general parameters
     rho= met.CalcRho(p, ea, Ta_K_1)  # Air density
