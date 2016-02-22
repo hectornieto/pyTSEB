@@ -476,98 +476,82 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
     
     # loop for estimating stability, stop when difference in consecutives L is below 0.01
     for n_iterations in range(max_iterations):
-        flag=0
-        # Calculate net longwave radiation with current values of Tc and Ts
-        L_nC, L_nS = rad.CalcLnKustas (Tc, Ts, Lsky, LAI,emisVeg, emisGrd)
-        delta_R_n = L_nC + S_nC
-        R_n_soil=S_nS+L_nS
-        # calculate the aerodynamic resistances
-        R_a=res.CalcR_A ( zt, u_friction, L, d_0, z_0H)
-        # Calculate wind speed at the canopy height
-        U_C=MO.CalcU_C (u_friction, hc, d_0, z_0M)
-        # Calculate soil and canopy resistances
-        u_S=MO.CalcU_Goudriaan (U_C, hc, LAI, leaf_width, z0_soil)
-        u_d_zm = MO.CalcU_Goudriaan (U_C, hc, LAI, leaf_width,d_0+z_0M)
-        R_x=res.CalcR_X_Norman(F, leaf_width, u_d_zm)
-        R_s=res.CalcR_S_Kustas(u_S, Ts-Ta_K)
-        R_s=max( 1e-3,R_s)
-        R_x=max( 1e-3,R_x)
-        R_a=max( 1e-3,R_a)
-        # calculate the canopy and soil temperatures using the Priestley Taylor appoach
-        # first we assume potential canopy transpiration
-        H_C = CalcH_C_PT(delta_R_n, f_g, Ta_K, p, c_p, alpha_PT)
-        Tc= CalcT_C_Series(Tr_K,Ta_K, R_a, R_x, R_s, f_theta, H_C, rho, c_p)
-        # get soil temperature in Kelvin
-        flag,Ts = CalcT_S(Tr_K, Tc, f_theta)
-        if flag ==255:
-            return [flag, Tr_K, Tc, Ta_K,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
-                    R_s,R_x,R_a,u_friction, L,counter]
-        R_s=res.CalcR_S_Kustas(u_S, Ts-Ta_K)
-        R_s=max( 1e-3,R_s)
-        # get air temperature at canopy interface in Celsius
-        T_AC = (( Ta_K/R_a + Ts/R_s + Tc/R_x )
-            /(1.0/R_a + 1.0/R_s + 1.0/R_x))
-        # calculate soil fluxes
-        H_S =  rho * c_p * (Ts - T_AC)/ R_s
-        #Compute Soil Heat Flux Ratio
-        if CalcG[0]==0:
-            G=CalcG[1]
-        elif CalcG[0]==1:
-            G=CalcG_Ratio(R_n_soil, CalcG[1])
-        elif CalcG[0]==2:
-            G=CalcG_TimeDiff (R_n_soil, CalcG[1])
-        LE_S = R_n_soil - G - H_S
-        LE_C = delta_R_n - H_C        
-        # Check daytime soil latent heat fluxes
-        if LE_S < 0: #and R_n_soil > 0 and delta_R_n > 0:
-            LE_S=0.0
-            H_S=R_n_soil-G
-            Ts,T_AC=CalcT_S_Series(Tr_K,Ta_K,R_a,R_x,R_s,f_theta,H_S,rho,c_p)
-            #R_s=CalcR_S_Kustas(u_S, Ts-Ta_K)
-            #T_AC = (( Ta_K/R_a + Ts/R_s + Tc/R_x )/(1.0/R_a + 1.0/R_a + 1.0/R_x))
-            flag,Tc=CalcT_C(Tr_K, Ts, f_theta)
-            if flag ==255:
-               return [flag, Tr_K, Tc, Ta_K,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
-                       R_s,R_x,R_a,u_friction, L,counter]
+        L_diff=abs(L-L_old)/abs(L_old)
+        L_old=L
+        #Difference of Heat Flux between interations
+        if abs(L_old)==0: L_old=1e-36
+        # Calculate the change in friction velocity
+        #u_diff=abs(u_friction-u_old)/abs(u_old)
+        #u_old=u_friction
+        #Stop the iteration if differences are below the threshold
+        if L_diff < L_thres:
+            break
 
-            H_C=rho * c_p * (Tc - T_AC)/ R_x
-            LE_C=delta_R_n-H_C
-            flag=3
-            # Check for daytime canopy latent heat fluxes
-            if LE_C < 0:
-                LE_C=0
-                H_C=delta_R_n
-                # Use parallel version to avoid iteration
-                Tc=CalcT_C_Series(Tr_K,Ta_K, R_a, R_x, R_s, f_theta, H_C, rho, c_p)
-                flag,Ts=CalcT_S(Tr_K, Tc, f_theta)
-                if flag ==255:
-                    return [flag, Tr_K, Tc, Ta_K,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
-                            R_s,R_x,R_a,u_friction, L,counter]
-                R_s=res.CalcR_S_Kustas(u_S, Ts-Ta_K)
-                R_s=max( 1e-3,R_s)
-                T_AC = (( Ta_K/R_a + Ts/R_s + Tc/R_x )/(1.0/R_a + 1.0/R_s + 1.0/R_x))
-                H_S=rho*c_p*(Ts-T_AC)/(R_s)
-                G=R_n_soil-H_S
-                flag=5
+        flag=0
+        LE_S = -1
+        alpha_PT_list=[x / 100.0 for x in range(int(alpha_PT*100), -1, -1)]
+        for alpha_PT_rec in alpha_PT_list:
+            if LE_S > 0: break
+            
+            # There cannot be negative transpiration from the vegetation
+            if alpha_PT_rec == 0.0:
+                flag = 5
+            elif alpha_PT_rec < alpha_PT:
+                flag = 3
+
+            # Calculate net longwave radiation with current values of Tc and Ts
+            L_nC, L_nS = rad.CalcLnKustas (Tc, Ts, Lsky, LAI,emisVeg, emisGrd)
+            delta_R_n = L_nC + S_nC
+            R_n_soil=S_nS+L_nS
+            
+            # calculate the aerodynamic resistances
+            R_a=res.CalcR_A ( zt, u_friction, L, d_0, z_0H)
+            # Calculate wind speed at the canopy height
+            U_C=MO.CalcU_C (u_friction, hc, d_0, z_0M)
+            # Calculate soil and canopy resistances
+            u_S=MO.CalcU_Goudriaan (U_C, hc, LAI, leaf_width, z0_soil)
+            u_d_zm = MO.CalcU_Goudriaan (U_C, hc, LAI, leaf_width,d_0+z_0M)
+            R_x=res.CalcR_X_Norman(F, leaf_width, u_d_zm)
+            R_s=res.CalcR_S_Kustas(u_S, Ts-Ta_K)
+            R_s=max( 1e-3,R_s)
+            R_x=max( 1e-3,R_x)
+            R_a=max( 1e-3,R_a)
+            
+            # calculate the canopy and soil temperatures using the Priestley Taylor appoach
+            # first we assume potential canopy transpiration
+            H_C = CalcH_C_PT(delta_R_n, f_g, Ta_K, p, c_p, alpha_PT)
+            Tc= CalcT_C_Series(Tr_K,Ta_K, R_a, R_x, R_s, f_theta, H_C, rho, c_p)
+            # get soil temperature in Kelvin
+            flag,Ts = CalcT_S(Tr_K, Tc, f_theta)
+            if flag ==255:
+                return [flag, Tr_K, Tc, Ta_K,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
+                        R_s,R_x,R_a,u_friction, L,counter]
+            R_s=res.CalcR_S_Kustas(u_S, Ts-Ta_K)
+            R_s=max( 1e-3,R_s)
+            # get air temperature at canopy interface in Celsius
+            T_AC = (( Ta_K/R_a + Ts/R_s + Tc/R_x )
+                /(1.0/R_a + 1.0/R_s + 1.0/R_x))
+            # calculate soil fluxes
+            H_S =  rho * c_p * (Ts - T_AC)/ R_s
+            #Compute Soil Heat Flux Ratio
+            if CalcG[0]==0:
+                G=CalcG[1]
+            elif CalcG[0]==1:
+                G=CalcG_Ratio(R_n_soil, CalcG[1])
+            elif CalcG[0]==2:
+                G=CalcG_TimeDiff (R_n_soil, CalcG[1])
+            LE_S = R_n_soil - G - H_S
+            LE_C = delta_R_n - H_C        
+
         # calculate total fluxes
         H = H_C + H_S
         LE = LE_C + LE_S
         #Monin-Obukhov Lenght
         L=MO.CalcL (u_friction, Ta_K, rho, c_p, H, LE)
-        #Difference of Heat Flux between interations
-        L_diff=abs(L-L_old)/abs(L_old)
-        L_old=L
-        if abs(L_old)==0: L_old=1e-36
         # Calculate again the friction velocity with the new stability correctios        
         u_friction=MO.CalcU_star (u, zu, L, d_0,z_0M)
-        # Calculate the change in friction velocity
-        u_diff=abs(u_friction-u_old)/abs(u_old)
-        u_old=u_friction
         #Avoid very low friction velocity values
         u_friction =max(u_friction_min, u_friction)
-        #Stop the iteration if differences are below the threshold
-        if L_diff < L_thres and u_diff < u_thres:
-            break
         
     return flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,n_iterations
     
@@ -768,22 +752,21 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
     
     # Outer loop until canopy and soil temperatures have stabilised 
     Tc_prev = 0
-    iteration = 0
-    while abs(Tc - Tc_prev) > 0.1 and iteration < ITERATIONS:
+    for iteration in range(ITERATIONS):
+        if (Tc - Tc_prev) < 0.1: break
+
         flag = 0
         Tc_prev = Tc
-        iteration += 1
 
         # Inner loop to iterativelly reduce alpha_PT in case latent heat flux 
         # from the soil is negative
         LE_S = -1
-        alpha_PT_rec = alpha_PT + 0.1  
-        while LE_S < 0:
+        alpha_PT_list=[x / 100.0 for x in range(int(alpha_PT*100), -1, -1)]
+        for alpha_PT_rec in alpha_PT_list:
+            if LE_S > 0: break
             
             # There cannot be negative transpiration from the vegetation
-            alpha_PT_rec -= 0.1
-            if alpha_PT_rec <= 0:
-                alpha_PT_rec = 0 
+            if alpha_PT_rec == 0.0:
                 flag = 5
             elif alpha_PT_rec < alpha_PT:
                 flag = 3
