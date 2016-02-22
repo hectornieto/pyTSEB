@@ -83,14 +83,6 @@ u_thres=0.00001
 u_friction_min=0.01;
 #Maximum number of interations
 ITERATIONS=1000
-# Priestly - Taylor cooficient
-defaultAlpha=1.26
-#ratio of the molecular weight of water vapor to dry air
-epsilon=0.622 
-#Psicrometric Constant kPa K-1
-psicr=0.0658    
-#Stephan Boltzmann constant (W m-2 K-4)
-sb=5.670373e-8 
 # kB coefficient
 kB=0.0
 
@@ -193,6 +185,11 @@ def TSEB_2T(Tc,Ts,Ta_K,u,ea,p,Rn_sw_veg, Rn_sw_soil, Rn_lw_veg, Rn_lw_soil,LAI,
     rho_a=met.CalcRho(p, ea, Ta_K)
     #Heat capacity or air at constant pressure (273.15K) (J kg-1 K-1)
     Cp=met.CalcC_p(p, ea)
+    # latent heat of vaporisation (MJ./kg)
+    Lambda=met.CalcLambda(Ta_K)
+    # psychrometric constant (mb C-1)
+    psicr=met.CalcPsicr(p,Lambda)
+
     #Compute Net Radiation
     Rn_soil=Rn_sw_soil+Rn_lw_soil
     Rn_veg=Rn_sw_veg+Rn_lw_veg
@@ -433,21 +430,20 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
     
     # Create the output variables
     [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,
-     u_friction, L,counter]=[0 for i in range(19)]
+     u_friction, L,n_iterations]=[0 for i in range(19)]
     #Define Variables for iteration
     L=float('inf')
     # Initial values to start iteration
     L_old=1
-    u_old=1e36
     Tc= 0.0
     if LAI==0: # One Source Energy Balance
         z_0M=z0_soil
         d_0=5*z_0M
         spectraGrd=fvis*spectraGrd['rsoilv']+fnir* spectraGrd['rsoiln']
-        [flag,S_nS, L_nS, LE_S,H_S,G,R_a,u_friction, L,counter]=OSEB(Tr_K,
+        [flag,S_nS, L_nS, LE_S,H_S,G,R_a,u_friction, L,n_iterations]=OSEB(Tr_K,
             Ta_K,u,ea,p,Sdn_dir+ Sdn_dif,Lsky,emisGrd,spectraGrd,z_0M,d_0,zu,zt,CalcG=CalcG)
         return [flag, Tr_K, Tc, Ta_K,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
-                R_s,R_x,R_a,u_friction, L,counter]
+                R_s,R_x,R_a,u_friction, L,n_iterations]
     # calculate the general parameters
     #Real LAI and clumping index
     F=LAI/f_c
@@ -472,24 +468,13 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
     flag,Ts=CalcT_S(Tr_K, Tc, f_theta)
     if flag ==255:
         return [flag, Tr_K, Tc, Ta_K,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
-                R_s,R_x,R_a,u_friction, L,counter]
-    # calculate the aerodynamic resistances
-    R_a=res.CalcR_A ( zt, u_friction, L, d_0, z_0H)
-    # Calculate wind speed at the canopy height
-    U_C=MO.CalcU_C (u_friction, hc, d_0, z_0M)
-    # Calculate soil and canopy resistances
-    u_S=MO.CalcU_Goudriaan (U_C, hc, LAI, leaf_width, z0_soil)
-    u_d_zm = MO.CalcU_Goudriaan (U_C, hc, LAI, leaf_width,d_0+z_0M)
-    R_x=res.CalcR_X_Norman(F, leaf_width, u_d_zm)
-    R_s=res.CalcR_S_Kustas(u_S, Ts-Ta_K)
-    R_s=max( 1e-3,R_s)
-    R_x=max( 1e-3,R_x)
-    R_a=max( 1e-3,R_a)
+                R_s,R_x,R_a,u_friction, L,n_iterations]
 
     # loop for estimating stability, stop when difference in consecutives L is below 0.01
     for n_iterations in range(max_iterations):
+        
         L_diff=abs(L-L_old)/abs(L_old)
-        L_old=L
+        
         #Difference of Heat Flux between interations
         if abs(L_old)==0: L_old=1e-36
         # Calculate the change in friction velocity
@@ -510,6 +495,19 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
                 flag = 5
             elif alpha_PT_rec < alpha_PT:
                 flag = 3
+                
+            # calculate the aerodynamic resistances
+            R_a=res.CalcR_A ( zt, u_friction, L, d_0, z_0H)
+            # Calculate wind speed at the canopy height
+            U_C=MO.CalcU_C (u_friction, hc, d_0, z_0M)
+            # Calculate soil and canopy resistances
+            u_S=MO.CalcU_Goudriaan (U_C, hc, LAI, leaf_width, z0_soil)
+            u_d_zm = MO.CalcU_Goudriaan (U_C, hc, LAI, leaf_width,d_0+z_0M)
+            R_x=res.CalcR_X_Norman(F, leaf_width, u_d_zm)
+            R_s=res.CalcR_S_Kustas(u_S, Ts-Ta_K)
+            R_s=max( 1e-3,R_s)
+            R_x=max( 1e-3,R_x)
+            R_a=max( 1e-3,R_a)
 
             # Calculate net longwave radiation with current values of Tc and Ts
             L_nC, L_nS = rad.CalcLnKustas (Tc, Ts, Lsky, LAI,emisVeg, emisGrd)
@@ -524,7 +522,7 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
             flag,Ts = CalcT_S(Tr_K, Tc, f_theta)
             if flag ==255:
                 return [flag, Tr_K, Tc, Ta_K,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
-                        R_s,R_x,R_a,u_friction, L,counter]
+                        R_s,R_x,R_a,u_friction, L,n_iterations]
             R_s=res.CalcR_S_Kustas(u_S, Ts-Ta_K)
             R_s=max( 1e-3,R_s)
             # get air temperature at canopy interface in Celsius
@@ -542,15 +540,16 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
             LE_S = R_n_soil - G - H_S
             LE_C = delta_R_n - H_C        
 
-        # calculate total fluxes
-        H = H_C + H_S
-        LE = LE_C + LE_S
-        #Monin-Obukhov Lenght
-        L=MO.CalcL (u_friction, Ta_K, rho, c_p, H, LE)
-        # Calculate again the friction velocity with the new stability correctios        
-        u_friction=MO.CalcU_star (u, zu, L, d_0,z_0M)
-        #Avoid very low friction velocity values
-        u_friction =max(u_friction_min, u_friction)
+            # calculate total fluxes
+            H = H_C + H_S
+            LE = LE_C + LE_S
+            #Monin-Obukhov Lenght
+            L=MO.CalcL (u_friction, Ta_K, rho, c_p, H, LE)
+            L_old=L
+            # Calculate again the friction velocity with the new stability correctios        
+            u_friction=MO.CalcU_star (u, zu, L, d_0,z_0M)
+            #Avoid very low friction velocity values
+            u_friction =max(u_friction_min, u_friction)
         
     return flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,n_iterations
     
@@ -703,15 +702,15 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
     
     # Create the output variables
     [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
-         R_s,R_x,R_a,u_friction,L,Ri,count]=[0 for i in range(20)]
+         R_s,R_x,R_a,u_friction,L,Ri,n_iterations]=[0 for i in range(20)]
     if LAI==0: # One Source Energy Balance
         z_0M=z0_soil
         d_0=5*z_0M
         spectraGrd=fvis*spectraGrd['rsoilv']+fnir* spectraGrd['rsoiln']
-        [flag,S_nS, L_nS, LE_S,H_S,G,R_a,u_friction, L,counter]=OSEB(Tr_K_1,
+        [flag,S_nS, L_nS, LE_S,H_S,G,R_a,u_friction, L,n_iterations]=OSEB(Tr_K_1,
             Ta_K_1,u,ea,p,Sdn_dir+ Sdn_dif,Lsky,emisGrd,spectraGrd,z_0M,d_0,zu,zt,CalcG=CalcG)
         return [flag, Tr_K_1, Tc, Ta_K_1,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
-                R_s,R_x,R_a,u_friction, L,counter]
+                R_s,R_x,R_a,u_friction, L,n_iterations]
     
     # Calculate the general parameters
     rho= met.CalcRho(p, ea, Ta_K_1)  # Air density
@@ -755,11 +754,11 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
     flag,Ts=CalcT_S(Tr_K_1, Tc, f_theta)
     if flag ==255:
         return [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
-                R_s,R_x,R_a,u_friction, L,Ri,count]
+                R_s,R_x,R_a,u_friction, L,Ri,n_iterations]
     
     # Outer loop until canopy and soil temperatures have stabilised 
     Tc_prev = 0
-    for iteration in range(ITERATIONS):
+    for n_iterations in range(ITERATIONS):
         if (Tc - Tc_prev) < 0.1: break
 
         flag = 0
@@ -818,12 +817,12 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
             flag_t,Ts = CalcT_S (Tr_K_1, Tc, f_theta)
             if flag_t ==255:
                 return [flag_t, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
-                    R_s,R_x,R_a,u_friction, L,Ri,count]
+                    R_s,R_x,R_a,u_friction, L,Ri,n_iterations]
     
     # L is only calculated for testing purposes
     L=MO.CalcL (u_friction, Ta_K_1, rho, c_p, H, LE_C + LE_S)               
     return [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
-                R_s,R_x,R_a,u_friction, L,Ri,count]        
+                R_s,R_x,R_a,u_friction, L,Ri,n_iterations]        
 
 def  OSEB(Tr_K,Ta_K,u,ea,p,Sdn,Lsky,emis,albedo,z_0M,d_0,zu,zt, CalcG=[1,0.35]):
     '''Calulates bulk fluxes from a One Source Energy Balance model
