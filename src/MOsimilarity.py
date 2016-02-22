@@ -259,23 +259,19 @@ def CalcRichardson (u, z_u, d_0, T_R0, T_R1, T_A0, T_A1):
     Ri = -(gravity * (z_u - d_0) / T_A1) * (((T_R1 - T_R0) - (T_A1 - T_A0)) / u**2)
     return Ri
 
-def CalcU_C (u, h_C, d_0, z_0M, z_u,L):
-    '''[Norman1995]_ wind speed at the canopy
+def CalcU_C (u_friction, h_C, d_0, z_0M):
+    '''[Norman1995]_ wind speed at the canopy, reformulated to use u_friction
     
     Parameters
     ----------
-    u : float
-        Wind speed measured at heigth z_u (m s-1).
+    u_friction : float
+        Wind friction velocity (m s-1).
     h_C : float
         canopy height (m).
     d_0 : float
         zero-plane displacement height.
     z_0M : float
         aerodynamic roughness length for momentum transport (m).
-    z_u:  float
-        Height of measurement of wind speeed.
-    L : float
-     Monin Obukhov length.
     
     Returns
     -------
@@ -292,9 +288,9 @@ def CalcU_C (u, h_C, d_0, z_0M, z_u,L):
     '''
 
     from math import log
-    Psi_M= CalcPsi_M((h_C - d_0)/L)
-    # calcualte u_C, wind speed at the top of (or above) the canopy
-    u_C = u*log ((h_C  - d_0) / z_0M)/(log ((z_u  - d_0) / z_0M)- Psi_M)
+    # The original equation below has been refolmulated to use u_friction:
+    # u_C = u * log((h_C - d_0) / z_0M)/(log ((z_u  - d_0) / z_0M)- Psi_M)
+    u_C = log((h_C - d_0) / z_0M) * u_friction/k
     return u_C
 
 def CalcU_Goudriaan (u_C, h_C, LAI, leaf_width, z):
