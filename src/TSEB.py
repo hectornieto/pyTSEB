@@ -485,6 +485,7 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
             break
 
         flag=0
+
         # Inner loop to iterativelly reduce alpha_PT in case latent heat flux 
         # from the soil is negative
         LE_S = -1
@@ -523,9 +524,9 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
             H_C = CalcH_C_PT(delta_R_n, f_g, Ta_K, p, c_p, alpha_PT_rec)
             Tc= CalcT_C_Series(Tr_K,Ta_K, R_a, R_x, R_s, f_theta, H_C, rho, c_p)
             # get soil temperature in Kelvin
-            flag,Ts = CalcT_S(Tr_K, Tc, f_theta)
-            if flag ==255:
-                return [flag, Tr_K, Tc, Ta_K,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
+            flag_t, Ts = CalcT_S(Tr_K, Tc, f_theta)
+            if flag_t ==255:
+                return [flag_t, Tr_K, Tc, Ta_K,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
                         R_s,R_x,R_a,u_friction, L,n_iterations]
             R_s=res.CalcR_S_Kustas(u_S, Ts-Ta_K)
             R_s=max( 1e-3,R_s)
