@@ -703,7 +703,9 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
     # Create the output variables
     [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
          R_s,R_x,R_a,u_friction,L,Ri,n_iterations]=[0 for i in range(20)]
-    if LAI==0: # One Source Energy Balance
+    
+    # If there is no vegetation canopy use One Source Energy Balance model    
+    if LAI==0: 
         z_0M=z0_soil
         d_0=5*z_0M
         spectraGrd=fvis*spectraGrd['rsoilv']+fnir* spectraGrd['rsoiln']
