@@ -485,15 +485,20 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
             break
 
         flag=0
+
+        # Inner loop to iterativelly reduce alpha_PT in case latent heat flux 
+        # from the soil is negative
         LE_S = -1
-        alpha_PT_list=[x / 100.0 for x in range(int(alpha_PT*100), -1, -1)]
-        for alpha_PT_rec in alpha_PT_list:
-            if LE_S > 0: break
+        alpha_PT_rec = alpha_PT + 0.1         
+        while LE_S < 0: 
             
-            # There cannot be negative transpiration from the vegetation
-            if alpha_PT_rec == 0.0:
-                flag = 5
-            elif alpha_PT_rec < alpha_PT:
+            alpha_PT_rec -= 0.1 
+            
+            # There cannot be negative transpiration from the vegetation 
+            if alpha_PT_rec <= 0.0: 
+                alpha_PT_rec = 0.0 
+                flag = 5 
+            elif alpha_PT_rec < alpha_PT: 
                 flag = 3
                 
             # calculate the aerodynamic resistances
@@ -519,9 +524,9 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
             H_C = CalcH_C_PT(delta_R_n, f_g, Ta_K, p, c_p, alpha_PT_rec)
             Tc= CalcT_C_Series(Tr_K,Ta_K, R_a, R_x, R_s, f_theta, H_C, rho, c_p)
             # get soil temperature in Kelvin
-            flag,Ts = CalcT_S(Tr_K, Tc, f_theta)
-            if flag ==255:
-                return [flag, Tr_K, Tc, Ta_K,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
+            flag_t, Ts = CalcT_S(Tr_K, Tc, f_theta)
+            if flag_t ==255:
+                return [flag_t, Tr_K, Tc, Ta_K,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
                         R_s,R_x,R_a,u_friction, L,n_iterations]
             R_s=res.CalcR_S_Kustas(u_S, Ts-Ta_K)
             R_s=max( 1e-3,R_s)
@@ -539,6 +544,15 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
                 G=CalcG_TimeDiff (R_n_soil, CalcG[1])
             LE_S = R_n_soil - G - H_S
             LE_C = delta_R_n - H_C        
+
+            # Special case if there is no transpiration from vegetation. 
+            # In that case, there should also be no evaporation from the soil
+            # and the energy at the soil should be conserved.
+            # See end of appendix A1 in Guzinski et al. (2015).         
+            if LE_C == 0:              
+                H_S = min(H_S, R_n_soil - G)
+                G = max(G, R_n_soil - H_S)
+                LE_S = 0
 
             # calculate total fluxes
             H = H_C + H_S
@@ -703,7 +717,9 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
     # Create the output variables
     [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
          R_s,R_x,R_a,u_friction,L,Ri,n_iterations]=[0 for i in range(20)]
-    if LAI==0: # One Source Energy Balance
+    
+    # If there is no vegetation canopy use One Source Energy Balance model    
+    if LAI==0: 
         z_0M=z0_soil
         d_0=5*z_0M
         spectraGrd=fvis*spectraGrd['rsoilv']+fnir* spectraGrd['rsoiln']
@@ -767,14 +783,16 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
         # Inner loop to iterativelly reduce alpha_PT in case latent heat flux 
         # from the soil is negative
         LE_S = -1
-        alpha_PT_list=[x / 100.0 for x in range(int(alpha_PT*100), -1, -1)]
-        for alpha_PT_rec in alpha_PT_list:
-            if LE_S > 0: break
+        alpha_PT_rec = alpha_PT + 0.1         
+        while LE_S < 0: 
             
-            # There cannot be negative transpiration from the vegetation
-            if alpha_PT_rec == 0.0:
-                flag = 5
-            elif alpha_PT_rec < alpha_PT:
+            alpha_PT_rec -= 0.1 
+            
+            # There cannot be negative transpiration from the vegetation 
+            if alpha_PT_rec <= 0.0: 
+                alpha_PT_rec = 0.0 
+                flag = 5 
+            elif alpha_PT_rec < alpha_PT: 
                 flag = 3
                 
             # Calculate net longwave radiation with current values of Tc and Ts
@@ -804,10 +822,11 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
 
             # Special case if there is no transpiration from vegetation. 
             # In that case, there should also be no evaporation from the soil
-            # and sensible heat flux of the soil should depend only on the soil
-            # energy budget          
+            # and the energy at the soil should be conserved.
+            # See end of appendix A1 in Guzinski et al. (2015).         
             if LE_C == 0:              
-                H_S = R_n_soil - G
+                H_S = min(H_S, R_n_soil - G)
+                G = max(G, R_n_soil - H_S)
                 LE_S = 0
     
             # Recalculate soil and canopy temperatures. They are used only for  
