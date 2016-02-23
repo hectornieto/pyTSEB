@@ -769,14 +769,16 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
         # Inner loop to iterativelly reduce alpha_PT in case latent heat flux 
         # from the soil is negative
         LE_S = -1
-        alpha_PT_list=[x / 100.0 for x in range(int(alpha_PT*100), -1, -1)]
-        for alpha_PT_rec in alpha_PT_list:
-            if LE_S > 0: break
+        alpha_PT_rec = alpha_PT + 0.1         
+        while LE_S < 0: 
             
-            # There cannot be negative transpiration from the vegetation
-            if alpha_PT_rec == 0.0:
-                flag = 5
-            elif alpha_PT_rec < alpha_PT:
+            alpha_PT_rec -= 0.1 
+            
+            # There cannot be negative transpiration from the vegetation 
+            if alpha_PT_rec <= 0.0: 
+                alpha_PT_rec = 0.0 
+                flag = 5 
+            elif alpha_PT_rec < alpha_PT: 
                 flag = 3
                 
             # Calculate net longwave radiation with current values of Tc and Ts
