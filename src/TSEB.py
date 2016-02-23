@@ -937,10 +937,11 @@ def  OSEB(Tr_K,Ta_K,u,ea,p,Sdn,Lsky,emis,albedo,z_0M,d_0,zu,zt, CalcG=[1,0.35]):
         # calculate bulk fluxes
         H =  rho * c_p * (Tr_K - Ta_K)/ R_a
         LE = R_n -G - H
-        # Avoid negative ET during daytime
+        # Avoid negative ET during daytime and make sure that energy is conserved
         if LE<0:
             LE=0
-            G=R_n-G-LE
+            H = min(H, R_n - G)
+            G = max(G, R_n - H)
         # now L can be recalculated
         L=MO.CalcL (u_friction, Ta_K, rho, c_p, H, LE)
         #Difference of Heat Flux between interations
