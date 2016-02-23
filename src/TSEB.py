@@ -540,6 +540,15 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
             LE_S = R_n_soil - G - H_S
             LE_C = delta_R_n - H_C        
 
+            # Special case if there is no transpiration from vegetation. 
+            # In that case, there should also be no evaporation from the soil
+            # and the energy at the soil should be conserved.
+            # See end of appendix A1 in Guzinski et al. (2015).         
+            if LE_C == 0:              
+                H_S = min(H_S, R_n_soil - G)
+                G = max(G, R_n_soil - H_S)
+                LE_S = 0
+
             # calculate total fluxes
             H = H_C + H_S
             LE = LE_C + LE_S
