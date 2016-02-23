@@ -808,10 +808,11 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
 
             # Special case if there is no transpiration from vegetation. 
             # In that case, there should also be no evaporation from the soil
-            # and sensible heat flux of the soil should depend only on the soil
-            # energy budget          
+            # and the energy at the soil should be conserved.
+            # See end of appendix A1 in Guzinski et al. (2015).         
             if LE_C == 0:              
-                H_S = R_n_soil - G
+                H_S = min(H_S, R_n_soil - G)
+                G = max(G, R_n_soil - H_S)
                 LE_S = 0
     
             # Recalculate soil and canopy temperatures. They are used only for  
