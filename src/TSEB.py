@@ -724,9 +724,11 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
         d_0=5*z_0M
         spectraGrd=fvis*spectraGrd['rsoilv']+fnir* spectraGrd['rsoiln']
         [flag,S_nS, L_nS, LE_S,H_S,G,R_a,u_friction, L,n_iterations]=OSEB(Tr_K_1,
-            Ta_K_1,u,ea,p,Sdn_dir+ Sdn_dif,Lsky,emisGrd,spectraGrd,z_0M,d_0,zu,zt,CalcG=CalcG)
+            Ta_K_1,u,ea,p,Sdn_dir+ Sdn_dif,Lsky,emisGrd,spectraGrd,z_0M,d_0,zu,zt,CalcG=CalcG,
+            T0_K = (Tr_K_0, Ta_K_0))
+        Ri = MO.CalcRichardson (u, zu, d_0,Tr_K_0, Tr_K_1, Ta_K_0, Ta_K_1)
         return [flag, Tr_K_1, Tc, Ta_K_1,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
-                R_s,R_x,R_a,u_friction, L,n_iterations]
+                R_s,R_x,R_a,u_friction, L, Ri, n_iterations]
     
     # Calculate the general parameters
     rho= met.CalcRho(p, ea, Ta_K_1)  # Air density
@@ -843,7 +845,7 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
     return [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
                 R_s,R_x,R_a,u_friction, L,Ri,n_iterations]        
 
-def  OSEB(Tr_K,Ta_K,u,ea,p,Sdn,Lsky,emis,albedo,z_0M,d_0,zu,zt, CalcG=[1,0.35]):
+def  OSEB(Tr_K,Ta_K,u,ea,p,Sdn,Lsky,emis,albedo,z_0M,d_0,zu,zt, CalcG=[1,0.35], T0_K = []):
     '''Calulates bulk fluxes from a One Source Energy Balance model
 
     Parameters
@@ -876,10 +878,14 @@ def  OSEB(Tr_K,Ta_K,u,ea,p,Sdn,Lsky,emis,albedo,z_0M,d_0,zu,zt, CalcG=[1,0.35]):
         Height of measurement of air temperature (m).
     CalcG : Optional[tuple(int,list)]
         Method to calculate soil heat flux,parameters.
-        
             * (1,G_ratio): default, estimate G as a ratio of Rn_soil, default Gratio=0.35
             * (0,G_constant) : Use a constant G, usually use 0 to ignore the computation of G
             * (2,G_param) : estimate G from Santanello and Friedl with G_param list of parameters (see :func:`~TSEB.CalcG_TimeDiff`).
+    T0_K: Optional[tuple(float,float)]
+        If given it contains radiometric composite temperature (K) at time 0 as 
+        the first element and air temperature (K) at time 0 as the second element, 
+        in order to derive differential temperatures like is done in DTD
+        
     
     Returns
     -------
@@ -904,6 +910,15 @@ def  OSEB(Tr_K,Ta_K,u,ea,p,Sdn,Lsky,emis,albedo,z_0M,d_0,zu,zt, CalcG=[1,0.35]):
     n_iterations : int
         number of iterations until convergence of L.
     '''
+
+    # Check if differential temperatures are to be used  
+    if len(T0_K) == 2:
+        differentialT = True 
+        Tr_K_0 = T0_K[0]
+        Ta_K_0 = T0_K[1]
+    else:
+        differentialT = False
+        
    
     # Initially assume stable atmospheric conditions and set variables for 
     # iteration of the Monin-Obukhov length
@@ -916,7 +931,13 @@ def  OSEB(Tr_K,Ta_K,u,ea,p,Sdn,Lsky,emis,albedo,z_0M,d_0,zu,zt, CalcG=[1,0.35]):
     rho= met.CalcRho(p, ea, Ta_K)  #Air density
     c_p = met.CalcC_p(p, ea)  #Heat capacity of air
     max_iterations=ITERATIONS
-    u_friction = MO.CalcU_star(u, zu, L, d_0, z_0M)
+    # With differential temperatures use Richardson number to approximate L,
+    # same as is done in DTD    
+    if differentialT:
+        Ri = MO.CalcRichardson (u, zu, d_0, Tr_K_0, Tr_K, Ta_K_0, Ta_K)
+        u_friction = MO.CalcU_star(u, zu, Ri, d_0, z_0M, useRi=True)        
+    else:
+        u_friction = MO.CalcU_star(u, zu, L, d_0, z_0M)
     z_0H=res.CalcZ_0H(z_0M,kB=kB)
     
     # Calculate Net radiation
@@ -938,12 +959,18 @@ def  OSEB(Tr_K,Ta_K,u,ea,p,Sdn,Lsky,emis,albedo,z_0M,d_0,zu,zt, CalcG=[1,0.35]):
         G=G_calc
         
         # Calculate the aerodynamic resistances
-        R_a=res.CalcR_A ( zt, u_friction, L, d_0, z_0H)
+        if differentialT:
+            R_a=res.CalcR_A (zu, u_friction, Ri, d_0, z_0H, useRi=True)
+        else:
+            R_a=res.CalcR_A ( zt, u_friction, L, d_0, z_0H)
         R_a=max( 1e-3,R_a)
         
-        # Calculate soil fluxes assuming that since there is no vegetation,
+        # Calculate bulk fluxes assuming that since there is no vegetation,
         # Tr is the heat source
-        H =  rho * c_p * (Tr_K - Ta_K)/ R_a
+        if differentialT:
+            H =  rho * c_p * ((Tr_K - Tr_K_0) - (Ta_K - Ta_K_0))/ R_a
+        else:
+            H =  rho * c_p * (Tr_K - Ta_K)/ R_a
         LE = R_n - G - H
         
         # Avoid negative ET during daytime and make sure that energy is conserved
@@ -959,8 +986,9 @@ def  OSEB(Tr_K,Ta_K,u,ea,p,Sdn,Lsky,emis,albedo,z_0M,d_0,zu,zt, CalcG=[1,0.35]):
         if abs(L_old)==0: L_old=1e-36
 
         # Calculate again the friction velocity with the new stability correction
-        # and derive the change between iterations        
-        u_friction=MO.CalcU_star (u, zu, L, d_0,z_0M)
+        # and derive the change between iterations
+        if not differentialT:        
+            u_friction=MO.CalcU_star (u, zu, L, d_0, z_0M)
         u_diff=abs(u_friction-u_old)/abs(u_old)
         u_old=u_friction
         #Avoid very low friction velocity values
