@@ -905,22 +905,24 @@ def  OSEB(Tr_K,Ta_K,u,ea,p,Sdn,Lsky,emis,albedo,z_0M,d_0,zu,zt, CalcG=[1,0.35]):
         number of iterations until convergence of L.
     '''
    
-    # initially stable conditions
-    #Define Variables for iteration
+    # Initially assume stable atmospheric conditions and set variables for 
+    # iteration of the Monin-Obukhov length
     L=float('inf')
-    # Initial values to start iteration
     L_old=1
     u_old=1e36
     flag=0
-    # calculate the general parameters
+    
+    # Calculate the general parameters
     rho= met.CalcRho(p, ea, Ta_K)  #Air density
     c_p = met.CalcC_p(p, ea)  #Heat capacity of air
     max_iterations=ITERATIONS
-    u_friction = MO.CalcU_star(u, zu, L, d_0,z_0M)
+    u_friction = MO.CalcU_star(u, zu, L, d_0, z_0M)
     z_0H=res.CalcZ_0H(z_0M,kB=kB)
-    # Net radiation
-    S_n,L_n=rad.CalcRnOSEB(Sdn,Lsky, Tr_K, emis, albedo)
+    
+    # Calculate Net radiation
+    S_n,L_n=rad.CalcRnOSEB(Sdn, Lsky, Tr_K, emis, albedo)
     R_n=S_n+L_n
+    
     #Compute Soil Heat Flux
     if CalcG[0]==0:
         G_calc=CalcG[1]
@@ -928,33 +930,42 @@ def  OSEB(Tr_K,Ta_K,u,ea,p,Sdn,Lsky,emis,albedo,z_0M,d_0,zu,zt, CalcG=[1,0.35]):
         G_calc=CalcG_Ratio(R_n, CalcG[1])
     elif CalcG[0]==2:
         G_calc=CalcG_TimeDiff (R_n, CalcG[1])
-    # loop for estimating stability, stop when difference in consecutives L is below 0.01
+    
+    # Loop for estimating atmospheric stability. 
+    # Stops when difference in consecutive L and u_friction is below a 
+    # given threshold
     for n_iterations in range(max_iterations):
         G=G_calc
-        # calculate the aerodynamic resistances
+        
+        # Calculate the aerodynamic resistances
         R_a=res.CalcR_A ( zt, u_friction, L, d_0, z_0H)
         R_a=max( 1e-3,R_a)
-        # calculate bulk fluxes
+        
+        # Calculate soil fluxes assuming that since there is no vegetation,
+        # Tr is the heat source
         H =  rho * c_p * (Tr_K - Ta_K)/ R_a
-        LE = R_n -G - H
+        LE = R_n - G - H
+        
         # Avoid negative ET during daytime and make sure that energy is conserved
-        if LE<0:
-            LE=0
+        if LE < 0:
+            LE = 0
             H = min(H, R_n - G)
             G = max(G, R_n - H)
-        # now L can be recalculated
+            
+        # Now L can be recalculated and the difference between iterations derived
         L=MO.CalcL (u_friction, Ta_K, rho, c_p, H, LE)
-        #Difference of Heat Flux between interations
         L_diff=abs(L-L_old)/abs(L_old)
         L_old=L
         if abs(L_old)==0: L_old=1e-36
-        # Calculate again the friction velocity with the new stability correctios        
+
+        # Calculate again the friction velocity with the new stability correction
+        # and derive the change between iterations        
         u_friction=MO.CalcU_star (u, zu, L, d_0,z_0M)
-        # Calculate the change in friction velocity
         u_diff=abs(u_friction-u_old)/abs(u_old)
         u_old=u_friction
         #Avoid very low friction velocity values
         u_friction =max(u_friction_min, u_friction)
+        
         #Stop the iteration if differences are below the threshold
         if L_diff < L_thres and u_diff < u_thres:
             break
