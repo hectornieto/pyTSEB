@@ -925,7 +925,6 @@ def  OSEB(Tr_K,Ta_K,u,ea,p,Sdn,Lsky,emis,albedo,z_0M,d_0,zu,zt, CalcG=[1,0.35], 
     L=float('inf')
     L_old=1
     u_old=1e36
-    flag=0
     
     # Calculate the general parameters
     rho= met.CalcRho(p, ea, Ta_K)  #Air density
@@ -956,6 +955,7 @@ def  OSEB(Tr_K,Ta_K,u,ea,p,Sdn,Lsky,emis,albedo,z_0M,d_0,zu,zt, CalcG=[1,0.35], 
     # Stops when difference in consecutive L and u_friction is below a 
     # given threshold
     for n_iterations in range(max_iterations):
+        flag = 0
         G=G_calc
         
         # Calculate the aerodynamic resistances
@@ -975,6 +975,7 @@ def  OSEB(Tr_K,Ta_K,u,ea,p,Sdn,Lsky,emis,albedo,z_0M,d_0,zu,zt, CalcG=[1,0.35], 
         
         # Avoid negative ET during daytime and make sure that energy is conserved
         if LE < 0:
+            flag = 5
             LE = 0
             H = min(H, R_n - G)
             G = max(G, R_n - H)
