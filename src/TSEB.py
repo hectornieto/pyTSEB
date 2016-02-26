@@ -431,12 +431,9 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
     # Create the output variables
     [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,
      u_friction, L,n_iterations]=[0 for i in range(19)]
-    #Define Variables for iteration
-    L=float('inf')
-    # Initial values to start iteration
-    L_old=1
-    Tc= 0.0
-    if LAI==0: # One Source Energy Balance
+     
+    # If there is no vegetation canopy use One Source Energy Balance model
+    if LAI==0:
         z_0M=z0_soil
         d_0=5*z_0M
         spectraGrd=fvis*spectraGrd['rsoilv']+fnir* spectraGrd['rsoiln']
@@ -444,20 +441,27 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
             Ta_K,u,ea,p,Sdn_dir+ Sdn_dif,Lsky,emisGrd,spectraGrd,z_0M,d_0,zu,zt,CalcG=CalcG)
         return [flag, Tr_K, Tc, Ta_K,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
                 R_s,R_x,R_a,u_friction, L,n_iterations]
-    # calculate the general parameters
-    #Real LAI and clumping index
-    F=LAI/f_c
-    omega0=CI.CalcOmega0_Kustas(LAI, f_c,isLAIeff=True)
-    Omega=CI.CalcOmega_Kustas(omega0,sza,wc=wc)
-    f_theta = CalcFthetaCampbell(vza, F, wc=wc,Omega0=omega0)   #Fraction of vegetation observed by the sensor
-    rho= met.CalcRho(p, ea, Ta_K)  #Air density
-    c_p = met.CalcC_p(p, ea)  #Heat capacity of air  
-    # initial ustar
-    max_iterations=ITERATIONS
+     
+    
+    # Initially assume stable atmospheric conditions and set variables for 
+    # iteration of the Monin-Obukhov length
+    L = float('inf')
     u_friction = MO.CalcU_star(u, zu, L, d_0,z_0M)
-    z_0H=res.CalcZ_0H(z_0M,kB=kB)
-    # Net shortwave radiation
-    LAI_eff=F*Omega
+    L_old = 1
+    L_diff = float('inf')
+    max_iterations=ITERATIONS
+    
+    # Calculate the general parameters
+    rho= met.CalcRho(p, ea, Ta_K)  # Air density
+    c_p = met.CalcC_p(p, ea)  # Heat capacity of air
+    omega0 = CI.CalcOmega0_Kustas(LAI, f_c, isLAIeff=True) # Clumping factor at nadir
+    Omega = CI.CalcOmega_Kustas(omega0, sza, wc=wc) # Clumping factor at an angle  
+    F = LAI/f_c # Real LAI
+    f_theta = CalcFthetaCampbell(vza, F, wc=wc, Omega0=omega0)   # Fraction of vegetation observed by the sensor
+    z_0H=res.CalcZ_0H(z_0M, kB=kB) # Roughness length for heat transport
+    
+    # Calcualte short wave net radiation of canopy and soil
+    LAI_eff = F*Omega
     S_nC, S_nS = rad.CalcSnCampbell (LAI_eff, sza, Sdn_dir, Sdn_dif, fvis,
                  fnir, spectraVeg['rho_leaf_vis'], spectraVeg['tau_leaf_vis'],
                 spectraVeg['rho_leaf_nir'], spectraVeg['tau_leaf_nir'], 
@@ -470,24 +474,16 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
         return [flag, Tr_K, Tc, Ta_K,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
                 R_s,R_x,R_a,u_friction, L,n_iterations]
 
-    # loop for estimating stability, stop when difference in consecutives L is below 0.01
+    # Outer loop for estimating stability. 
+    # Stops when difference in consecutives L is below a given threshold
     for n_iterations in range(max_iterations):
+        if L_diff < L_thres: break        
         
-        L_diff=abs(L-L_old)/abs(L_old)
-        
-        #Difference of Heat Flux between interations
-        if abs(L_old)==0: L_old=1e-36
-        # Calculate the change in friction velocity
-        #u_diff=abs(u_friction-u_old)/abs(u_old)
-        #u_old=u_friction
-        #Stop the iteration if differences are below the threshold
-        if L_diff < L_thres:
-            break
-
         flag=0
 
         # Inner loop to iterativelly reduce alpha_PT in case latent heat flux 
-        # from the soil is negative
+        # from the soil is negative. The initial assumption is of potential 
+        # canopy transpiration.
         LE_S = -1
         alpha_PT_rec = alpha_PT + 0.1         
         while LE_S < 0: 
@@ -501,13 +497,13 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
             elif alpha_PT_rec < alpha_PT: 
                 flag = 3
                 
-            # calculate the aerodynamic resistances
+            # Calculate the aerodynamic resistance
             R_a=res.CalcR_A ( zt, u_friction, L, d_0, z_0H)
-            # Calculate wind speed at the canopy height
+            # Calculate wind speed at the soil surface and in the canopy
             U_C=MO.CalcU_C (u_friction, hc, d_0, z_0M)
-            # Calculate soil and canopy resistances
             u_S=MO.CalcU_Goudriaan (U_C, hc, LAI, leaf_width, z0_soil)
             u_d_zm = MO.CalcU_Goudriaan (U_C, hc, LAI, leaf_width,d_0+z_0M)
+            # Calculate soil and canopy resistances            
             R_x=res.CalcR_X_Norman(F, leaf_width, u_d_zm)
             R_s=res.CalcR_S_Kustas(u_S, Ts-Ta_K)
             R_s=max( 1e-3,R_s)
@@ -515,26 +511,31 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
             R_a=max( 1e-3,R_a)
 
             # Calculate net longwave radiation with current values of Tc and Ts
-            L_nC, L_nS = rad.CalcLnKustas (Tc, Ts, Lsky, LAI,emisVeg, emisGrd)
+            L_nC, L_nS = rad.CalcLnKustas (Tc, Ts, Lsky, LAI, emisVeg, emisGrd)
             delta_R_n = L_nC + S_nC
             R_n_soil=S_nS+L_nS
             
-            # calculate the canopy and soil temperatures using the Priestley Taylor appoach
-            # first we assume potential canopy transpiration
+            # Calculate the canopy and soil temperatures using the Priestley Taylor appoach
             H_C = CalcH_C_PT(delta_R_n, f_g, Ta_K, p, c_p, alpha_PT_rec)
-            Tc= CalcT_C_Series(Tr_K,Ta_K, R_a, R_x, R_s, f_theta, H_C, rho, c_p)
-            # get soil temperature in Kelvin
+            Tc = CalcT_C_Series(Tr_K,Ta_K, R_a, R_x, R_s, f_theta, H_C, rho, c_p)
+            
+            # Calculate soil temperature
             flag_t, Ts = CalcT_S(Tr_K, Tc, f_theta)
             if flag_t ==255:
                 return [flag_t, Tr_K, Tc, Ta_K,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
                         R_s,R_x,R_a,u_friction, L,n_iterations]
+            
+            # Recalculate soil resistance using new soil temperature
             R_s=res.CalcR_S_Kustas(u_S, Ts-Ta_K)
             R_s=max( 1e-3,R_s)
-            # get air temperature at canopy interface in Celsius
+            
+            # Get air temperature at canopy interface
             T_AC = (( Ta_K/R_a + Ts/R_s + Tc/R_x )
                 /(1.0/R_a + 1.0/R_s + 1.0/R_x))
-            # calculate soil fluxes
+            
+            # Calculate soil fluxes
             H_S =  rho * c_p * (Ts - T_AC)/ R_s
+            
             #Compute Soil Heat Flux Ratio
             if CalcG[0]==0:
                 G=CalcG[1]
@@ -542,6 +543,9 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
                 G=CalcG_Ratio(R_n_soil, CalcG[1])
             elif CalcG[0]==2:
                 G=CalcG_TimeDiff (R_n_soil, CalcG[1])
+            
+            # Estimate latent heat fluxes as residual of energy balance at the
+            # soil and the canopy            
             LE_S = R_n_soil - G - H_S
             LE_C = delta_R_n - H_C        
 
@@ -554,16 +558,23 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
                 G = max(G, R_n_soil - H_S)
                 LE_S = 0
 
-            # calculate total fluxes
+            # Calculate total fluxes
             H = H_C + H_S
             LE = LE_C + LE_S
-            #Monin-Obukhov Lenght
-            L=MO.CalcL (u_friction, Ta_K, rho, c_p, H, LE)
-            L_old=L
-            # Calculate again the friction velocity with the new stability correctios        
+            
+            # Now L can be recalculated and the difference between iterations derived
+            L = MO.CalcL (u_friction, Ta_K, rho, c_p, H, LE)
+            L_old = L
+            if abs(L_old)==0: L_old=1e-36
+            L_diff = abs(L-L_old)/abs(L_old)
+        
+            # Calculate again the friction velocity with the new stability correction     
             u_friction=MO.CalcU_star (u, zu, L, d_0,z_0M)
             #Avoid very low friction velocity values
             u_friction =max(u_friction_min, u_friction)
+            # Calculate the change in friction velocity
+            #u_diff=abs(u_friction-u_old)/abs(u_old)
+            #u_old=u_friction                
         
     return flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,n_iterations
     
@@ -783,7 +794,8 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
         Tc_prev = Tc
 
         # Inner loop to iterativelly reduce alpha_PT in case latent heat flux 
-        # from the soil is negative
+        # from the soil is negative. The initial assumption is of potential 
+        # canopy transpiration.
         LE_S = -1
         alpha_PT_rec = alpha_PT + 0.1         
         while LE_S < 0: 
