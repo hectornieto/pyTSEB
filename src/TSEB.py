@@ -271,7 +271,7 @@ def TSEB_2T(Tc,Ts,Ta_K,u,ea,p,Rn_sw_veg, Rn_sw_soil, Rn_lw_veg, Rn_lw_soil,LAI,
             
         # Calculate again the friction velocity with the new stability correctios        
         u_friction=MO.CalcU_star (u, zu, L, d_0,z_0M)
-        u_friction =max(u_friction_min, u_friction)
+        u_friction = max(u_friction_min, u_friction)
         u_diff=abs(u_friction-u_old)/abs(u_old)
         u_old=u_friction
         
@@ -445,6 +445,7 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
     # iteration of the Monin-Obukhov length
     L = float('inf')
     u_friction = MO.CalcU_star(u, zu, L, d_0,z_0M)
+    u_friction = max(u_friction_min, u_friction)
     L_old = 1
     L_diff = float('inf')
     max_iterations=ITERATIONS
@@ -564,7 +565,7 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
             L = MO.CalcL (u_friction, Ta_K, rho, c_p, H, LE)   
             u_friction=MO.CalcU_star (u, zu, L, d_0,z_0M)
             #Avoid very low friction velocity values
-            u_friction =max(u_friction_min, u_friction)
+            u_friction = max(u_friction_min, u_friction)
             # Calculate the change in friction velocity
             #u_diff=abs(u_friction-u_old)/abs(u_old)
             #u_old=u_friction 
@@ -755,7 +756,8 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
         
     # Calculate the soil resistance
     # First calcualte u_S, wind speed at the soil surface
-    u_friction = MO.CalcU_star(u, zu, Ri, d_0,z_0M, useRi=True)    
+    u_friction = MO.CalcU_star(u, zu, Ri, d_0,z_0M, useRi=True)
+    u_friction = max(u_friction_min, u_friction)    
     u_C = MO.CalcU_C(u_friction, hc, d_0, z_0M)
     u_S=MO.CalcU_Goudriaan (u_C, hc, LAI, leaf_width, z0_soil)
     # deltaT based on equation from Guzinski et. al., 2015    
@@ -943,9 +945,10 @@ def  OSEB(Tr_K,Ta_K,u,ea,p,Sdn,Lsky,emis,albedo,z_0M,d_0,zu,zt, CalcG=[1,0.35], 
     # same as is done in DTD    
     if differentialT:
         Ri = MO.CalcRichardson (u, zu, d_0, Tr_K_0, Tr_K, Ta_K_0, Ta_K)
-        u_friction = MO.CalcU_star(u, zu, Ri, d_0, z_0M, useRi=True)        
+        u_friction = MO.CalcU_star(u, zu, Ri, d_0, z_0M, useRi=True) 
     else:
         u_friction = MO.CalcU_star(u, zu, L, d_0, z_0M)
+    u_friction = max(u_friction_min, u_friction)
     z_0H=res.CalcZ_0H(z_0M,kB=kB)
     
     # Calculate Net radiation
@@ -999,10 +1002,9 @@ def  OSEB(Tr_K,Ta_K,u,ea,p,Sdn,Lsky,emis,albedo,z_0M,d_0,zu,zt, CalcG=[1,0.35], 
         # and derive the change between iterations
         if not differentialT:        
             u_friction=MO.CalcU_star (u, zu, L, d_0, z_0M)
+            u_friction = max(u_friction_min, u_friction)
         u_diff=abs(u_friction-u_old)/abs(u_old)
         u_old=u_friction
-        #Avoid very low friction velocity values
-        u_friction =max(u_friction_min, u_friction)
         
         #Stop the iteration if differences are below the threshold
         if L_diff < L_thres and u_diff < u_thres:
