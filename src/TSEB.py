@@ -475,8 +475,8 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
     # Outer loop for estimating stability. 
     # Stops when difference in consecutives L is below a given threshold
     for n_iterations in range(max_iterations):
-        if L_diff < L_thres: break        
-        
+        if L_diff < L_thres: break
+            
         flag=0
 
         # Inner loop to iterativelly reduce alpha_PT in case latent heat flux 
@@ -560,19 +560,18 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
             H = H_C + H_S
             LE = LE_C + LE_S
             
-            # Now L can be recalculated and the difference between iterations derived
-            L = MO.CalcL (u_friction, Ta_K, rho, c_p, H, LE)
-            L_old = L
-            if abs(L_old)==0: L_old=1e-36
-            L_diff = abs(L-L_old)/abs(L_old)
-        
-            # Calculate again the friction velocity with the new stability correction     
+            # Now Land and friction velocity can be recalculated
+            L = MO.CalcL (u_friction, Ta_K, rho, c_p, H, LE)   
             u_friction=MO.CalcU_star (u, zu, L, d_0,z_0M)
             #Avoid very low friction velocity values
             u_friction =max(u_friction_min, u_friction)
             # Calculate the change in friction velocity
             #u_diff=abs(u_friction-u_old)/abs(u_old)
-            #u_old=u_friction                
+            #u_old=u_friction 
+
+        L_diff = abs(L-L_old)/abs(L_old)           
+        L_old = L
+        if abs(L_old)==0: L_old=1e-36                 
         
     return flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,n_iterations
     
