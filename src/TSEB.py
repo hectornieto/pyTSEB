@@ -181,103 +181,101 @@ def TSEB_2T(Tc,Ts,Ta_K,u,ea,p,Rn_sw_veg, Rn_sw_soil, Rn_lw_veg, Rn_lw_soil,LAI,
     '''
     
     from math import exp
-    #Air density (kg m-3)
-    rho_a=met.CalcRho(p, ea, Ta_K)
-    #Heat capacity or air at constant pressure (273.15K) (J kg-1 K-1)
-    Cp=met.CalcC_p(p, ea)
-    # latent heat of vaporisation (MJ./kg)
-    Lambda=met.CalcLambda(Ta_K)
-    # psychrometric constant (mb C-1)
-    psicr=met.CalcPsicr(p,Lambda)
+    
+    # Initially assume stable atmospheric conditions and set variables for 
+    # iteration of the Monin-Obukhov length
+    L = float('inf')
+    u_friction = MO.CalcU_star (u, zu, L, d_0,z_0M)
+    u_friction = max(u_friction_min, u_friction)
+    L_old = 1.0
+    u_old = 1e36
+    L_diff = float('inf')
+    u_diff = float('inf')
+    max_iterations=ITERATIONS
+    
+    # Calculate the general parameters
+    rho_a = met.CalcRho(p, ea, Ta_K) # Air density (kg m-3)
+    Cp = met.CalcC_p(p, ea) # Heat capacity or air at constant pressure (273.15K) (J kg-1 K-1)
+    F = LAI/f_c # Real LAI
+    z_0H = res.CalcZ_0H(z_0M,kB=kB) # Roughness lenght for heat transport
 
     #Compute Net Radiation
     Rn_soil=Rn_sw_soil+Rn_lw_soil
     Rn_veg=Rn_sw_veg+Rn_lw_veg
     Rn=Rn_soil+Rn_veg
-    #Compute Soil Heat Flux Ratio
+    
+    #Compute Soil Heat Flux
     if CalcG[0]==0:
         G=CalcG[1]
     elif CalcG[0]==1:
         G=CalcG_Ratio(Rn_soil, CalcG[1])
     elif CalcG[0]==2:
         G=CalcG_TimeDiff (Rn_soil, CalcG[1])
-    # Slope of the saturation Vapour pressure (kPa) (Allen 1998 A3.9)
-    Ta=Ta_K-273.15
-    delta=2504*exp(17.27*Ta/(Ta+237.3))/((Ta+237.3)**2.)
-    #Calculate roughness for heat transport
-    z_0H=res.CalcZ_0H(z_0M,kB=kB)
-    # EStimate real LAI
-    F=LAI/f_c
-    #Define Variables for iteration
-    L=float('inf')
-    # Initial values to start iteration
-    L_old=1.0
-    u_old=1e36
-    #First Guess Friction Velocity 
-    max_iterations=ITERATIONS
-    u_friction=MO.CalcU_star (u, zu, L, d_0,z_0M)
-    u_friction =max(u_friction_min, u_friction)
-    #Start the Monin-Obukhov iteration
+    
+    # Outer loop for estimating stability. 
+    # Stops when difference in consecutives L is below a given threshold
     for n_iterations in range(max_iterations):
-        # Check whether flux constrains applied
+        if L_diff < L_thres and u_diff < u_thres:
+            break
+        
         flag=0
-        # Resistances
+        
+        # Calculate the aerodynamic resistance
+        R_a=res.CalcR_A ( zt,  u_friction, L, d_0, z_0H)
+        # Calculate wind speed at the soil surface and in the canopy
         U_C=MO.CalcU_C (u_friction, hc, d_0, z_0M)
         u_S=MO.CalcU_Goudriaan (U_C, hc, LAI, leaf_width, z0_soil)
         u_d_zm = MO.CalcU_Goudriaan (U_C, hc, LAI, leaf_width,d_0+z_0M)
+        # Calculate soil and canopy resistances         
         R_x=res.CalcR_X_Norman(F, leaf_width, u_d_zm)
         R_s=res.CalcR_S_Kustas(u_S, Ts-Tc)
-        # Calculate Aerodynamic Resistace
-        R_a=res.CalcR_A ( zt,  u_friction, L, d_0, z_0H)
         R_s=max( 1e-3,R_s)
         R_x=max( 1e-3,R_x)
         R_a=max( 1e-3,R_a)
+        
         # Compute air temperature at the canopy interface
         T_ac=((Ta_K/R_a)+(Ts/R_s)+(Tc/R_x))/((1/R_a)+(1/R_s)+(1/R_x))
         T_ac=max( 1e-3,T_ac)
-        #Canopy Sensible heat flux (Norman et al 1995)
+        
+        # Calculate canopy sensible heat flux (Norman et al 1995)
         H_c=rho_a*Cp*(Tc-T_ac)/R_x
-        #Assume no condensation in the canopy (LE_c<0)
+        # Assume no condensation in the canopy (LE_c<0)
         if H_c > Rn_veg:
             H_c=Rn_veg
             flag=1
-        #Assume no thermal inversion in the canopy
-        if H_c < Rn_veg*(1-alpha_PT*delta/(delta+psicr)) and Rn_veg > 0:
-        #if H_c < 0:
+        # Assume no thermal inversion in the canopy
+        if H_c < CalcH_C_PT(Rn_veg, 1.0, Ta_K, p, Cp, alpha_PT) and Rn_veg > 0:
             H_c=0
             flag=2
-        #Soil Sensible heat flux (Norman et al 1995)
+            
+        # Calculate soil sensible heat flux (Norman et al 1995)
         H_s=rho_a*Cp*(Ts-T_ac)/R_s
-        #Assume that there is no condensation in the soil (LE_s<0)
+        # Assume that there is no condensation in the soil (LE_s<0)
         if H_s > Rn_soil-G and (Rn_soil-G) > 0:
             H_s=Rn_soil-G
             flag=3
-        #Assume no thermal inversion in the soil
+        # Assume no thermal inversion in the soil
         if H_s < 0 and Rn_soil-G > 0:
-        #if H_s < 0:
             H_s=0
-            flag=4                                 
-        #Evaporation Rate (Kustas and Norman 1999)
-        H=H_s+H_c
-        LE=(Rn-G-H)
-        #Monin-Obukhov Lenght
+            flag=4     
+                            
+        # Evaporation Rate (Kustas and Norman 1999)
+        H = H_s+H_c
+        LE = (Rn-G-H)
+        
+        # Now L can be recalculated and the difference between iterations derived
         L=MO.CalcL (u_friction, Ta_K, rho_a, Cp, H, LE)
-        # Calculate again the friction velocity with the new stability correctios        
-        u_friction=MO.CalcU_star (u, zu, L, d_0,z_0M)
-        #Difference of Heat Flux between interations
         L_diff=abs(L-L_old)/abs(L_old)
         L_old=L
         if abs(L_old)==0.0: L_old=1e-36
-        # Calculate the change in friction velocity
+            
+        # Calculate again the friction velocity with the new stability correctios        
+        u_friction=MO.CalcU_star (u, zu, L, d_0,z_0M)
+        u_friction =max(u_friction_min, u_friction)
         u_diff=abs(u_friction-u_old)/abs(u_old)
         u_old=u_friction
-        #Avoid very low friction velocity values
-        u_friction =max(u_friction_min, u_friction)
-        #Stop the iteration if differences are below the threshold
-        if L_diff < L_thres and u_diff < u_thres:
-            break
-    # END of iteration
-    #Compute soil and canopy heat fluxes
+        
+    # Compute soil and canopy latent heat fluxes
     LE_s=Rn_soil-G-H_s
     LE_c=Rn_veg-H_c
     return flag,T_ac,LE_c,H_c,LE_s,H_s,G,R_s,R_x,R_a,u_friction, L,n_iterations
