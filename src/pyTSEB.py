@@ -721,8 +721,6 @@ class PyTSEB():
         import TSEB
         import numpy as np
         import gdal
-        import ipywidgets as widgets
-        from IPython.display import display
         from os.path import splitext, dirname, exists
         from os import mkdir
         # Create an input dictionary
@@ -784,28 +782,31 @@ class PyTSEB():
         if not success: return
         #Calculate illumination conditions
         sza,saa=TSEB.met.Get_SunAngles(self.lat,self.lon,self.stdlon,self.DOY,self.Time)
+        inDataArray['sza'] = sza*np.ones(dims)       
         # Estimation of diffuse radiation
         try:
-            p=float(self.p)
+            inDataArray['p'] = float(self.p)*np.ones(dims)
         except:
-            p=TSEB.met.CalcPressure(self.alt)
-        difvis,difnir, fvis,fnir=TSEB.rad.CalcDifuseRatio(self.Sdn,sza,press=p)
-        Skyl=difvis*fvis+difnir*fnir
-        Sdn_dir=self.Sdn*(1.0-Skyl)
-        Sdn_dif=self.Sdn*Skyl
+            inDataArray['p'] = TSEB.met.CalcPressure(self.alt)*np.ones(dims)
+        difvis,difnir, fvis,fnir=TSEB.rad.CalcDifuseRatio(self.Sdn,sza,press=inDataArray['p'][0,0])
+        inDataArray['fvis'] = fvis*np.ones(dims)
+        inDataArray['fnir'] = fnir*np.ones(dims)        
+        inDataArray['Skyl'] = difvis*fvis+difnir*fnir*np.ones(dims)
+        inDataArray['Sdn_dir'] = self.Sdn*(1.0-inDataArray['Skyl'])
+        inDataArray['Sdn_dif'] = self.Sdn*inDataArray['Skyl']
         # incoming long wave radiation
-        Ta_K_1=self.Ta_1
-        if self.TSEB_MODEL=='DTD':
-            Ta_K_0=self.Ta_0
+        inDataArray['T_A1'] = self.Ta_1*np.ones(dims)
+        if self.TSEB_MODEL == 'DTD':
+            inDataArray['T_A0'] = self.Ta_0*np.ones(dims)
         try:
-            Lsky=float(self.Ldn)
+            inDataArray['Lsky'] = float(self.Ldn)*np.ones(dims)
         except:
-            emisAtm = TSEB.rad.CalcEmiss_atm(self.ea,Ta_K_1)
-            Lsky = emisAtm * TSEB.met.CalcStephanBoltzmann(Ta_K_1)
+            emisAtm = TSEB.rad.CalcEmiss_atm(self.ea,self.Ta_1)
+            inDataArray['Lsky'] = emisAtm * TSEB.met.CalcStephanBoltzmann(self.Ta_1)*np.ones(dims)
         # Create the output dictionary
         outputStructure=self.getOutputStructure()
-        tsebout=dict()
-        for field in outputStructure:tsebout[field]=np.zeros(dims)
+        outDataArray=dict()
+        for field in outputStructure:outDataArray[field]=np.zeros(dims)
         # Open the processing maks and get the id for the cells to process
         if self.input_mask!='0':
             try:
@@ -816,21 +817,40 @@ class PyTSEB():
                 print('ERROR: file read '+ str(self.input_mask) + '\n Please type a valid mask file name or USE_MASK=0 for processing the whole image')
         else:
             mask=np.ones(dims)
-        ids=np.where(mask>0)
+        
+        self.RunTSEBImagePixelByPixel(inDataArray, outDataArray, mask)        
+        
+        # Write the TIFF output
+        outdir=dirname(self.OutputFile)
+        if not exists(outdir):
+            mkdir(outdir)
+        self.WriteTifOutput(self.OutputFile,outDataArray, geo, prj,self.fields)
+        outputfile=splitext(self.OutputFile)[0]+'_ancillary.tif'
+        self.WriteTifOutput(outputfile,outDataArray, geo, prj,self.anc_fields)
+        print('Saved Files')
+
+    def RunTSEBImagePixelByPixel(self, inDataArray, outDataArray, mask):
+        import TSEB
+        import numpy as np
+        import ipywidgets as widgets
+        from IPython.display import display        
+        
         # Create a progress bar widget
         try:
+            ids=np.where(mask>0)
             f=widgets.FloatProgress(min=0,max=len(ids[0]),step=1,description='Progress:')
             display(f)
-            isWidget=True
         except:
+            f = None            
             progress_bar=[(i+1)*5 for i in range(20)]
             progress_id=0
-            print('0% processed')
-            isWidget=False
+            print('0% processed')        
+        
         # Loop and run TSEB for all the valid cells
+        ids=np.where(mask>0)
         for i,row in enumerate(ids[0]):
             col=ids[1][i]
-            if isWidget:
+            if f:
                 f.value=i
             else:
                 progress=100*float(i)/len(ids[0])
@@ -849,10 +869,20 @@ class PyTSEB():
             # Calculate Roughness
             z_0M, d_0=TSEB.res.CalcRoughness (lai, hc,wc,self.LANDCOVER)
             vza=inDataArray['VZA'][row,col]
+            # Get meteorological inputs
+            p = inDataArray['p'][row,col]
+            Sdn_dir = inDataArray['Sdn_dir'][row,col]
+            Sdn_dif = inDataArray['Sdn_dif'][row,col]
+            fvis = inDataArray['fvis'][row,col]
+            fnir = inDataArray['fnir'][row,col]
+            sza = inDataArray['sza'][row,col]
+            Lsky = inDataArray['Lsky'][row,col]
             if self.TSEB_MODEL=='DTD':
                 #Run DTD
                 Tr_K_0=inDataArray['T_R0'][row,col]
                 Tr_K_1=inDataArray['T_R1'][row,col]
+                Ta_K_0=inDataArray['T_A0'][row,col]
+                Ta_K_1=inDataArray['T_A1'][row,col]                
                 [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,Ri,n_iterations]=[0]*20
                 [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,Ri,
                      n_iterations]=TSEB.DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,self.u,self.ea,p,Sdn_dir,Sdn_dif,fvis,fnir,
@@ -902,38 +932,30 @@ class PyTSEB():
             H=H_C+H_S
             Rn=S_nC+S_nS+L_nC+L_nS
             # Write the data in the output dictionary
-            tsebout['R_A1'][row,col]=R_a
-            tsebout['R_X1'][row,col]=R_x
-            tsebout['R_S1'][row,col]=R_s
-            tsebout['R_n1'][row,col]=S_nS+S_nC+L_nS+L_nC
-            tsebout['R_ns1'][row,col]=S_nS+S_nC
-            tsebout['R_nl1'][row,col]=L_nS+L_nC
-            tsebout['delta_R_n1'][row,col]=S_nC+L_nC
-            tsebout['H_C1'][row,col]=H_C
-            tsebout['H_S1'][row,col]=H_S
-            tsebout['H1'][row,col]=H
-            tsebout['G1'][row,col]=G
-            tsebout['LE_C1'][row,col]=LE_C
-            tsebout['LE_S1'][row,col]=LE_S
-            tsebout['LE1'][row,col]=LE
-            if tsebout['LE1'][row,col]>0:
-                tsebout['LE_partition'][row,col]=LE_C/LE
-            tsebout['T_C1'][row,col]=Tc
-            tsebout['T_S1'][row,col]=Ts
-            tsebout['T_AC1'][row,col]=T_AC
-            tsebout['L'][row,col]=L
-            tsebout['u_friction'][row,col]=u_friction
-            tsebout['theta_s1'][row,col]=sza
-            tsebout['albedo1'][row,col]=1.0-Rn/self.Sdn
-            tsebout['F'][row,col]=lai
-        # Write the TIFF output
-        outdir=dirname(self.OutputFile)
-        if not exists(outdir):
-            mkdir(outdir)
-        self.WriteTifOutput(self.OutputFile,tsebout, geo, prj,self.fields)
-        outputfile=splitext(self.OutputFile)[0]+'_ancillary.tif'
-        self.WriteTifOutput(outputfile,tsebout, geo, prj,self.anc_fields)
-        print('Saved Files')
+            outDataArray['R_A1'][row,col]=R_a
+            outDataArray['R_X1'][row,col]=R_x
+            outDataArray['R_S1'][row,col]=R_s
+            outDataArray['R_n1'][row,col]=S_nS+S_nC+L_nS+L_nC
+            outDataArray['R_ns1'][row,col]=S_nS+S_nC
+            outDataArray['R_nl1'][row,col]=L_nS+L_nC
+            outDataArray['delta_R_n1'][row,col]=S_nC+L_nC
+            outDataArray['H_C1'][row,col]=H_C
+            outDataArray['H_S1'][row,col]=H_S
+            outDataArray['H1'][row,col]=H
+            outDataArray['G1'][row,col]=G
+            outDataArray['LE_C1'][row,col]=LE_C
+            outDataArray['LE_S1'][row,col]=LE_S
+            outDataArray['LE1'][row,col]=LE
+            if outDataArray['LE1'][row,col]>0:
+                outDataArray['LE_partition'][row,col]=LE_C/LE
+            outDataArray['T_C1'][row,col]=Tc
+            outDataArray['T_S1'][row,col]=Ts
+            outDataArray['T_AC1'][row,col]=T_AC
+            outDataArray['L'][row,col]=L
+            outDataArray['u_friction'][row,col]=u_friction
+            outDataArray['theta_s1'][row,col]=sza
+            outDataArray['albedo1'][row,col]=1.0-Rn/self.Sdn
+            outDataArray['F'][row,col]=lai
 
     def OpenGDALImage(self,inputString,dims,variable):
         '''Open a GDAL image and returns and array with its first band'''
