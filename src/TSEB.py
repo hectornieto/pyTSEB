@@ -735,7 +735,7 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
     
     # Create the output variables
     [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
-         R_s,R_x,R_a,u_friction,L,Ri,n_iterations,H]=[np.zeros(Tr_K_1.shape) for i in range(21)]
+         R_s,R_x,R_a,u_friction,L,Ri,n_iterations,H, F]=[np.zeros(Tr_K_1.shape) for i in range(22)]
     
     # If there is no vegetation canopy use One Source Energy Balance model    
     i = LAI==0
@@ -744,10 +744,9 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
         d_0[i]=5*z_0M[i]
         spectraGrdOSEB=fvis*spectraGrd['rsoilv']+fnir* spectraGrd['rsoiln']
         [flag[i], S_nS[i], L_nS[i], LE_S[i], H_S[i], G[i], R_a[i], u_friction[i], L[i], n_iterations[i]]=OSEB(Tr_K_1[i],
-            Ta_K_1[i], u, ea, p[i], Sdn_dir[i]+Sdn_dif[i], Lsky, emisGrd, spectraGrdOSEB, 
-            z_0M, d_0, zu, zt, CalcG=CalcG, T0_K = (Tr_K_0[i], Ta_K_0[i]))
-
-        
+            Ta_K_1[i], u, ea, p[i], Sdn_dir[i]+Sdn_dif[i], Lsky[i], emisGrd, spectraGrdOSEB[i], 
+            z_0M[i], d_0[i], zu, zt, CalcG=CalcG, T0_K = (Tr_K_0[i], Ta_K_0[i]))
+     
     
     # Calculate the general parameters
     rho= met.CalcRho(p, ea, Ta_K_1)  # Air density
@@ -755,17 +754,18 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
     
     # Calculate LAI dependent parameters for dataset where LAI > 0
     i = ~i    
-    omega0 = CI.CalcOmega0_Kustas(LAI, f_c, isLAIeff=True) # Clumping factor at nadir
+    omega0 = np.zeros(Tr_K_1.shape)
+    omega0[i] = CI.CalcOmega0_Kustas(LAI[i], f_c[i], isLAIeff=True) # Clumping factor at nadir
     omega = CI.CalcOmega_Kustas(omega0,sza,wc=wc) # Clumping factor at an angle    
-    F = LAI/f_c # Real LAI    
-    f_theta = CalcFthetaCampbell(vza, F, wc=wc,Omega0=omega0)   # Fraction of vegetation observed by the sensor
+    F[i] = LAI[i]/f_c[i] # Real LAI    
+    f_theta = CalcFthetaCampbell(vza, F, wc=wc ,Omega0=omega0)   # Fraction of vegetation observed by the sensor
     
     # Calculate the Richardson number    
-    Ri = MO.CalcRichardson (u, zu, d_0,Tr_K_0, Tr_K_1, Ta_K_0, Ta_K_1)
+    Ri = MO.CalcRichardson (u, zu, d_0, Tr_K_0, Tr_K_1, Ta_K_0, Ta_K_1)
     # L is not used in the DTD, since Richardson number is used instead to
     # avoid dependance on non-differential temperatures. But it is still saved
     # in the output for testing purposes.    
-    L = np.zeros(Tr_K_0.shape)
+    L[i] = 0.0
         
     # Calculate the soil resistance
     # First calcualte u_S, wind speed at the soil surface
@@ -781,12 +781,12 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
     z_0H=res.CalcZ_0H(z_0M,kB=kB)
     R_a=res.CalcR_A (zu, u_friction, Ri, d_0, z_0H, useRi=True)
     u_d_zm = MO.CalcU_Goudriaan (u_C, hc, LAI, leaf_width,d_0+z_0M)
-    R_x=res.CalcR_X_Norman(F, leaf_width, u_d_zm)
+    R_x[i]=res.CalcR_X_Norman(F[i], leaf_width, u_d_zm[i])
     
     # Calcualte short wave net radiation of canopy and soil
     LAI_eff=F*omega
-    S_nC[i], S_nS[i] = rad.CalcSnCampbell (LAI_eff[i], sza, Sdn_dir[i], Sdn_dif[i], 
-           fvis, fnir, spectraVeg['rho_leaf_vis'], spectraVeg['tau_leaf_vis'],
+    S_nC[i], S_nS[i] = rad.CalcSnCampbell (LAI_eff[i], sza[i], Sdn_dir[i], Sdn_dif[i], 
+           fvis[i], fnir[i], spectraVeg['rho_leaf_vis'], spectraVeg['tau_leaf_vis'],
             spectraVeg['rho_leaf_nir'], spectraVeg['tau_leaf_nir'], 
             spectraGrd['rsoilv'], spectraGrd['rsoiln'])    
     
@@ -799,20 +799,21 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
     
     # Outer loop until canopy and soil temperatures have stabilised 
     Tc_prev = np.zeros(Tr_K_1.shape)
+    Tc_thres = 0.1
+    Tc_diff = abs(Tc - Tc_prev)
     for n_iterations in range(ITERATIONS):
-        if np.all(abs(Tc - Tc_prev) < 0.1): break
-
-        flag[np.logical_and(flag!=255, LAI>0)] = 0
+        if np.all(Tc_diff < Tc_thres): break
+        print np.max(Tc_diff) 
 
         # Inner loop to iterativelly reduce alpha_PT in case latent heat flux 
         # from the soil is negative. The initial assumption is of potential 
         # canopy transpiration.
-        LE_S = np.zeros(Tr_K_1.shape)
-        LE_S[np.logical_and(flag!=255, LAI>0)] = -1
+        flag[np.logical_and.reduce((Tc_diff >= Tc_thres, flag!=255, LAI>0))] = 0
+        LE_S[np.logical_and.reduce((Tc_diff >= Tc_thres, flag!=255, LAI>0))] = -1
         alpha_PT_rec = alpha_PT + 0.1         
         while np.any(LE_S < 0): 
-            
-            i = np.logical_and.reduce((LE_S < 0, abs(Tc - Tc_prev) >= 0.1, flag != 255, LAI > 0))            
+            print alpha_PT_rec
+            i = np.logical_and.reduce((LE_S < 0, Tc_diff >= Tc_thres, flag != 255, LAI > 0))            
             
             alpha_PT_rec -= 0.1 
             
@@ -824,17 +825,17 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
                 flag[i] = 3
                 
             # Calculate net longwave radiation with current values of Tc and Ts
-            L_nC[i], L_nS[i] = rad.CalcLnKustas (Tc[i], Ts[i], Lsky, LAI_eff[i], emisVeg, emisGrd)
+            L_nC[i], L_nS[i] = rad.CalcLnKustas (Tc[i], Ts[i], Lsky[i], LAI_eff[i], emisVeg, emisGrd)
             
             # Calculate total net radiation of soil and canopy        
             delta_R_n = L_nC + S_nC
             R_n_soil=S_nS+L_nS
             
             # Calculate sensible heat fluxes at time t1
-            H_C[i] = CalcH_C_PT(delta_R_n[i], f_g, Ta_K_1[i], p[i], c_p[i], alpha_PT_rec)
+            H_C[i] = CalcH_C_PT(delta_R_n[i], f_g[i], Ta_K_1[i], p[i], c_p[i], alpha_PT_rec)
             H[i] = CalcH_DTD_series(Tr_K_1[i], Tr_K_0[i], Ta_K_1[i], Ta_K_0[i], rho[i], c_p[i], f_theta[i],
                 R_s[i], R_a[i], R_x[i], H_C[i])
-            H_S = H - H_C
+            H_S[i] = H[i] - H_C[i]
                                
             # Calculate ground heat flux
             if CalcG[0]==0:
@@ -845,16 +846,17 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
                 G[i]=CalcG_TimeDiff (R_n_soil[i], CalcG[1])
             
             # Calculate latent heat fluxes as residuals
-            LE_C = delta_R_n - H_C
-            LE_S = R_n_soil - H_S - G
+            LE_S[i] = R_n_soil[i] - H_S[i] - G[i]
+            LE_C[i] = delta_R_n[i] - H_C[i]
 
             # Special case if there is no transpiration from vegetation. 
             # In that case, there should also be no evaporation from the soil
             # and the energy at the soil should be conserved.
             # See end of appendix A1 in Guzinski et al. (2015).                      
-            H_S[LE_C==0] = np.minimum(H_S[LE_C==0], R_n_soil[LE_C==0] - G[LE_C==0])
-            G[LE_C==0] = np.maximum(G[LE_C==0], R_n_soil[LE_C==0] - H_S[LE_C==0])
-            LE_S[LE_C==0] = 0
+            noT = np.logical_and(i, LE_C == 0)                    
+            H_S[noT] = np.minimum(H_S[noT], R_n_soil[noT] - G[noT])
+            G[noT] = np.maximum(G[noT], R_n_soil[noT] - H_S[noT])
+            LE_S[noT] = 0
     
             # Recalculate soil and canopy temperatures. They are used only for  
             # estimation of longwave radiation, so the use of non-differential Tr
@@ -864,7 +866,8 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
             flag_t[i],Ts[i] = CalcT_S(Tr_K_1[i], Tc[i], f_theta[i])
             flag[flag_t==255] = 255
             LE_S[flag_t==255] = 0  
-            
+        
+        Tc_diff = abs(Tc - Tc_prev)
         Tc_prev = Tc
 
     
