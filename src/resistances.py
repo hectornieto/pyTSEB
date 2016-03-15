@@ -130,20 +130,21 @@ def CalcRoughness (LAI, hc,wc=1,landcover=11):
     '''
 
     from math import exp,pi
+    import numpy as np
     #Needleleaf canopies
     if landcover == CONIFER:
-        fc=1.-exp(-0.5*LAI)
+        fc=1.-np.exp(-0.5*LAI)
         lambda_=(2./pi)*fc*wc
         #Calculation of the Raupach (1994) formulae
         z0M_factor,d_factor=Raupach(lambda_)
     #Broadleaved canopies
     elif landcover == BROADLEAVED:
-        fc=1.-exp(-LAI)
+        fc=1.-np.exp(-LAI)
         lambda_=fc*wc
         z0M_factor,d_factor=Raupach(lambda_)
     #Shrublands
     elif landcover == SHRUB:
-        fc=1.-exp(-0.5*LAI)
+        fc=1.-np.exp(-0.5*LAI)
         lambda_=fc*wc
         z0M_factor,d_factor=Raupach(lambda_)
     else:
@@ -151,15 +152,16 @@ def CalcRoughness (LAI, hc,wc=1,landcover=11):
         d_factor=0.65
 
     #Calculation of correction factors from  Lindroth
-    if LAI <= 0:
-        fz= 1.0
-        fd= 1.0
-    elif LAI < 0.8775:
-        fz= 0.3299*LAI**1.5+2.1713
-        fd=1.-0.3991*exp(-0.1779*LAI)
-    else:
-        fz=1.6771*exp(-0.1717*LAI)+1.
-        fd=1.-0.3991*exp(-0.1779*LAI)
+    fz= 0.3299*LAI**1.5+2.1713
+    fd=1.-0.3991*np.exp(-0.1779*LAI)    
+    # LAI <= 0
+    fz[LAI <= 0] = 1.0
+    fd[LAI <= 0] = 1.0
+    # LAI >= 0.8775:
+    i = LAI >= 0.8775
+    fz[i]=1.6771*np.exp(-0.1717*LAI[i])+1.
+    fd[i]=1.-0.3991*np.exp(-0.1779*LAI[i])
+    
     #Application of the correction factors to roughness and displacement height
     z0M_factor=z0M_factor*fz
     d_factor=d_factor*fd
@@ -209,10 +211,9 @@ def CalcR_A (z_T, ustar, L, d_0, z_0H, useRi=False, z_star=False):
         Pages 263-293, http://dx.doi.org/10.1016/0168-1923(95)02265-Y.
     '''
 
-    from math import log
-    if ustar==0:return float('inf')
-    Psi_H_star=0.0
-    R_A_log = log( (z_T - d_0) / z_0H)
+    import numpy as np    
+    
+    R_A_log = np.log( (z_T - d_0) / z_0H)
     if (useRi):
         # use the approximation Ri ~ (z-d_0)./L from end of section 2.2 from Norman et. al., 2000 (DTD paper) 				
         Psi_H = MO.CalcPsi_H(L)
@@ -222,12 +223,20 @@ def CalcR_A (z_T, ustar, L, d_0, z_0H, useRi=False, z_star=False):
         Psi_H = 0.0
         Psi_H0 = 0.0
         #other atmospheric conditions
-        if L == 0.0:L=1e-36
+        L[L==0] = 1e-36
         Psi_H = MO.CalcPsi_H((z_T - d_0)/L)
         Psi_H0 = MO.CalcPsi_H(z_0H/L)
-    if z_star>0 and z_T<=z_star:
-        Psi_H_star=MO.CalcPsi_H_star(z_T, L, d_0,z_0H,z_star)
-    R_A =  (R_A_log - Psi_H + Psi_H0+Psi_H_star) /(ustar * k)
+    
+    try:
+        Psi_H_star = np.zeros(ustar.shape)
+    except:
+        print ustar
+    #i = np.logical_and(z_star>0, z_T<=z_star)    
+    #Psi_H_star[i] = MO.CalcPsi_H_star(z_T[i], L[i], d_0[i], z_0H[i], z_star[i])
+    
+    R_A = np.ones(ustar.shape)*float('inf')
+    i = [ustar!=0]
+    R_A[i] =  (R_A_log[i] - Psi_H[i] + Psi_H0[i] + Psi_H_star[i]) /(ustar[i] * k)
     return R_A
    
 def CalcR_S_Kustas (u_S, deltaT):
@@ -255,11 +264,11 @@ def CalcR_S_Kustas (u_S, deltaT):
         partial canopy cover, Agricultural and Forest Meteorology, Volume 94, Issue 1,
         Pages 13-29, http://dx.doi.org/10.1016/S0168-1923(99)00005-2.
     '''
-    if u_S==0:return float('inf')
-
-    if deltaT<0.0:
-        deltaT = 0.0
-    R_S = 1.0/ (KN_c* deltaT**(1.0/3.0)+ KN_b * u_S)
+    import numpy as np    
+    
+    deltaT = np.maximum(deltaT, 0.0)
+    R_S = np.ones(u_S.shape)*float('inf')    
+    R_S[u_S>0] = 1.0/ (KN_c* deltaT[u_S>0]**(1.0/3.0)+ KN_b * u_S[u_S>0])
     return R_S
 
 def CalcR_X_Norman(LAI, leaf_width, u_d_zm):
@@ -289,11 +298,12 @@ def CalcR_X_Norman(LAI, leaf_width, u_d_zm):
         surface temperature, Agricultural and Forest Meteorology, Volume 77, Issues 3-4,
         Pages 263-293, http://dx.doi.org/10.1016/0168-1923(95)02265-Y.
     '''
+    import numpy as np
 
-    if u_d_zm==0:return float('inf')
     #C_dash = 130.0 # Original value proposed by McNaughton & Van der Hurk 1995
     C_dash_F = KN_C_dash/LAI
-    R_x = C_dash_F*(leaf_width/u_d_zm)**0.5
+    R_x = np.ones(u_d_zm.shape)*float('inf')
+    R_x[u_d_zm>0] = C_dash_F[u_d_zm>0]*(leaf_width/u_d_zm[u_d_zm>0])**0.5
     return R_x
   
 def CalcZ_0H (z_0M,kB=2):
@@ -370,12 +380,21 @@ def Raupach(lambda_):
     '''   
 
     from math import exp,sqrt
-    z0M_factor=0.125
-    d_factor=0.65
+    import numpy as np
+    
+    lambda_ = np.array(lambda_)
+    z0M_factor=np.zeros(np.shape(lambda_))
+    d_factor= 0.65*np.ones(np.shape(lambda_))
+    
     # Calculation of the Raupach (1994) formulae
-    if lambda_ > 0.152:
-        z0M_factor=(0.0537/(lambda_**0.510))*(1.-exp(-10.9*lambda_**0.874))+0.00368
-    else:
-        z0M_factor=5.86*exp(-10.9*lambda_**1.12)*lambda_**1.33+0.000860
-    if lambda_ > 0: d_factor=1.-(1.-exp(-sqrt(15.0*lambda_)))/sqrt(15.0*lambda_)
+    # if lambda_ > 0.152:
+    i = lambda_ > 0.152    
+    z0M_factor[i] = (0.0537/(lambda_[i]**0.510))*(1.-np.exp(-10.9*lambda_[i]**0.874))+0.00368
+    # else:
+    z0M_factor[~i]=5.86*np.exp(-10.9*lambda_[~i]**1.12)*lambda_[~i]**1.33+0.000860
+    
+    # if lambda_ > 0: 
+    i = lambda_ > 0    
+    d_factor[i] = 1.-(1.-np.exp(-np.sqrt(15.0*lambda_[i])))/np.sqrt(15.0*lambda_[i])
+    
     return z0M_factor,d_factor

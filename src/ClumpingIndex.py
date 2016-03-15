@@ -67,7 +67,8 @@ def CalcOmega0_Kustas(LAI, f_C,x_LAD=1,isLAIeff=True):
         https://archive.org/details/AnIntroductionToEnvironmentalBiophysics.
  '''
     
-    from math import log,exp, sqrt,radians, tan
+    from math import sqrt,radians, tan
+    import numpy as np    
     
     theta=0.0
     theta=radians(theta)    
@@ -77,13 +78,12 @@ def CalcOmega0_Kustas(LAI, f_C,x_LAD=1,isLAIeff=True):
     if isLAIeff:
         F=LAI/f_C
     else: # The input LAI is actually the real LAI
-        F=float(LAI)
+        F=LAI.astype(float)
     # Calculate the gap fraction of our canopy
-    trans = f_C*exp(-K_be * F)+(1.0-f_C)
-    if trans<=0:
-        trans=1e-36
+    trans = f_C*np.exp(-K_be * F)+(1.0-f_C)
+    trans[trans<=0] = 1e-36
     # and then the nadir clumping factor
-    omega0 = -log(trans)/(LAI*K_be)
+    omega0 = -np.log(trans)/(LAI*K_be)
     return omega0
 
 def CalcOmega_Kustas(omega0,theta,wc=1):
@@ -113,7 +113,8 @@ def CalcOmega_Kustas(omega0,theta,wc=1):
         Pages 13-29, http://dx.doi.org/10.1016/S0168-1923(99)00005-2.
     '''
     
-    from math import exp,radians
+    import numpy as np    
+    
     wc=1.0/wc
-    omega = omega0 / (omega0 + (1.0 - omega0) * exp(-2.2 * (radians(theta))**(3.8 - 0.46 * wc)))
+    omega = omega0 / (omega0 + (1.0 - omega0) * np.exp(-2.2 * (np.radians(theta))**(3.8 - 0.46 * wc)))
     return omega
