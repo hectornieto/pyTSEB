@@ -441,6 +441,7 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
         [flag[i], S_nS[i], L_nS[i], LE_S[i], H_S[i], G[i], R_a[i], u_friction[i], L[i], n_iterations[i]]=OSEB(Tr_K[i],
             Ta_K[i], u, ea, p[i], Sdn_dir[i]+Sdn_dif[i], Lsky[i], emisGrd, spectraGrdOSEB[i], 
             z_0M[i], d_0[i], zu, zt, CalcG=CalcG)
+        Ts[i] = Tr_K[i]
             
     # Calculate the general parameters
     rho= met.CalcRho(p, ea, Ta_K)  # Air density
@@ -746,7 +747,7 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
         [flag[i], S_nS[i], L_nS[i], LE_S[i], H_S[i], G[i], R_a[i], u_friction[i], L[i], n_iterations[i]]=OSEB(Tr_K_1[i],
             Ta_K_1[i], u, ea, p[i], Sdn_dir[i]+Sdn_dif[i], Lsky[i], emisGrd, spectraGrdOSEB[i], 
             z_0M[i], d_0[i], zu, zt, CalcG=CalcG, T0_K = (Tr_K_0[i], Ta_K_0[i]))
-     
+        Ts[i] = Tr_K_1[i]
     
     # Calculate the general parameters
     rho= met.CalcRho(p, ea, Ta_K_1)  # Air density
@@ -793,9 +794,6 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
     # First assume that canpy temperature equals the minumum of Air or radiometric T
     Tc[i] = np.minimum(Tr_K_1[i], Ta_K_1[i])
     flag[i], Ts[i] = CalcT_S(Tr_K_1[i], Tc[i], f_theta[i])
-    #if flag ==255:
-    #    return [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
-    #            R_s,R_x,R_a,u_friction, L,Ri,n_iterations]
     
     # Outer loop until canopy and soil temperatures have stabilised 
     Tc_prev = np.zeros(Tr_K_1.shape)
@@ -1009,9 +1007,9 @@ def  OSEB(Tr_K,Ta_K,u,ea,p,Sdn,Lsky,emis,albedo,z_0M,d_0,zu,zt, CalcG=[1,0.35], 
         
         # Avoid negative ET during daytime and make sure that energy is conserved
         flag[LE<0] = 5
-        LE[LE<0] = 0
         H[LE<0] = np.minimum(H[LE<0], R_n[LE<0] - G[LE<0])
         G[LE<0] = np.maximum(G[LE<0], R_n[LE<0] - H[LE<0])
+        LE[LE<0] = 0
             
         # Now L can be recalculated and the difference between iterations derived
         L=MO.CalcL (u_friction, Ta_K, rho, c_p, H, LE)
