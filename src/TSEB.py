@@ -430,7 +430,7 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
     
     # Create the output variables
     [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,
-     u_friction, L,n_iterations, F]=[np.zeros(Tr_K.shape) for i in range(20)]
+     u_friction, L, n_iterations, F]=[np.zeros(Tr_K.shape) for i in range(20)]
      
     # If there is no vegetation canopy use One Source Energy Balance model
     i = LAI==0
@@ -441,19 +441,7 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
         [flag[i], S_nS[i], L_nS[i], LE_S[i], H_S[i], G[i], R_a[i], u_friction[i], L[i], n_iterations[i]]=OSEB(Tr_K[i],
             Ta_K[i], u, ea, p[i], Sdn_dir[i]+Sdn_dif[i], Lsky[i], emisGrd, spectraGrdOSEB[i], 
             z_0M[i], d_0[i], zu, zt, CalcG=CalcG)
-        
-     
-    # Initially assume stable atmospheric conditions and set variables for 
-    # iteration of the Monin-Obukhov length
-    L = np.ones(Tr_K.shape)*float('inf')
-    u_friction = MO.CalcU_star(u, zu, L, d_0,z_0M)
-    u_friction = np.maximum(u_friction_min, u_friction)
-    L_old = np.ones(Tr_K.shape)
-    L[LAI==0] == L_old[LAI==0]
-    L_diff = np.ones(Tr_K.shape)*float('inf')
-    L_diff[LAI==0] = 0
-    max_iterations=ITERATIONS
-    
+            
     # Calculate the general parameters
     rho= met.CalcRho(p, ea, Ta_K)  # Air density
     c_p = met.CalcC_p(p, ea)  # Heat capacity of air
@@ -473,6 +461,17 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
                  fnir[i], spectraVeg['rho_leaf_vis'], spectraVeg['tau_leaf_vis'],
                 spectraVeg['rho_leaf_nir'], spectraVeg['tau_leaf_nir'], 
                 spectraGrd['rsoilv'], spectraGrd['rsoiln'])    
+
+    # Initially assume stable atmospheric conditions and set variables for 
+    # iteration of the Monin-Obukhov length
+    L[i] = float('inf')
+    u_friction = MO.CalcU_star(u, zu, L, d_0,z_0M)
+    u_friction = np.maximum(u_friction_min, u_friction)
+    L_old = np.ones(Tr_K.shape)
+    L_old[LAI==0] == L[LAI==0]
+    L_diff = np.ones(Tr_K.shape)*float('inf')
+    L_diff[LAI==0] = 0
+    max_iterations=ITERATIONS
 
     # First assume that canopy temperature equals the minumum of Air or radiometric T
     Tc[i] = np.minimum(Tr_K[i], Ta_K[i])
@@ -559,10 +558,11 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
             # Special case if there is no transpiration from vegetation. 
             # In that case, there should also be no evaporation from the soil
             # and the energy at the soil should be conserved.
-            # See end of appendix A1 in Guzinski et al. (2015).                      
-            H_S[LE_C==0] = np.minimum(H_S[LE_C==0], R_n_soil[LE_C==0] - G[LE_C==0])
-            G[LE_C==0] = np.maximum(G[LE_C==0], R_n_soil[LE_C==0] - H_S[LE_C==0])
-            LE_S[LE_C==0] = 0
+            # See end of appendix A1 in Guzinski et al. (2015).  
+            noT = np.logical_and(i, LE_C == 0)                    
+            H_S[noT] = np.minimum(H_S[noT], R_n_soil[noT] - G[noT])
+            G[noT] = np.maximum(G[noT], R_n_soil[noT] - H_S[noT])
+            LE_S[noT] = 0
 
             # Calculate total fluxes
             H = H_C + H_S
