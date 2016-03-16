@@ -300,7 +300,7 @@ def TSEB_2T(Tc,Ts,Ta,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
         if np.all(np.logical_and(L_diff < L_thres, u_diff < u_thres)):
             break
         
-        print("Outer loop, maximum L diff between iterations: "+str(np.max(L_diff)))
+        print("Iteration "+str(n_iterations)+", maximum L diff between iterations: "+str(np.max(L_diff)))
         
         flag[np.logical_and.reduce((L_diff >= L_thres, flag!=255, LAI>0))] = 0
         
@@ -569,7 +569,7 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
     # Stops when difference in consecutives L is below a given threshold
     for n_iterations in range(max_iterations):
         if np.all(L_diff < L_thres): break
-        print("Outer loop, maximum L diff between iterations: "+str(np.max(L_diff)))         
+        print("Iteration "+str(n_iterations)+", maximum L diff between iterations: "+str(np.max(L_diff)))         
          
         # Inner loop to iterativelly reduce alpha_PT in case latent heat flux 
         # from the soil is negative. The initial assumption is of potential 
@@ -578,7 +578,6 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
         LE_S[np.logical_and.reduce((L_diff >= L_thres, flag!=255, LAI>0))] = -1
         alpha_PT_rec = alpha_PT + 0.1         
         while np.any(LE_S < 0): 
-            print("Inner loop, alpha_PT: "+str(alpha_PT_rec))
             i = np.logical_and.reduce((LE_S < 0, L_diff >= L_thres, flag != 255, LAI > 0))            
             
             alpha_PT_rec -= 0.1 
@@ -888,7 +887,7 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
     Tc_diff = abs(Tc - Tc_prev)
     for n_iterations in range(ITERATIONS):
         if np.all(Tc_diff < Tc_thres): break
-        print("Outer loop, maximum Tc difference between iterations: "+str(np.max(Tc_diff))) 
+        print("Iteration "+str(n_iterations)+", maximum Tc difference between iterations: "+str(np.max(Tc_diff))) 
 
         # Inner loop to iterativelly reduce alpha_PT in case latent heat flux 
         # from the soil is negative. The initial assumption is of potential 
@@ -897,7 +896,6 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
         LE_S[np.logical_and.reduce((Tc_diff >= Tc_thres, flag!=255, LAI>0))] = -1
         alpha_PT_rec = alpha_PT + 0.1         
         while np.any(LE_S < 0): 
-            print("Inner loop, alpha_PT: "+str(alpha_PT_rec))
             i = np.logical_and.reduce((LE_S < 0, Tc_diff >= Tc_thres, flag != 255, LAI > 0))            
             
             alpha_PT_rec -= 0.1 
