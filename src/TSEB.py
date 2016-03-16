@@ -82,7 +82,7 @@ u_thres=0.00001
 # mimimun allowed friction velocity    
 u_friction_min=0.01;
 #Maximum number of interations
-ITERATIONS=1000
+ITERATIONS=100
 # kB coefficient
 kB=0.0
 
