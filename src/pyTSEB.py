@@ -856,7 +856,12 @@ class PyTSEB():
         fvis = inDataArray['fvis']
         fnir = inDataArray['fnir']
         sza = inDataArray['sza']
-        Lsky = inDataArray['Lsky']        
+        Lsky = inDataArray['Lsky'] 
+        
+        # Convert float inputs to numpy arrays
+        self.CalcG[1] = np.ones(lai.shape)*self.CalcG[1]
+        u = np.ones(lai.shape)*self.u
+        ea = np.ones(lai.shape)*self.ea
         
         if self.TSEB_MODEL=='DTD':
             #Run DTD
@@ -865,7 +870,7 @@ class PyTSEB():
             Ta_K_0=inDataArray['T_A0']
             Ta_K_1=inDataArray['T_A1']               
             [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,Ri,
-                 n_iterations]=TSEB.DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,self.u,self.ea,p,Sdn_dir,Sdn_dif,fvis,fnir,
+                 n_iterations]=TSEB.DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif,fvis,fnir,
                     sza,Lsky,lai,hc,self.emisVeg,self.emisGrd,self.spectraVeg,self.spectraGrd,z_0M,d_0,self.zu,self.zt,
                     f_c=fc,wc=wc,f_g=f_g,leaf_width=self.leaf_width,z0_soil=self.z0_soil,alpha_PT=self.Max_alpha_PT,
                     CalcG=self.CalcG)
@@ -874,16 +879,17 @@ class PyTSEB():
             Tr_K_1=inDataArray['T_R1']
             Ta_K_1=inDataArray['T_A1']
             [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,
-                 n_iterations]=TSEB.TSEB_PT(Tr_K_1,vza,Ta_K_1,self.u,self.ea,p,Sdn_dir,Sdn_dif,fvis,fnir,sza,Lsky,lai,
+                 n_iterations]=TSEB.TSEB_PT(Tr_K_1,vza,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif,fvis,fnir,sza,Lsky,lai,
                     hc,self.emisVeg,self.emisGrd,self.spectraVeg,self.spectraGrd,z_0M,d_0,self.zu,self.zt,
                     f_c=fc,f_g=f_g,wc=wc,leaf_width=self.leaf_width,z0_soil=self.z0_soil,alpha_PT=self.Max_alpha_PT,
                     CalcG=self.CalcG)
         elif self.TSEB_MODEL=='TSEB_2T':
             Tc=inDataArray['T_C']
             Ts=inDataArray['T_S']
+            Ta_K_1=inDataArray['T_A1']
             #Run TSEB with Component Temperature
             [flag, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,
-                 n_iterations] = TSEB.TSEB_2T(Tc, Ts, Ta_K_1,self.u,self.ea,p,Sdn_dir,Sdn_dif,fvis,fnir,sza,Lsky,lai,
+                 n_iterations] = TSEB.TSEB_2T(Tc, Ts, Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif,fvis,fnir,sza,Lsky,lai,
                     hc,self.emisVeg,self.emisGrd,self.spectraVeg,self.spectraGrd,z_0M,d_0,self.zu,self.zt,
                     f_c=fc,f_g=f_g,wc=wc,leaf_width=self.leaf_width,z0_soil=self.z0_soil,alpha_PT=self.Max_alpha_PT,
                     CalcG=self.CalcG)

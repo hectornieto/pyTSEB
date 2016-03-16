@@ -241,8 +241,8 @@ def TSEB_2T(Tc,Ts,Ta,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
         d_0[i]=5*z_0M[i]
         spectraGrdOSEB=fvis*spectraGrd['rsoilv']+fnir* spectraGrd['rsoiln']
         [flag[i], S_nS[i], L_nS[i], LE_s[i], H_s[i], G[i], R_a[i], u_friction[i], L[i], counter[i]]=OSEB(Ts[i],
-            Ta[i], u, ea, p[i], Sdn_dir[i]+Sdn_dif[i], Lsky[i], emisGrd, spectraGrdOSEB[i], 
-            z_0M[i], d_0[i], zu, zt, CalcG=CalcG)
+            Ta[i], u[i], ea[i], p[i], Sdn_dir[i]+Sdn_dif[i], Lsky[i], emisGrd, spectraGrdOSEB[i], 
+            z_0M[i], d_0[i], zu, zt, CalcG=[CalcG[0], CalcG[1][i]])
     
     # Calculate the general parameters
     rho_a= met.CalcRho(p, ea, Ta)  # Air density
@@ -526,8 +526,8 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
         d_0[i]=5*z_0M[i]
         spectraGrdOSEB=fvis*spectraGrd['rsoilv']+fnir* spectraGrd['rsoiln']
         [flag[i], S_nS[i], L_nS[i], LE_S[i], H_S[i], G[i], R_a[i], u_friction[i], L[i], n_iterations[i]]=OSEB(Tr_K[i],
-            Ta_K[i], u, ea, p[i], Sdn_dir[i]+Sdn_dif[i], Lsky[i], emisGrd, spectraGrdOSEB[i], 
-            z_0M[i], d_0[i], zu, zt, CalcG=CalcG)
+            Ta_K[i], u[i], ea[i], p[i], Sdn_dir[i]+Sdn_dif[i], Lsky[i], emisGrd, spectraGrdOSEB[i], 
+            z_0M[i], d_0[i], zu, zt, CalcG=[CalcG[0], CalcG[1][i]])
         Ts[i] = Tr_K[i]
             
     # Calculate the general parameters
@@ -832,8 +832,8 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
         d_0[i]=5*z_0M[i]
         spectraGrdOSEB=fvis*spectraGrd['rsoilv']+fnir* spectraGrd['rsoiln']
         [flag[i], S_nS[i], L_nS[i], LE_S[i], H_S[i], G[i], R_a[i], u_friction[i], L[i], n_iterations[i]]=OSEB(Tr_K_1[i],
-            Ta_K_1[i], u, ea, p[i], Sdn_dir[i]+Sdn_dif[i], Lsky[i], emisGrd, spectraGrdOSEB[i], 
-            z_0M[i], d_0[i], zu, zt, CalcG=CalcG, T0_K = (Tr_K_0[i], Ta_K_0[i]))
+            Ta_K_1[i], u[i], ea[i], p[i], Sdn_dir[i]+Sdn_dif[i], Lsky[i], emisGrd, spectraGrdOSEB[i], 
+            z_0M[i], d_0[i], zu, zt, CalcG=[CalcG[0], CalcG[1][i]], T0_K = (Tr_K_0[i], Ta_K_0[i]))
         Ts[i] = Tr_K_1[i]
     
     # Calculate the general parameters
@@ -1064,11 +1064,11 @@ def  OSEB(Tr_K,Ta_K,u,ea,p,Sdn,Lsky,emis,albedo,z_0M,d_0,zu,zt, CalcG=[1,0.35], 
     
     #Compute Soil Heat Flux
     if CalcG[0]==0:
-        G_calc=np.ones(Tr_K.shape)*CalcG[1]
+        G_calc=CalcG[1]
     elif CalcG[0]==1:
         G_calc=CalcG_Ratio(R_n, CalcG[1])
     elif CalcG[0]==2:
-        G_calc=CalcG_TimeDiff (R_n, CalcG[1])
+        G_calc=CalcG_TimeDiff(R_n, CalcG[1])
     
     # Loop for estimating atmospheric stability. 
     # Stops when difference in consecutive L and u_friction is below a 
