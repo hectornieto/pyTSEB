@@ -864,7 +864,6 @@ class PyTSEB():
             Tr_K_1=inDataArray['T_R1']
             Ta_K_0=inDataArray['T_A0']
             Ta_K_1=inDataArray['T_A1']               
-            [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,Ri,n_iterations]=[0]*20
             [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,Ri,
                  n_iterations]=TSEB.DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,self.u,self.ea,p,Sdn_dir,Sdn_dif,fvis,fnir,
                     sza,Lsky,lai,hc,self.emisVeg,self.emisGrd,self.spectraVeg,self.spectraGrd,z_0M,d_0,self.zu,self.zt,
@@ -874,7 +873,6 @@ class PyTSEB():
             #Run TSEB
             Tr_K_1=inDataArray['T_R1']
             Ta_K_1=inDataArray['T_A1']
-            [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,n_iterations]=[0]*19
             [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,
                  n_iterations]=TSEB.TSEB_PT(Tr_K_1,vza,Ta_K_1,self.u,self.ea,p,Sdn_dir,Sdn_dif,fvis,fnir,sza,Lsky,lai,
                     hc,self.emisVeg,self.emisGrd,self.spectraVeg,self.spectraGrd,z_0M,d_0,self.zu,self.zt,
@@ -884,29 +882,10 @@ class PyTSEB():
             Tc=inDataArray['T_C']
             Ts=inDataArray['T_S']
             #Run TSEB with Component Temperature
-            [flag, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,counter]=[0]*17
-            if lai==0:# Bare Soil, One Source Energy Balance Model
-                z_0M=self.z0_soil
-                d_0=5.*z_0M
-                albedoGrd=fvis*self.spectraGrd['rsoilv']+fnir* self.spectraGrd['rsoiln']
-                [flag,S_nS, L_nS, LE_S,H_S,G,R_a,u_friction, L,counter]=TSEB.OSEB(Ts,Ta_K_1,self.u,self.ea,p,self.Sdn,
-                            Lsky,self.emisGrd,albedoGrd,z_0M,d_0,self.zu,self.zt, CalcG=self.CalcG)
-            else:
-                F=lai/fc# Get the local LAI and compute the clumping index
-                omega0=TSEB.CI.CalcOmega0_Kustas(lai, fc, isLAIeff=True)
-                Omega=TSEB.CI.CalcOmega_Kustas(omega0,sza,wc=self.wc)
-                LAI_eff=F*Omega
-                # Estimate the net shorwave radiation 
-                S_nS, S_nC = TSEB.rad.CalcSnCampbell (LAI_eff, sza, Sdn_dir, Sdn_dif, fvis,fnir, 
-                    self.spectraVeg['rho_leaf_vis'], self.spectraVeg['tau_leaf_vis'],
-                    self.spectraVeg['rho_leaf_nir'], self.spectraVeg['tau_leaf_nir'], 
-                    self.spectraGrd['rsoilv'], self.spectraGrd['rsoiln'])
-                # And the net longwave radiation
-                L_nS,L_nC=TSEB.rad.CalcLnKustas (Tc, Ts,Lsky, lai,self.emisVeg, self.emisGrd)
-                # Run TSEB with the component temperatures Ts and Tc    
-                [flag,T_AC,LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L, n_iterations]=TSEB.TSEB_2T(Tc, Ts,Ta_K_1,
-                    self.u,self.ea,p,S_nS, S_nC, L_nS,L_nC,lai,hc,z_0M, d_0, self.zu,self.zt,leaf_width=self.leaf_width,f_c=fc,
-                     z0_soil=self.z0_soil,alpha_PT=self.Max_alpha_PT,
+            [flag, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,
+                 n_iterations] = TSEB.TSEB_2T(Tc, Ts, Ta_K_1,self.u,self.ea,p,Sdn_dir,Sdn_dif,fvis,fnir,sza,Lsky,lai,
+                    hc,self.emisVeg,self.emisGrd,self.spectraVeg,self.spectraGrd,z_0M,d_0,self.zu,self.zt,
+                    f_c=fc,f_g=f_g,wc=wc,leaf_width=self.leaf_width,z0_soil=self.z0_soil,alpha_PT=self.Max_alpha_PT,
                     CalcG=self.CalcG)
             
         # Calculate the bulk fluxes
@@ -1278,31 +1257,17 @@ class PyTSEB():
                                             alpha_PT=self.Max_alpha_PT, CalcG=self.CalcG)
         
         elif self.TSEB_MODEL=='TSEB_2T':
-            #Run TSEB with Component Temperature
-            [flag, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,counter]=[0]*17
-            if lai==0:# Bare Soil, One Source Energy Balance Model
-                z_0M=self.z0_soil
-                d_0=5.*z_0M
-                albedoGrd=fvis*self.spectraGrd['rsoilv']+fnir* self.spectraGrd['rsoiln']
-                [flag,S_nS, L_nS, LE_S,H_S,G,R_a,u_friction, L,counter]=TSEB.OSEB(Ts,Ta_K_1,u,ea,p,Sdn,
-                            Lsky,self.emisGrd,albedoGrd,z_0M,d_0,self.zu,self.zt, CalcG=self.CalcG)
-            else:
-                F=lai/fc# Get the local LAI and compute the clumping index
-                omega0=TSEB.CI.CalcOmega0_Kustas(lai, fc,isLAIeff=True)
-                Omega=TSEB.CI.CalcOmega_Kustas(omega0,sza,wc=wc)
-                LAI_eff=F*Omega
-                # Estimate the net shorwave radiation 
-                S_nS, S_nC = TSEB.rad.CalcSnCampbell (LAI_eff, sza, Sdn_dir, Sdn_dif, fvis,fnir, 
-                    self.spectraVeg['rho_leaf_vis'], self.spectraVeg['tau_leaf_vis'],
-                    self.spectraVeg['rho_leaf_nir'], self.spectraVeg['tau_leaf_nir'], 
-                    self.spectraGrd['rsoilv'], self.spectraGrd['rsoiln'])
-                # And the net longwave radiation
-                L_nS,L_nC=TSEB.rad.CalcLnKustas (Tc, Ts,Lsky, lai,self.emisVeg, self.emisGrd)
-                # Run TSEB with the component temperatures Ts and Tc    
-                [flag,T_AC,LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L, n_iterations]=TSEB.TSEB_2T(Tc, Ts,Ta_K_1,
-                    u,ea,p,S_nS, S_nC, L_nS,L_nC,lai,hc,z_0M, d_0, self.zu,self.zt,leaf_width=self.leaf_width,f_c=fc,
-                     z0_soil=self.z0_soil,alpha_PT=self.Max_alpha_PT,
-                     CalcG=self.CalcG)
+            # Run TSEB with the component temperatures Ts and Tc    
+            [flag, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,
+                 n_iterations] = TSEB.TSEB_2T(
+                            inData['Tc'], inData['Ts'], inData['Ta'], inData['u'], inData['ea'], inData['p'],
+                            inData['Sdn_dir'], inData['Sdn_dif'], inData['fvis'], inData['fnir'], inData['SZA'],
+                            inData['Lsky'], inData['LAI'], inData['hc'], self.emisVeg, self.emisGrd, self.spectraVeg, 
+                            self.spectraGrd, inData['z_0M'], inData['d_0'], self.zu, self.zt, f_c=inData['fc'], 
+                            f_g=inData['fg'], wc=inData['wc'], leaf_width=self.leaf_width, z0_soil=self.z0_soil,
+                            alpha_PT=self.Max_alpha_PT, CalcG=self.CalcG)
+            Ts = inData['Ts']
+            Tc = inData['Tc']
         
         # Calculate the bulk fluxes
         LE=LE_C+LE_S

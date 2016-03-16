@@ -86,9 +86,11 @@ ITERATIONS=1000
 # kB coefficient
 kB=0.0
 
-def TSEB_2T(Tc,Ts,Ta_K,u,ea,p,Rn_sw_veg, Rn_sw_soil, Rn_lw_veg, Rn_lw_soil,LAI, 
-            hc,z_0M, d_0, zu, zt, 
-            leaf_width=0.1,z0_soil=0.01, alpha_PT=1.26,f_c=1,CalcG=[1,0.35]):
+def TSEB_2T(Tc,Ts,Ta,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
+            LAI,hc,emisVeg,emisGrd,spectraVeg,spectraGrd,z_0M,d_0,zu,zt,
+            leaf_width=0.1,z0_soil=0.01,alpha_PT=1.26,f_c=1.0,f_g=1.0,wc=1.0,
+            CalcG=[1,0.35]):
+                
     ''' TSEB using component canopy and soil temperatures.
 
     Calculates the turbulent fluxes by the Two Source Energy Balance model 
@@ -109,18 +111,44 @@ def TSEB_2T(Tc,Ts,Ta_K,u,ea,p,Rn_sw_veg, Rn_sw_soil, Rn_lw_veg, Rn_lw_soil,LAI,
         Water vapour pressure above the canopy (mb).
     p : float
         Atmospheric pressure (mb), use 1013 mb by default.
-    Rn_sw_veg : float
-        Canopy net shortwave radiation (W m-2).
-    Rn_sw_soil : float
-        Soil net shortwave radiation (W m-2).
-    Rn_lw_veg : float
-        Canopy net longwave radiation (W m-2).
-    Rn_lw_soil : float
-        Soil net longwave radiation (W m-2).
+    Sdn_dir : float
+        Beam solar irradiance (W m-2).
+    Sdn_dif : float
+        Difuse solar irradiance (W m-2).
+    fvis : float
+        Fraction of shortwave radiation corresponding to the PAR region (400-700nm).
+    fnir : float
+        Fraction of shortwave radiation corresponding to the NIR region (700-2500nm).
+    sza : float
+        Solar Zenith Angle (degrees).
+    Lsky : float
+        Downwelling longwave radiation (W m-2).
     LAI : float
         Effective Leaf Area Index (m2 m-2).
     hc : float
         Canopy height (m).
+    emisVeg : float
+        Leaf emissivity.
+    emisGrd : flaot
+        Soil emissivity.
+    spectraVeg : dict('rho_leaf_vis', 'tau_leaf_vis', 'rho_leaf_nir','tau_leaf_nir')
+        Leaf spectrum dictionary.        
+
+            rho_leaf_vis : float
+                leaf bihemispherical reflectance in the visible (400-700 nm).
+            tau_leaf_vis : float
+                leaf bihemispherical transmittance in the visible (400-700nm).
+            rho_leaf_nir : float
+                leaf bihemispherical reflectance in the optical infrared (700-2500nm),
+            tau_leaf_nir : float
+                leaf bihemispherical transmittance in the optical  infrared (700-2500nm).
+    spectraGrd : dict('rho rsoilv', 'rsoiln')
+        Soil spectrum dictonary.
+        
+            rsoilv : float
+                soil bihemispherical reflectance in the visible (400-700 nm).
+            rsoiln : float
+                soil bihemispherical reflectance in the optical infrared (700-2500nm).
     z_0M : float
         Aerodynamic surface roughness length for momentum transfer (m).
     d_0 : float
@@ -136,6 +164,14 @@ def TSEB_2T(Tc,Ts,Ta_K,u,ea,p,Rn_sw_veg, Rn_sw_soil, Rn_lw_veg, Rn_lw_soil,LAI,
     alpha_PT : float, optional
         Priestley Taylor coeffient for canopy potential transpiration, 
         use 1.26 by default.
+    x_LAD : float, optional
+        Campbell 1990 leaf inclination distribution function chi parameter.
+    f_c : float, optional
+        Fractional cover.
+    f_g : float, optional
+        Fraction of vegetation that is green.
+    wc : float, optional
+        Canopy width to height ratio.
     CalcG : tuple(int,list), optional
         Method to calculate soil heat flux,parameters.
         
@@ -147,8 +183,20 @@ def TSEB_2T(Tc,Ts,Ta_K,u,ea,p,Rn_sw_veg, Rn_sw_soil, Rn_lw_veg, Rn_lw_soil,LAI,
     -------
     flag : int
         Quality flag, see Appendix for description.
+    Ts : float
+        Soil temperature  (Kelvin).
+    Tc : float
+        Canopy temperature  (Kelvin).
     T_AC : float
         Air temperature at the canopy interface (Kelvin).
+    S_nS : float
+        Soil net shortwave radiation (W m-2)
+    S_nC : float
+        Canopy net shortwave radiation (W m-2)
+    L_nS : float
+        Soil net longwave radiation (W m-2)
+    L_nC : float
+        Canopy net longwave radiation (W m-2)
     LE_C : float
         Canopy latent heat flux (W m-2).
     H_C : float
@@ -182,103 +230,142 @@ def TSEB_2T(Tc,Ts,Ta_K,u,ea,p,Rn_sw_veg, Rn_sw_soil, Rn_lw_veg, Rn_lw_soil,LAI,
     
     import numpy as np
     
-    # Initially assume stable atmospheric conditions and set variables for 
-    # iteration of the Monin-Obukhov length
-    L = np.ones(Tc.shape)*float('inf')
-    u_friction = MO.CalcU_star (u, zu, L, d_0,z_0M)
-    u_friction = np.maximum(u_friction_min, u_friction)
-    L_old = np.ones(Tc.shape)
-    u_old = np.ones(Tc.shape)*1e36
-    L_diff = np.ones(Tc.shape)*float('inf')
-    u_diff = np.ones(Tc.shape)*float('inf')
-    max_iterations=ITERATIONS
+    # Create the output variables
+    [flag, T_ac, S_nS, S_nC, L_nS,L_nC, LE_c,H_c,LE_s,H_s,G,R_s,R_x,R_a,u_friction, 
+     L,counter, F] = [np.zeros(Ts.shape) for i in range(18)]
+    
+    # If there is no vegetation canopy use One Source Energy Balance model
+    i = LAI==0
+    if np.any(i):
+        z_0M[i]=z0_soil
+        d_0[i]=5*z_0M[i]
+        spectraGrdOSEB=fvis*spectraGrd['rsoilv']+fnir* spectraGrd['rsoiln']
+        [flag[i], S_nS[i], L_nS[i], LE_s[i], H_s[i], G[i], R_a[i], u_friction[i], L[i], counter[i]]=OSEB(Ts[i],
+            Ta[i], u, ea, p[i], Sdn_dir[i]+Sdn_dif[i], Lsky[i], emisGrd, spectraGrdOSEB[i], 
+            z_0M[i], d_0[i], zu, zt, CalcG=CalcG)
     
     # Calculate the general parameters
-    rho_a = met.CalcRho(p, ea, Ta_K) # Air density (kg m-3)
-    Cp = met.CalcC_p(p, ea) # Heat capacity or air at constant pressure (273.15K) (J kg-1 K-1)
-    F = LAI/f_c # Real LAI
-    z_0H = res.CalcZ_0H(z_0M,kB=kB) # Roughness lenght for heat transport
-
+    rho_a= met.CalcRho(p, ea, Ta)  # Air density
+    Cp = met.CalcC_p(p, ea)  # Heat capacity of air
+    z_0H=res.CalcZ_0H(z_0M, kB=kB) # Roughness length for heat transport
+    
+    # Calculate LAI dependent parameters for dataset where LAI > 0
+    i = ~i    
+    omega0 = np.zeros(Ts.shape)
+    omega0[i] = CI.CalcOmega0_Kustas(LAI[i], f_c[i], isLAIeff=True) # Clumping factor at nadir
+    omega = CI.CalcOmega_Kustas(omega0, sza, wc=wc) # Clumping factor at an angle      
+    F[i] = LAI[i]/f_c[i] # Real LAI    
+    
+    # Calcualte short wave net radiation of canopy and soil
+    LAI_eff = F*omega
+    S_nC[i], S_nS[i] = rad.CalcSnCampbell (LAI_eff[i], sza[i], Sdn_dir[i], Sdn_dif[i], fvis[i],
+                 fnir[i], spectraVeg['rho_leaf_vis'], spectraVeg['tau_leaf_vis'],
+                spectraVeg['rho_leaf_nir'], spectraVeg['tau_leaf_nir'], 
+                spectraGrd['rsoilv'], spectraGrd['rsoiln'])     
+                
+    # And the net longwave radiation
+    L_nS[i], L_nC[i] = rad.CalcLnKustas(Tc[i], Ts[i], Lsky[i], LAI[i], emisVeg, emisGrd)
+    
     #Compute Net Radiation
-    Rn_soil=Rn_sw_soil+Rn_lw_soil
-    Rn_veg=Rn_sw_veg+Rn_lw_veg
-    Rn=Rn_soil+Rn_veg
+    Rn_soil = S_nS + L_nS
+    Rn_veg = S_nC + L_nC
+    Rn = Rn_soil+Rn_veg
     
     #Compute Soil Heat Flux
     if CalcG[0]==0:
-        G=CalcG[1]
+        G=CalcG[1][i]
     elif CalcG[0]==1:
-        G=CalcG_Ratio(Rn_soil, CalcG[1])
+        G=CalcG_Ratio(Rn_soil[i], CalcG[1][i])
     elif CalcG[0]==2:
-        G=CalcG_TimeDiff (Rn_soil, CalcG[1])
-    
+        G=CalcG_TimeDiff (Rn_soil[i], CalcG[1][i])
+     
+    # Initially assume stable atmospheric conditions and set variables for 
+    # iteration of the Monin-Obukhov length
+    L[i] = float('inf')
+    u_friction[i] = MO.CalcU_star(u, zu, L, d_0,z_0M)
+    u_friction = np.maximum(u_friction_min, u_friction)
+    L_old = np.ones(Tc.shape)
+    L_old[LAI==0] = L[LAI==0]
+    u_old = np.ones(Tc.shape)*1e36
+    u_old[LAI==0] = u_friction[LAI==0]    
+    L_diff = np.ones(Tc.shape)*float('inf')
+    L_diff[LAI==0] = 0
+    u_diff = np.ones(Tc.shape)*float('inf')
+    u_diff[LAI==0] = 0    
+    max_iterations=ITERATIONS
+
     # Outer loop for estimating stability. 
     # Stops when difference in consecutives L is below a given threshold
     for n_iterations in range(max_iterations):
         if np.all(np.logical_and(L_diff < L_thres, u_diff < u_thres)):
             break
         
-        flag=np.zeros(Tc.shape)
+        print "Outer loop, maximum L diff between iterations: "+str(np.max(L_diff)) 
+        
+        flag[np.logical_and.reduce((L_diff >= L_thres, flag!=255, LAI>0))] = 0
         
         # Calculate the aerodynamic resistance
-        R_a=res.CalcR_A ( zt,  u_friction, L, d_0, z_0H)
+        R_a[i] = res.CalcR_A(zt, u_friction[i], L[i], d_0[i], z_0H[i])
         # Calculate wind speed at the soil surface and in the canopy
-        U_C=MO.CalcU_C (u_friction, hc, d_0, z_0M)
-        u_S=MO.CalcU_Goudriaan (U_C, hc, LAI, leaf_width, z0_soil)
-        u_d_zm = MO.CalcU_Goudriaan (U_C, hc, LAI, leaf_width,d_0+z_0M)
+        U_C = MO.CalcU_C (u_friction, hc, d_0, z_0M)
+        u_S = MO.CalcU_Goudriaan (U_C, hc, LAI, leaf_width, z0_soil)
+        u_d_zm = MO.CalcU_Goudriaan (U_C, hc, LAI, leaf_width, d_0+z_0M)
         # Calculate soil and canopy resistances         
-        R_x=res.CalcR_X_Norman(F, leaf_width, u_d_zm)
-        R_s=res.CalcR_S_Kustas(u_S, Ts-Tc)
+        R_x[i] = res.CalcR_X_Norman(F[i], leaf_width, u_d_zm[i])
+        R_s[i] = res.CalcR_S_Kustas(u_S[i], Ts[i]-Tc[i])
         R_s=np.maximum( 1e-3,R_s)
         R_x=np.maximum( 1e-3,R_x)
         R_a=np.maximum( 1e-3,R_a)
         
         # Compute air temperature at the canopy interface
-        T_ac=((Ta_K/R_a)+(Ts/R_s)+(Tc/R_x))/((1/R_a)+(1/R_s)+(1/R_x))
-        T_ac=np.maximum( 1e-3,T_ac)
+        T_ac[i] = ((Ta[i]/R_a[i] + Ts[i]/R_s[i] + Tc[i]/R_x[i])
+                    /(1/R_a[i] + 1/R_s[i] + 1/R_x[i]))
+        T_ac = np.maximum(1e-3,T_ac)
         
         # Calculate canopy sensible heat flux (Norman et al 1995)
-        H_c=rho_a*Cp*(Tc-T_ac)/R_x
+        H_c[i] = rho_a[i]*Cp[i]*(Tc[i]-T_ac[i])/R_x[i]
         # Assume no condensation in the canopy (LE_c<0)
-        i = H_c > Rn_veg
-        H_c[i] = Rn_veg[i]
-        flag[i] = 1
+        noC = np.logical_and(i, H_c > Rn_veg)
+        H_c[noC] = Rn_veg[noC]
+        flag[noC] = 1
         # Assume no thermal inversion in the canopy
-        i = np.logical_and(H_c < CalcH_C_PT(Rn_veg, 1.0, Ta_K, p, Cp, alpha_PT), Rn_veg > 0)
-        H_c[i] = 0
-        flag[i] = 2
+        noI = np.logical_and.reduce((i, H_c < CalcH_C_PT(Rn_veg, 1.0, Ta, p, Cp, alpha_PT), Rn_veg > 0))
+        H_c[noI] = 0
+        flag[noI] = 2
             
         # Calculate soil sensible heat flux (Norman et al 1995)
-        H_s=rho_a*Cp*(Ts-T_ac)/R_s
+        H_s[i] = rho_a[i]*Cp[i]*(Ts[i]-T_ac[i])/R_s[i]
         # Assume that there is no condensation in the soil (LE_s<0)
-        i = np.logical_and(H_s > Rn_soil-G, (Rn_soil-G) > 0)        
-        H_s[i] = Rn_soil[i] - G[i]
-        flag[i] = 3
+        noC = np.logical_and.reduce((i, H_s > Rn_soil-G, (Rn_soil-G) > 0))        
+        H_s[noC] = Rn_soil[noC] - G[noC]
+        flag[noC] = 3
         # Assume no thermal inversion in the soil
-        i = np.logical_and(H_s < 0, Rn_soil-G > 0)        
-        H_s[i] = 0
-        flag[i] = 4     
+        noI = np.logical_and.reduce((i, H_s < 0, Rn_soil-G > 0))        
+        H_s[noI] = 0
+        flag[noI] = 4     
                             
         # Evaporation Rate (Kustas and Norman 1999)
         H = H_s+H_c
         LE = (Rn-G-H)
         
         # Now L can be recalculated and the difference between iterations derived
-        L=MO.CalcL (u_friction, Ta_K, rho_a, Cp, H, LE)
-        L_diff=abs(L-L_old)/abs(L_old)
+        L[i] = MO.CalcL (u_friction[i], Ta[i], rho_a[i], Cp[i], H[i], LE[i])
+        L_diff = abs(L-L_old)/abs(L_old)
+        L_diff[np.isnan(L_diff)] = float('inf')
         L_old=L
-        if abs(L_old)==0.0: L_old=1e-36
+        L_old[L_old==0] = 1e-36 
             
         # Calculate again the friction velocity with the new stability correctios        
-        u_friction=MO.CalcU_star (u, zu, L, d_0,z_0M)
+        u_friction[i] = MO.CalcU_star(u[i], zu, L[i], d_0[i], z_0M[i])
         u_friction = np.maximum(u_friction_min, u_friction)
         u_diff=abs(u_friction-u_old)/abs(u_old)
         u_old=u_friction
         
     # Compute soil and canopy latent heat fluxes
-    LE_s=Rn_soil-G-H_s
-    LE_c=Rn_veg-H_c
-    return flag,T_ac,LE_c,H_c,LE_s,H_s,G,R_s,R_x,R_a,u_friction, L,n_iterations
+    LE_s = Rn_soil-G-H_s
+    LE_c = Rn_veg-H_c
+    
+    return flag, T_ac,S_nS, S_nC, L_nS,L_nC, LE_c,H_c,LE_s,H_s,G,R_s,R_x,R_a,u_friction, L,n_iterations
 
 def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
             LAI,hc,emisVeg,emisGrd,spectraVeg,spectraGrd,z_0M,d_0,zu,zt,
@@ -469,7 +556,7 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
     u_friction = MO.CalcU_star(u, zu, L, d_0,z_0M)
     u_friction = np.maximum(u_friction_min, u_friction)
     L_old = np.ones(Tr_K.shape)
-    L_old[LAI==0] == L[LAI==0]
+    L_old[LAI==0] = L[LAI==0]
     L_diff = np.ones(Tr_K.shape)*float('inf')
     L_diff[LAI==0] = 0
     max_iterations=ITERATIONS
