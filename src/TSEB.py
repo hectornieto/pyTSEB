@@ -482,7 +482,7 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
     # Stops when difference in consecutives L is below a given threshold
     for n_iterations in range(max_iterations):
         if np.all(L_diff < L_thres): break
-        print np.max(L_diff)         
+        print "Outer loop, maximum L diff between iterations: "+str(np.max(L_diff))         
          
         # Inner loop to iterativelly reduce alpha_PT in case latent heat flux 
         # from the soil is negative. The initial assumption is of potential 
@@ -491,7 +491,7 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
         LE_S[np.logical_and.reduce((L_diff >= L_thres, flag!=255, LAI>0))] = -1
         alpha_PT_rec = alpha_PT + 0.1         
         while np.any(LE_S < 0): 
-            print alpha_PT_rec
+            print "Inner loop, alpha_PT: "+str(alpha_PT_rec)
             i = np.logical_and.reduce((LE_S < 0, L_diff >= L_thres, flag != 255, LAI > 0))            
             
             alpha_PT_rec -= 0.1 
@@ -545,11 +545,11 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
             
             #Compute Soil Heat Flux Ratio
             if CalcG[0]==0:
-                G[i]=CalcG[1]
+                G[i]=CalcG[1][i]
             elif CalcG[0]==1:
-                G[i]=CalcG_Ratio(R_n_soil[i], CalcG[1])
+                G[i]=CalcG_Ratio(R_n_soil[i], CalcG[1][i])
             elif CalcG[0]==2:
-                G[i]=CalcG_TimeDiff (R_n_soil[i], CalcG[1])
+                G[i]=CalcG_TimeDiff (R_n_soil[i], CalcG[1][i])
             
             # Estimate latent heat fluxes as residual of energy balance at the
             # soil and the canopy            
@@ -571,7 +571,7 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
             
             # Now Land and friction velocity can be recalculated
             L[i] = MO.CalcL(u_friction[i], Ta_K[i], rho[i], c_p[i], H[i], LE[i])
-            u_friction[i] = MO.CalcU_star (u, zu, L[i], d_0[i], z_0M[i])
+            u_friction[i] = MO.CalcU_star (u[i], zu, L[i], d_0[i], z_0M[i])
             #Avoid very low friction velocity values
             u_friction = np.maximum(u_friction_min, u_friction)
             # Calculate the change in friction velocity
@@ -801,7 +801,7 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
     Tc_diff = abs(Tc - Tc_prev)
     for n_iterations in range(ITERATIONS):
         if np.all(Tc_diff < Tc_thres): break
-        print np.max(Tc_diff) 
+        print "Outer loop, maximum Tc difference between iterations: "+str(np.max(Tc_diff)) 
 
         # Inner loop to iterativelly reduce alpha_PT in case latent heat flux 
         # from the soil is negative. The initial assumption is of potential 
@@ -810,7 +810,7 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
         LE_S[np.logical_and.reduce((Tc_diff >= Tc_thres, flag!=255, LAI>0))] = -1
         alpha_PT_rec = alpha_PT + 0.1         
         while np.any(LE_S < 0): 
-            print alpha_PT_rec
+            print "Inner loop, alpha_PT: "+str(alpha_PT_rec)
             i = np.logical_and.reduce((LE_S < 0, Tc_diff >= Tc_thres, flag != 255, LAI > 0))            
             
             alpha_PT_rec -= 0.1 
@@ -837,11 +837,11 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
                                
             # Calculate ground heat flux
             if CalcG[0]==0:
-                G[i]=CalcG[1]
+                G[i]=CalcG[1][i]
             elif CalcG[0]==1:
-                G[i]=CalcG_Ratio(R_n_soil[i], CalcG[1])
+                G[i]=CalcG_Ratio(R_n_soil[i], CalcG[1][i])
             elif CalcG[0]==2:
-                G[i]=CalcG_TimeDiff (R_n_soil[i], CalcG[1])
+                G[i]=CalcG_TimeDiff (R_n_soil[i], CalcG[1][i])
             
             # Calculate latent heat fluxes as residuals
             LE_S[i] = R_n_soil[i] - H_S[i] - G[i]
