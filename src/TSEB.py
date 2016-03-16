@@ -352,14 +352,14 @@ def TSEB_2T(Tc,Ts,Ta,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
         L[i] = MO.CalcL (u_friction[i], Ta[i], rho_a[i], Cp[i], H[i], LE[i])
         L_diff = abs(L-L_old)/abs(L_old)
         L_diff[np.isnan(L_diff)] = float('inf')
-        L_old=L
+        L_old[:]=L
         L_old[L_old==0] = 1e-36 
             
         # Calculate again the friction velocity with the new stability correctios        
         u_friction[i] = MO.CalcU_star(u[i], zu, L[i], d_0[i], z_0M[i])
         u_friction = np.maximum(u_friction_min, u_friction)
         u_diff=abs(u_friction-u_old)/abs(u_old)
-        u_old=u_friction
+        u_old[:]=u_friction
         
     # Compute soil and canopy latent heat fluxes
     LE_s = Rn_soil-G-H_s
@@ -667,7 +667,7 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
 
         L_diff = abs(L-L_old)/abs(L_old) 
         L_diff[np.isnan(L_diff)] = float('inf')       
-        L_old = L
+        L_old[:] = L
         L_old[L_old==0] = 1e-36                 
         
     return flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,n_iterations
@@ -953,7 +953,7 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
             LE_S[flag_t==255] = 0  
         
         Tc_diff = abs(Tc - Tc_prev)
-        Tc_prev = Tc
+        Tc_prev[:] = Tc
 
     
     # L is only calculated for testing purposes
@@ -1101,7 +1101,7 @@ def  OSEB(Tr_K,Ta_K,u,ea,p,Sdn,Lsky,emis,albedo,z_0M,d_0,zu,zt, CalcG=[1,0.35], 
         # Now L can be recalculated and the difference between iterations derived
         L=MO.CalcL (u_friction, Ta_K, rho, c_p, H, LE)
         L_diff=abs(L-L_old)/abs(L_old)
-        L_old=L
+        L_old[:]=L
         L_old[abs(L_old)==0] = 1e-36
 
         # Calculate again the friction velocity with the new stability correction
@@ -1110,7 +1110,7 @@ def  OSEB(Tr_K,Ta_K,u,ea,p,Sdn,Lsky,emis,albedo,z_0M,d_0,zu,zt, CalcG=[1,0.35], 
             u_friction=MO.CalcU_star (u, zu, L, d_0, z_0M)
             u_friction = np.maximum(u_friction_min, u_friction)
         u_diff=abs(u_friction-u_old)/abs(u_old)
-        u_old=u_friction
+        u_old[:]=u_friction
         
         #Stop the iteration if differences are below the threshold
         if np.all(np.logical_and(L_diff < L_thres, u_diff < u_thres)):
