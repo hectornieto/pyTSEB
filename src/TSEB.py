@@ -273,16 +273,16 @@ def TSEB_2T(Tc,Ts,Ta,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
     
     #Compute Soil Heat Flux
     if CalcG[0]==0:
-        G=CalcG[1][i]
+        G[i]=CalcG[1][i]
     elif CalcG[0]==1:
-        G=CalcG_Ratio(Rn_soil[i], CalcG[1][i])
+        G[i]=CalcG_Ratio(Rn_soil[i], CalcG[1][i])
     elif CalcG[0]==2:
-        G=CalcG_TimeDiff (Rn_soil[i], CalcG[1][i])
+        G[i]=CalcG_TimeDiff (Rn_soil[i], CalcG[1][i])
      
     # Initially assume stable atmospheric conditions and set variables for 
     # iteration of the Monin-Obukhov length
     L[i] = float('inf')
-    u_friction[i] = MO.CalcU_star(u, zu, L, d_0,z_0M)
+    u_friction = MO.CalcU_star(u, zu, L, d_0,z_0M)
     u_friction = np.maximum(u_friction_min, u_friction)
     L_old = np.ones(Tc.shape)
     L_old[LAI==0] = L[LAI==0]
