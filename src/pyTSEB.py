@@ -638,7 +638,7 @@ class PyTSEB():
     def GetDataTSEBWidgets(self,isImage):
         '''Parses the parameters in the GUI to TSEB variables for running TSEB'''
         self.TSEB_MODEL=self.w_model.value
-        self.lat,self.lon,self.alt,self.stdlon,self.z_u,self.z_t=(self.w_lat.value,
+        self.lat,self.lon,self.alt,self.stdlon,self.zu,self.zt=(self.w_lat.value,
                 self.w_lon.value,self.w_alt.value,float(self.w_stdlon.value)*15,
                 self.w_zu.value,self.w_zt.value)
         
@@ -678,7 +678,7 @@ class PyTSEB():
     def GetDataTSEB(self,configdata,isImage):
         '''Parses the parameters in a configuration file directly to TSEB variables for running TSEB'''
         self.TSEB_MODEL=configdata['TSEB_MODEL']
-        self.lat,self.lon,self.alt,self.stdlon,self.z_u,self.z_t=(float(configdata['lat']),
+        self.lat,self.lon,self.alt,self.stdlon,self.zu,self.zt=(float(configdata['lat']),
                 float(configdata['lon']),float(configdata['altitude']),float(configdata['stdlon']),
                 float(configdata['z_u']),float(configdata['z_t']))
       
