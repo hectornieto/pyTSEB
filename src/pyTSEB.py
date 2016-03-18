@@ -1221,7 +1221,7 @@ class PyTSEB():
                     if 'Ldn' not in self.inputNames:
                         # Calculate downwelling LW radiance otherwise
                         emisAtm = TSEB.rad.CalcEmiss_atm(inData['ea'][-1], inData['Ta'][-1])
-                        Lsky = emisAtm * TSEB.met.CalcStephanBoltzmann(inData['Trad'][-1])
+                        Lsky = emisAtm * TSEB.met.CalcStephanBoltzmann(inData['Ta'][-1])
                         addData(inData, 'Lsky', Lsky)                        
 
                     # Calculate Roughness
