@@ -958,7 +958,8 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
 
     
     # L is only calculated for testing purposes
-    L=MO.CalcL (u_friction, Ta_K_1, rho, c_p, H, LE_C + LE_S)               
+    i = LAI>0    
+    L[i] = MO.CalcL(u_friction[i], Ta_K_1[i], rho[i], c_p[i], H[i], LE_C[i] + LE_S[i])               
     return [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
                 R_s,R_x,R_a,u_friction, L,Ri,n_iterations]        
 
