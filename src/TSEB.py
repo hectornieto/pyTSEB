@@ -86,7 +86,7 @@ ITERATIONS=100
 # kB coefficient
 kB=0.0
 
-def TSEB_2T(Tc,Ts,Ta,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
+def TSEB_2T(Tc,Ts,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
             LAI,hc,emisVeg,emisGrd,spectraVeg,spectraGrd,z_0M,d_0,zu,zt,
             leaf_width=0.1,z0_soil=0.01,alpha_PT=1.26,f_c=1.0,f_g=1.0,wc=1.0,
             CalcG=[1,0.35]):
@@ -241,11 +241,11 @@ def TSEB_2T(Tc,Ts,Ta,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
         d_0[i]=5*z_0M[i]
         spectraGrdOSEB=fvis*spectraGrd['rsoilv']+fnir* spectraGrd['rsoiln']
         [flag[i], S_nS[i], L_nS[i], LE_s[i], H_s[i], G[i], R_a[i], u_friction[i], L[i], counter[i]]=OSEB(Ts[i],
-            Ta[i], u[i], ea[i], p[i], Sdn_dir[i]+Sdn_dif[i], Lsky[i], emisGrd, spectraGrdOSEB[i], 
+            Ta_K[i], u[i], ea[i], p[i], Sdn_dir[i]+Sdn_dif[i], Lsky[i], emisGrd, spectraGrdOSEB[i], 
             z_0M[i], d_0[i], zu, zt, CalcG=[CalcG[0], CalcG[1][i]])
     
     # Calculate the general parameters
-    rho_a= met.CalcRho(p, ea, Ta)  # Air density
+    rho_a= met.CalcRho(p, ea, Ta_K)  # Air density
     Cp = met.CalcC_p(p, ea)  # Heat capacity of air
     z_0H=res.CalcZ_0H(z_0M, kB=kB) # Roughness length for heat transport
     
@@ -282,7 +282,7 @@ def TSEB_2T(Tc,Ts,Ta,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
     # Initially assume stable atmospheric conditions and set variables for 
     # iteration of the Monin-Obukhov length
     L[i] = float('inf')
-    u_friction = MO.CalcU_star(u, zu, L, d_0,z_0M)
+    u_friction[i] = MO.CalcU_star(u[i], zu, L[i], d_0[i], z_0M[i])
     u_friction = np.maximum(u_friction_min, u_friction)
     L_old = np.ones(Tc.shape)
     L_old[LAI==0] = L[LAI==0]
@@ -302,7 +302,8 @@ def TSEB_2T(Tc,Ts,Ta,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
         
         print("Iteration "+str(n_iterations)+", maximum L diff between iterations: "+str(np.max(L_diff)))
         
-        flag[np.logical_and.reduce((L_diff >= L_thres, flag!=255, LAI>0))] = 0
+        i = np.logical_and.reduce((L_diff >= L_thres, u_diff >= u_thres, flag!=255, LAI>0)) 
+        flag[i] = 0
         
         # Calculate the aerodynamic resistance
         R_a[i] = res.CalcR_A(zt, u_friction[i], L[i], d_0[i], z_0H[i])
@@ -318,7 +319,7 @@ def TSEB_2T(Tc,Ts,Ta,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
         R_a=np.maximum( 1e-3,R_a)
         
         # Compute air temperature at the canopy interface
-        T_ac[i] = ((Ta[i]/R_a[i] + Ts[i]/R_s[i] + Tc[i]/R_x[i])
+        T_ac[i] = ((Ta_K[i]/R_a[i] + Ts[i]/R_s[i] + Tc[i]/R_x[i])
                     /(1/R_a[i] + 1/R_s[i] + 1/R_x[i]))
         T_ac = np.maximum(1e-3,T_ac)
         
@@ -329,7 +330,7 @@ def TSEB_2T(Tc,Ts,Ta,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
         H_c[noC] = Rn_veg[noC]
         flag[noC] = 1
         # Assume no thermal inversion in the canopy
-        noI = np.logical_and.reduce((i, H_c < CalcH_C_PT(Rn_veg, 1.0, Ta, p, Cp, alpha_PT), Rn_veg > 0))
+        noI = np.logical_and.reduce((i, H_c < CalcH_C_PT(Rn_veg, 1.0, Ta_K, p, Cp, alpha_PT), Rn_veg > 0))
         H_c[noI] = 0
         flag[noI] = 2
             
@@ -349,7 +350,7 @@ def TSEB_2T(Tc,Ts,Ta,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
         LE = (Rn-G-H)
         
         # Now L can be recalculated and the difference between iterations derived
-        L[i] = MO.CalcL (u_friction[i], Ta[i], rho_a[i], Cp[i], H[i], LE[i])
+        L[i] = MO.CalcL (u_friction[i], Ta_K[i], rho_a[i], Cp[i], H[i], LE[i])
         L_diff = abs(L-L_old)/abs(L_old)
         L_diff[np.isnan(L_diff)] = float('inf')
         L_old[:]=L
@@ -553,7 +554,7 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
     # Initially assume stable atmospheric conditions and set variables for 
     # iteration of the Monin-Obukhov length
     L[i] = float('inf')
-    u_friction = MO.CalcU_star(u, zu, L, d_0,z_0M)
+    u_friction[i] = MO.CalcU_star(u[i], zu, L[i], d_0[i], z_0M[i])
     u_friction = np.maximum(u_friction_min, u_friction)
     L_old = np.ones(Tr_K.shape)
     L_old[LAI==0] = L[LAI==0]
@@ -568,7 +569,8 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
     # Outer loop for estimating stability. 
     # Stops when difference in consecutives L is below a given threshold
     for n_iterations in range(max_iterations):
-        if np.all(L_diff < L_thres): break
+        i = np.logical_and(flag!=255, LAI>0)
+        if np.all(L_diff[i] < L_thres): break
         print("Iteration "+str(n_iterations)+", maximum L diff between iterations: "+str(np.max(L_diff)))         
          
         # Inner loop to iterativelly reduce alpha_PT in case latent heat flux 
@@ -856,7 +858,7 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
         
     # Calculate the soil resistance
     # First calcualte u_S, wind speed at the soil surface
-    u_friction = MO.CalcU_star(u, zu, Ri, d_0,z_0M, useRi=True)
+    u_friction[i] = MO.CalcU_star(u[i], zu, Ri[i], d_0[i], z_0M[i], useRi=True)
     u_friction = np.maximum(u_friction_min, u_friction)    
     u_C = MO.CalcU_C(u_friction, hc, d_0, z_0M)
     u_S=MO.CalcU_Goudriaan (u_C, hc, LAI, leaf_width, z0_soil)
@@ -886,7 +888,8 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
     Tc_thres = 0.1
     Tc_diff = abs(Tc - Tc_prev)
     for n_iterations in range(ITERATIONS):
-        if np.all(Tc_diff < Tc_thres): break
+        i = np.logical_and(flag!=255, LAI>0)
+        if np.all(Tc_diff[i] < Tc_thres): break
         print("Iteration "+str(n_iterations)+", maximum Tc difference between iterations: "+str(np.max(Tc_diff))) 
 
         # Inner loop to iterativelly reduce alpha_PT in case latent heat flux 
