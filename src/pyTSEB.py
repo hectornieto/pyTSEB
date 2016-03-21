@@ -721,8 +721,6 @@ class PyTSEB():
         import TSEB
         import numpy as np
         import gdal
-        import ipywidgets as widgets
-        from IPython.display import display
         from os.path import splitext, dirname, exists
         from os import mkdir
         # Create an input dictionary
@@ -784,28 +782,31 @@ class PyTSEB():
         if not success: return
         #Calculate illumination conditions
         sza,saa=TSEB.met.Get_SunAngles(self.lat,self.lon,self.stdlon,self.DOY,self.Time)
+        inDataArray['sza'] = sza*np.ones(dims)       
         # Estimation of diffuse radiation
         try:
-            p=float(self.p)
+            inDataArray['p'] = float(self.p)*np.ones(dims)
         except:
-            p=TSEB.met.CalcPressure(self.alt)
-        difvis,difnir, fvis,fnir=TSEB.rad.CalcDifuseRatio(self.Sdn,sza,press=p)
-        Skyl=difvis*fvis+difnir*fnir
-        Sdn_dir=self.Sdn*(1.0-Skyl)
-        Sdn_dif=self.Sdn*Skyl
+            inDataArray['p'] = TSEB.met.CalcPressure(self.alt)*np.ones(dims)
+        difvis,difnir, fvis,fnir=TSEB.rad.CalcDifuseRatio(self.Sdn,sza,press=inDataArray['p'][0,0])
+        inDataArray['fvis'] = fvis*np.ones(dims)
+        inDataArray['fnir'] = fnir*np.ones(dims)        
+        inDataArray['Skyl'] = difvis*fvis+difnir*fnir*np.ones(dims)
+        inDataArray['Sdn_dir'] = self.Sdn*(1.0-inDataArray['Skyl'])
+        inDataArray['Sdn_dif'] = self.Sdn*inDataArray['Skyl']
         # incoming long wave radiation
-        Ta_K_1=self.Ta_1
-        if self.TSEB_MODEL=='DTD':
-            Ta_K_0=self.Ta_0
+        inDataArray['T_A1'] = self.Ta_1*np.ones(dims)
+        if self.TSEB_MODEL == 'DTD':
+            inDataArray['T_A0'] = self.Ta_0*np.ones(dims)
         try:
-            Lsky=float(self.Ldn)
+            inDataArray['Lsky'] = float(self.Ldn)*np.ones(dims)
         except:
-            emisAtm = TSEB.rad.CalcEmiss_atm(self.ea,Ta_K_1)
-            Lsky = emisAtm * TSEB.met.CalcStephanBoltzmann(Ta_K_1)
+            emisAtm = TSEB.rad.CalcEmiss_atm(self.ea,self.Ta_1)
+            inDataArray['Lsky'] = emisAtm * TSEB.met.CalcStephanBoltzmann(self.Ta_1)*np.ones(dims)
         # Create the output dictionary
         outputStructure=self.getOutputStructure()
-        tsebout=dict()
-        for field in outputStructure:tsebout[field]=np.zeros(dims)
+        outDataArray=dict()
+        for field in outputStructure:outDataArray[field]=np.zeros(dims)
         # Open the processing maks and get the id for the cells to process
         if self.input_mask!='0':
             try:
@@ -816,21 +817,139 @@ class PyTSEB():
                 print('ERROR: file read '+ str(self.input_mask) + '\n Please type a valid mask file name or USE_MASK=0 for processing the whole image')
         else:
             mask=np.ones(dims)
-        ids=np.where(mask>0)
+        
+        #self.RunTSEBImagePixelByPixel(inDataArray, outDataArray, mask)        
+        self.RunTSEBImageArray(inDataArray, outDataArray, mask)        
+        
+        
+        # Write the TIFF output
+        outdir=dirname(self.OutputFile)
+        if not exists(outdir):
+            mkdir(outdir)
+        self.WriteTifOutput(self.OutputFile,outDataArray, geo, prj,self.fields)
+        outputfile=splitext(self.OutputFile)[0]+'_ancillary.tif'
+        self.WriteTifOutput(outputfile,outDataArray, geo, prj,self.anc_fields)
+        print('Saved Files')
+
+    def RunTSEBImageArray(self, inDataArray, outDataArray, mask):
+        import TSEB
+        import numpy as np
+
+        print "Processing..."        
+        
+        # Get the LAI
+        lai=inDataArray['LAI']
+        fc=inDataArray['f_C']
+        f_g=inDataArray['f_g']
+        noVegPixels = np.logical_or.reduce((fc<=0.01, lai<=0, np.isnan(lai)))
+        lai[noVegPixels] = 0
+        fc[noVegPixels] = 0
+        wc=inDataArray['w_C']
+        hc=inDataArray['h_C']
+        # Calculate Roughness
+        z_0M, d_0=TSEB.res.CalcRoughness (lai, hc,wc,self.LANDCOVER)
+        vza=inDataArray['VZA']
+        # Get meteorological inputs
+        p = inDataArray['p']
+        Sdn_dir = inDataArray['Sdn_dir']
+        Sdn_dif = inDataArray['Sdn_dif']
+        fvis = inDataArray['fvis']
+        fnir = inDataArray['fnir']
+        sza = inDataArray['sza']
+        Lsky = inDataArray['Lsky'] 
+        
+        # Convert float inputs to numpy arrays
+        self.CalcG[1] = np.ones(lai.shape)*self.CalcG[1]
+        u = np.ones(lai.shape)*self.u
+        ea = np.ones(lai.shape)*self.ea
+        
+        if self.TSEB_MODEL=='DTD':
+            #Run DTD
+            Tr_K_0=inDataArray['T_R0']
+            Tr_K_1=inDataArray['T_R1']
+            Ta_K_0=inDataArray['T_A0']
+            Ta_K_1=inDataArray['T_A1']               
+            [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,Ri,
+                 n_iterations]=TSEB.DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif,fvis,fnir,
+                    sza,Lsky,lai,hc,self.emisVeg,self.emisGrd,self.spectraVeg,self.spectraGrd,z_0M,d_0,self.zu,self.zt,
+                    f_c=fc,wc=wc,f_g=f_g,leaf_width=self.leaf_width,z0_soil=self.z0_soil,alpha_PT=self.Max_alpha_PT,
+                    CalcG=self.CalcG)
+        elif self.TSEB_MODEL=='TSEB_PT':        
+            #Run TSEB
+            Tr_K_1=inDataArray['T_R1']
+            Ta_K_1=inDataArray['T_A1']
+            [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,
+                 n_iterations]=TSEB.TSEB_PT(Tr_K_1,vza,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif,fvis,fnir,sza,Lsky,lai,
+                    hc,self.emisVeg,self.emisGrd,self.spectraVeg,self.spectraGrd,z_0M,d_0,self.zu,self.zt,
+                    f_c=fc,f_g=f_g,wc=wc,leaf_width=self.leaf_width,z0_soil=self.z0_soil,alpha_PT=self.Max_alpha_PT,
+                    CalcG=self.CalcG)
+        elif self.TSEB_MODEL=='TSEB_2T':
+            Tc=inDataArray['T_C']
+            Ts=inDataArray['T_S']
+            Ta_K_1=inDataArray['T_A1']
+            #Run TSEB with Component Temperature
+            [flag, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,
+                 n_iterations] = TSEB.TSEB_2T(Tc, Ts, Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif,fvis,fnir,sza,Lsky,lai,
+                    hc,self.emisVeg,self.emisGrd,self.spectraVeg,self.spectraGrd,z_0M,d_0,self.zu,self.zt,
+                    f_c=fc,f_g=f_g,wc=wc,leaf_width=self.leaf_width,z0_soil=self.z0_soil,alpha_PT=self.Max_alpha_PT,
+                    CalcG=self.CalcG)
+            
+        # Calculate the bulk fluxes
+        LE=LE_C+LE_S
+        H=H_C+H_S
+        Rn=S_nC+S_nS+L_nC+L_nS
+        # Write the data in the output dictionary
+        outDataArray['R_A1']=R_a
+        outDataArray['R_X1']=R_x
+        outDataArray['R_S1']=R_s
+        outDataArray['R_n1']=S_nS+S_nC+L_nS+L_nC
+        outDataArray['R_ns1']=S_nS+S_nC
+        outDataArray['R_nl1']=L_nS+L_nC
+        outDataArray['delta_R_n1']=S_nC+L_nC
+        outDataArray['H_C1']=H_C
+        outDataArray['H_S1']=H_S
+        outDataArray['H1']=H
+        outDataArray['G1']=G
+        outDataArray['LE_C1']=LE_C
+        outDataArray['LE_S1']=LE_S
+        outDataArray['LE1']=LE
+        outDataArray['LE_partition'][outDataArray['LE1']>0]=LE_C[outDataArray['LE1']>0]/LE[outDataArray['LE1']>0]
+        outDataArray['T_C1']=Tc
+        outDataArray['T_S1']=Ts
+        outDataArray['T_AC1']=T_AC
+        outDataArray['L']=L
+        outDataArray['u_friction']=u_friction
+        outDataArray['theta_s1']=sza
+        outDataArray['albedo1']=1.0-Rn/self.Sdn
+        outDataArray['F']=lai
+            
+        print "Finished!"
+            
+        
+    # This function has been replaced by RunTSEBImageArray, but is kept here
+    # in case it's needed in the future.
+    def RunTSEBImagePixelByPixel(self, inDataArray, outDataArray, mask):
+        import TSEB
+        import numpy as np
+        import ipywidgets as widgets
+        from IPython.display import display        
+        
         # Create a progress bar widget
         try:
+            ids=np.where(mask>0)
             f=widgets.FloatProgress(min=0,max=len(ids[0]),step=1,description='Progress:')
             display(f)
-            isWidget=True
         except:
+            f = None            
             progress_bar=[(i+1)*5 for i in range(20)]
             progress_id=0
-            print('0% processed')
-            isWidget=False
+            print('0% processed')        
+        
         # Loop and run TSEB for all the valid cells
+        ids=np.where(mask>0)
         for i,row in enumerate(ids[0]):
             col=ids[1][i]
-            if isWidget:
+            if f:
                 f.value=i
             else:
                 progress=100*float(i)/len(ids[0])
@@ -849,10 +968,20 @@ class PyTSEB():
             # Calculate Roughness
             z_0M, d_0=TSEB.res.CalcRoughness (lai, hc,wc,self.LANDCOVER)
             vza=inDataArray['VZA'][row,col]
+            # Get meteorological inputs
+            p = inDataArray['p'][row,col]
+            Sdn_dir = inDataArray['Sdn_dir'][row,col]
+            Sdn_dif = inDataArray['Sdn_dif'][row,col]
+            fvis = inDataArray['fvis'][row,col]
+            fnir = inDataArray['fnir'][row,col]
+            sza = inDataArray['sza'][row,col]
+            Lsky = inDataArray['Lsky'][row,col]
             if self.TSEB_MODEL=='DTD':
                 #Run DTD
                 Tr_K_0=inDataArray['T_R0'][row,col]
                 Tr_K_1=inDataArray['T_R1'][row,col]
+                Ta_K_0=inDataArray['T_A0'][row,col]
+                Ta_K_1=inDataArray['T_A1'][row,col]                
                 [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,Ri,n_iterations]=[0]*20
                 [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,Ri,
                      n_iterations]=TSEB.DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,self.u,self.ea,p,Sdn_dir,Sdn_dif,fvis,fnir,
@@ -902,38 +1031,30 @@ class PyTSEB():
             H=H_C+H_S
             Rn=S_nC+S_nS+L_nC+L_nS
             # Write the data in the output dictionary
-            tsebout['R_A1'][row,col]=R_a
-            tsebout['R_X1'][row,col]=R_x
-            tsebout['R_S1'][row,col]=R_s
-            tsebout['R_n1'][row,col]=S_nS+S_nC+L_nS+L_nC
-            tsebout['R_ns1'][row,col]=S_nS+S_nC
-            tsebout['R_nl1'][row,col]=L_nS+L_nC
-            tsebout['delta_R_n1'][row,col]=S_nC+L_nC
-            tsebout['H_C1'][row,col]=H_C
-            tsebout['H_S1'][row,col]=H_S
-            tsebout['H1'][row,col]=H
-            tsebout['G1'][row,col]=G
-            tsebout['LE_C1'][row,col]=LE_C
-            tsebout['LE_S1'][row,col]=LE_S
-            tsebout['LE1'][row,col]=LE
-            if tsebout['LE1'][row,col]>0:
-                tsebout['LE_partition'][row,col]=LE_C/LE
-            tsebout['T_C1'][row,col]=Tc
-            tsebout['T_S1'][row,col]=Ts
-            tsebout['T_AC1'][row,col]=T_AC
-            tsebout['L'][row,col]=L
-            tsebout['u_friction'][row,col]=u_friction
-            tsebout['theta_s1'][row,col]=sza
-            tsebout['albedo1'][row,col]=1.0-Rn/self.Sdn
-            tsebout['F'][row,col]=lai
-        # Write the TIFF output
-        outdir=dirname(self.OutputFile)
-        if not exists(outdir):
-            mkdir(outdir)
-        self.WriteTifOutput(self.OutputFile,tsebout, geo, prj,self.fields)
-        outputfile=splitext(self.OutputFile)[0]+'_ancillary.tif'
-        self.WriteTifOutput(outputfile,tsebout, geo, prj,self.anc_fields)
-        print('Saved Files')
+            outDataArray['R_A1'][row,col]=R_a
+            outDataArray['R_X1'][row,col]=R_x
+            outDataArray['R_S1'][row,col]=R_s
+            outDataArray['R_n1'][row,col]=S_nS+S_nC+L_nS+L_nC
+            outDataArray['R_ns1'][row,col]=S_nS+S_nC
+            outDataArray['R_nl1'][row,col]=L_nS+L_nC
+            outDataArray['delta_R_n1'][row,col]=S_nC+L_nC
+            outDataArray['H_C1'][row,col]=H_C
+            outDataArray['H_S1'][row,col]=H_S
+            outDataArray['H1'][row,col]=H
+            outDataArray['G1'][row,col]=G
+            outDataArray['LE_C1'][row,col]=LE_C
+            outDataArray['LE_S1'][row,col]=LE_S
+            outDataArray['LE1'][row,col]=LE
+            if outDataArray['LE1'][row,col]>0:
+                outDataArray['LE_partition'][row,col]=LE_C/LE
+            outDataArray['T_C1'][row,col]=Tc
+            outDataArray['T_S1'][row,col]=Ts
+            outDataArray['T_AC1'][row,col]=T_AC
+            outDataArray['L'][row,col]=L
+            outDataArray['u_friction'][row,col]=u_friction
+            outDataArray['theta_s1'][row,col]=sza
+            outDataArray['albedo1'][row,col]=1.0-Rn/self.Sdn
+            outDataArray['F'][row,col]=lai
 
     def OpenGDALImage(self,inputString,dims,variable):
         '''Open a GDAL image and returns and array with its first band'''
@@ -1033,7 +1154,165 @@ class PyTSEB():
             print('Not valid TSEB model, check your configuration file')
             return success
         return True
-    
+
+    def RunTSEBPointSeriesArray(self):
+        ''' Runs TSEB for all the pixel in an image'''
+        import TSEB
+        from  os. path import dirname, exists
+        from os import mkdir
+        import numpy as np  
+        import csv
+        
+        def addData(dataDict, fieldName, fieldValue):
+            if fieldName not in dataDict.keys():
+                dataDict[fieldName] = np.array([])
+            dataDict[fieldName] = np.append(dataDict[fieldName], fieldValue)
+
+
+        #======================================
+        # Process input file
+
+        try:
+            # Open the input file
+            with open(self.InputFile,'r') as infid:
+                reader = csv.DictReader(infid, delimiter='\t')
+                self.inputNames = reader.fieldnames 
+                inData = {}
+                for name in self.inputNames:
+                    inData[name] = np.array([])
+                
+                # Check that the input file contains all the needed variables
+                success=self.CheckDataPointSeriers()
+                if not success:
+                    return
+                
+                # Loop all the lines in the table
+                for dataRow in reader:
+                    
+                    for dataName in self.inputNames:
+                        inData[dataName] = np.append(inData[dataName], float(dataRow[dataName]))
+                    
+                    # Fill in data fields which might not be in the input file
+                    if 'SZA' not in self.inputNames:
+                        sza, _ = TSEB.met.Get_SunAngles(self.lat, self.lon, self.stdlon, inData['DOY'][-1], inData['Time'][-1]) 
+                        addData(inData, 'SZA', sza)
+                    if 'SAA' not in self.inputNames:
+                        _ , saa = TSEB.met.Get_SunAngles(self.lat, self.lon, self.stdlon, inData['DOY'][-1], inData['Time'][-1])
+                        addData(inData, 'SAA', saa)
+                    if 'p' not in self.inputNames: # Estimate barometric pressure from the altitude if not included in the table
+                        p = TSEB.met.CalcPressure(self.alt)
+                        addData(inData, 'p', p) 
+                    if 'fc' not in self.inputNames: # Fractional cover
+                        addData(inData, 'fc', self.fc) # Use default value
+                    if 'wc' not in self.inputNames: # Canopy width to height ratio
+                        addData(inData, 'wc', self.wc) # Use default value
+                    if 'fg' not in self.inputNames: # Green fraction
+                        addData(inData, 'fg', self.f_g) # Use default value
+                    
+                    # Esimate diffuse and direct irradiance
+                    difvis, difnir, fvis, fnir = TSEB.rad.CalcDifuseRatio(inData['Sdn'][-1], inData['SZA'][-1], press = inData['p'][-1])
+                    addData(inData, 'fvis', fvis)
+                    addData(inData, 'fnir', fnir)
+                    addData(inData, 'Skyl', difvis*fvis+difnir*fnir)
+                    addData(inData, 'Sdn_dir', inData['Sdn'][-1]*(1.0-inData['Skyl'][-1]))
+                    addData(inData, 'Sdn_dif', inData['Sdn'][-1]*inData['Skyl'][-1])
+
+                    # Incoming long wave radiation
+                    if 'Ldn' not in self.inputNames:
+                        # Calculate downwelling LW radiance otherwise
+                        emisAtm = TSEB.rad.CalcEmiss_atm(inData['ea'][-1], inData['Ta'][-1])
+                        Lsky = emisAtm * TSEB.met.CalcStephanBoltzmann(inData['Ta'][-1])
+                        addData(inData, 'Lsky', Lsky)                        
+
+                    # Calculate Roughness
+                    z_0M, d_0 = TSEB.res.CalcRoughness (inData['LAI'][-1:], inData['hc'][-1:], inData['wc'][-1:], self.LANDCOVER)
+                    addData(inData, 'z_0M', z_0M)
+                    addData(inData, 'd_0', d_0)
+        
+        except IOError:
+            print('Error reading input file : '+self.InputFile)
+            return                        
+         
+        # get the Soil Heat flux if CalcG includes the option of measured G
+        if self.CalcG[0]==0: # Constant G
+            if 'G' in self.inputNames:
+                self.CalcG[1] = inData['G']
+        elif self.CalcG[0] == 2: # Santanello and Friedls G
+            self.CalcG[1][0] = inData['Time'] # Set the time in the CalcG flag to compute the Santanello and Friedl G
+        
+        
+        #======================================
+        # Run the chosen model
+        
+        if self.TSEB_MODEL=='DTD':
+            [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,Ri,
+                 n_iterations]=TSEB.DTD(inData['Trad_0'], inData['Trad'], inData['VZA'], inData['Ta_0'], inData['Ta'],
+                                        inData['u'], inData['ea'], inData['p'], inData['Sdn_dir'], inData['Sdn_dif'], 
+                                        inData['fvis'], inData['fnir'], inData['SZA'], inData['Lsky'], inData['LAI'], 
+                                        inData['hc'], self.emisVeg, self.emisGrd, self.spectraVeg, self.spectraGrd, inData['z_0M'],
+                                        inData['d_0'], self.zu,self.zt, f_c=inData['fc'], wc=inData['wc'], f_g=inData['fg'],
+                                        leaf_width=self.leaf_width, z0_soil=self.z0_soil, alpha_PT=self.Max_alpha_PT, CalcG=self.CalcG)
+        
+        elif self.TSEB_MODEL=='TSEB_PT':        
+            [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,
+                 n_iterations]=TSEB.TSEB_PT(inData['Trad'], inData['VZA'], inData['Ta'], inData['u'], inData['ea'], inData['p'],
+                                            inData['Sdn_dir'], inData['Sdn_dif'], inData['fvis'], inData['fnir'], inData['SZA'],
+                                            inData['Lsky'], inData['LAI'], inData['hc'], self.emisVeg, self.emisGrd, self.spectraVeg, 
+                                            self.spectraGrd, inData['z_0M'], inData['d_0'], self.zu,self.zt, f_c=inData['fc'], 
+                                            f_g=inData['fg'], wc=inData['wc'], leaf_width=self.leaf_width, z0_soil=self.z0_soil,
+                                            alpha_PT=self.Max_alpha_PT, CalcG=self.CalcG)
+        
+        elif self.TSEB_MODEL=='TSEB_2T':
+            # Run TSEB with the component temperatures Ts and Tc    
+            [flag, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,u_friction, L,
+                 n_iterations] = TSEB.TSEB_2T(
+                            inData['Tc'], inData['Ts'], inData['Ta'], inData['u'], inData['ea'], inData['p'],
+                            inData['Sdn_dir'], inData['Sdn_dif'], inData['fvis'], inData['fnir'], inData['SZA'],
+                            inData['Lsky'], inData['LAI'], inData['hc'], self.emisVeg, self.emisGrd, self.spectraVeg, 
+                            self.spectraGrd, inData['z_0M'], inData['d_0'], self.zu, self.zt, f_c=inData['fc'], 
+                            f_g=inData['fg'], wc=inData['wc'], leaf_width=self.leaf_width, z0_soil=self.z0_soil,
+                            alpha_PT=self.Max_alpha_PT, CalcG=self.CalcG)
+            Ts = inData['Ts']
+            Tc = inData['Tc']
+        
+        # Calculate the bulk fluxes
+        LE=LE_C+LE_S
+        H=H_C+H_S
+        Rn=S_nC+S_nS+L_nC+L_nS
+        
+        
+        #======================================
+        # Save output file        
+        
+        # Output Headers
+        outputTxtFieldNames = ['Year', 'DOY', 'Time','LAI','f_g', 'skyl', 'VZA', 
+                               'SZA', 'SAA','L_sky','Rn_model','Rn_sw_veg', 'Rn_sw_soil', 
+                               'Rn_lw_veg', 'Rn_lw_soil', 'Tc', 'Ts', 'Tac', 
+                               'LE_model', 'H_model', 'LE_c', 'H_c', 'LE_s', 'H_s', 
+                               'flag', 'zo', 'd', 'G_model', 'R_s', 'R_x', 'R_a', 
+                               'u_friction', 'L',  'n_iterations']
+        
+        # Create the ouput directory if it doesn't exist
+        outdir=dirname(self.OutputFile)
+        if not exists(outdir):
+            mkdir(outdir)
+        
+        # Open output file and write the data
+        with open (self.OutputFile, 'w') as fp:
+            writer = csv.writer(fp, delimiter='\t')
+            writer.writerow(outputTxtFieldNames)
+            for row in range(LE.size):
+                outData = [ inData['Year'][row], inData['DOY'][row], inData['Time'][row], inData['LAI'][row], 
+                            inData['fg'][row], inData['Skyl'][row], inData['VZA'][row], inData['SZA'][row], 
+                            inData['SAA'][row], inData['Lsky'][row], Rn[row], S_nC[row], S_nS[row], L_nC[row], 
+                            L_nS[row], Tc[row], Ts[row], T_AC[row], LE[row], H[row], LE_C[row], H_C[row], 
+                            LE_S[row], H_S[row], flag[row], inData['z_0M'][row], inData['d_0'][row], 
+                            G[row], R_s[row], R_x[row], R_a[row], u_friction[row], L[row], n_iterations]
+                writer.writerow(outData)
+        print('Done')
+
+
+    # This function has been replaced by RunTSEBPointSeries but is kept here in case it is needed in the future 
     def RunTSEBPointSeries(self):
         ''' Runs TSEB for all the pixel in an image'''
         import TSEB
@@ -1041,6 +1320,21 @@ class PyTSEB():
         from IPython.display import display
         from  os. path import dirname, exists
         from os import mkdir
+        import numpy as np        
+        
+        def a(param):
+            try:
+                param.shape
+                return param
+            except AttributeError:
+                return np.array([param])
+                
+        def stra(param):
+            try:
+                return(str(param[0]))
+            except TypeError:
+                return str(param)
+        
         # Output Headers
         outputTxtFieldNames = ['Year', 'DOY', 'Time','LAI','f_g', 'skyl', 'VZA', 
                                'SZA', 'SAA','L_sky','Rn_model','Rn_sw_veg', 'Rn_sw_soil', 
@@ -1100,65 +1394,76 @@ class PyTSEB():
                 sza,dummy=TSEB.met.Get_SunAngles(self.lat,self.lon,self.stdlon,DOY,Time)
             else:
                 sza=float(indata[self.inputNames.index('SZA')])
+            sza = a(sza)
             if 'SAA' not in self.inputNames:
                 dummy,saa=TSEB.met.Get_SunAngles(self.lat,self.lon,self.stdlon,DOY,Time)
             else:
                 saa=float(indata[self.inputNames.index('SAA')])
+            saa = a(saa)
             # Estimation of diffuse radiation
             if 'p' not in self.inputNames: # Estimate barometric pressure from the altitude if not included in the table
                 p=TSEB.met.CalcPressure(self.alt)
             else:
                 p=float(indata[self.inputNames.index('p')])
+            p = a(p)    
             # Esimate diffuse and direct irradiance
-            Sdn=float(indata[self.inputNames.index('Sdn')])# Get the solar irradiance value
+            Sdn = a(float(indata[self.inputNames.index('Sdn')])) # Get the solar irradiance value         
             difvis,difnir, fvis,fnir=TSEB.rad.CalcDifuseRatio(Sdn,sza,press=p)
-            Skyl=difvis*fvis+difnir*fnir
-            Sdn_dir=Sdn*(1.0-Skyl) # Direct irradiance
-            Sdn_dif=Sdn*Skyl # Diffuse irradiance
+            fvis = a(fvis)
+            fnir = a(fnir)            
+            Skyl = a(difvis*fvis+difnir*fnir)
+            Sdn_dir = a(Sdn*(1.0-Skyl)) # Direct irradiance
+            Sdn_dif = a(Sdn*Skyl) # Diffuse irradiance
             # Get the temperatures
             if self.TSEB_MODEL=='TSEB_PT' or self.TSEB_MODEL=='DTD':# Radiometric composite temperature
-                Ta_K_1=float(indata[self.inputNames.index('Ta')])
-                Tr_K_1=float(indata[self.inputNames.index('Trad')])
+                Ta_K_1 = a(float(indata[self.inputNames.index('Ta')]))
+                Tr_K_1 = a(float(indata[self.inputNames.index('Trad')]))
                 if self.TSEB_MODEL=='DTD': # Get the near sunrise temperatures
-                    Ta_K_0=float(indata[self.inputNames.index('Ta_0')])
-                    Tr_K_0=float(indata[self.inputNames.index('Trad_0')])
+                    Ta_K_0 = a(float(indata[self.inputNames.index('Ta_0')]))
+                    Tr_K_0 = a(float(indata[self.inputNames.index('Trad_0')]))
             elif self.TSEB_MODEL=='TSEB_2T': # one air temperature observation amd two component temperatures
-                Ta_K_1=float(indata[self.inputNames.index('Ta')])
-                Tc=float(indata[self.inputNames.index('Tc')])
-                Ts=float(indata[self.inputNames.index('Ts')])
+                Ta_K_1 = a(float(indata[self.inputNames.index('Ta')]))
+                Tc = a(float(indata[self.inputNames.index('Tc')]))
+                Ts = a(float(indata[self.inputNames.index('Ts')]))
 
             # incoming long wave radiation
-            ea=float(indata[self.inputNames.index('ea')])
-            u=float(indata[self.inputNames.index('u')])
+            ea = a(float(indata[self.inputNames.index('ea')]))
+            u = a(float(indata[self.inputNames.index('u')]))
             if 'Ldn' not in self.inputNames: # Check if downwelling LW radiance is in the table
                 # Calculate downwelling LW radiance otherwise
                 emisAtm = TSEB.rad.CalcEmiss_atm(ea,Ta_K_1)
                 Lsky = emisAtm * TSEB.met.CalcStephanBoltzmann(Ta_K_1)
             else:
                 Lsky=float(indata[self.inputNames.index('Ldn')])
+            Lsky = a(Lsky)
             # Get the LAI and canopy height
-            lai=float(indata[self.inputNames.index('LAI')])
-            hc=float(indata[self.inputNames.index('hc')])
+            lai = a(float(indata[self.inputNames.index('LAI')]))
+            hc = a(float(indata[self.inputNames.index('hc')]))
             # Get the other canopy parameters if present in the input table otherwise use defaults
             if 'fc' not in self.inputNames: # Fractional cover
                 fc=self.f_c
             else:
                 fc=float(indata[self.inputNames.index('fc')])
+            fc = a(fc)
             if 'wc' not in self.inputNames: # Canopy width to height ratio
                 wc=self.wc
             else:
                 wc=float(indata[self.inputNames.index('wc')])
+            wc = a(wc)
             if 'fg' not in self.inputNames: # Green fraction
                 f_g=self.f_g
             else:
                 f_g=float(indata[self.inputNames.index('fg')])
+            f_g = a(f_g)
             # Calculate Roughness
             z_0M, d_0=TSEB.res.CalcRoughness (lai, hc,wc,self.LANDCOVER)
-            vza=float(indata[self.inputNames.index('VZA')])
+            z_0M = a(z_0M)
+            d_0 = a(d_0)
+            vza = a(float(indata[self.inputNames.index('VZA')]))
             # get the Soil Heat flux if CalcG includes the option of measured G
             if self.CalcG[0]==0: # Constant G
                 if 'G' in self.inputNames:
-                    self.CalcG[1]=float(indata[self.inputNames.index('G')])
+                    self.CalcG[1]=a(float(indata[self.inputNames.index('G')]))
             elif self.CalcG[0]==2: # Santanello and Friedls G
                 self.CalcG[1][0]=Time # Set the time in the CalcG flag to compute the Santanello and Friedl G
             if self.TSEB_MODEL=='DTD':
@@ -1214,12 +1519,12 @@ class PyTSEB():
             #    'LE_model', 'H_model', 'LE_c', 'H_c', 'LE_s', 'H_s', 
             #    'flag', 'zo', 'd', 'G_model', 'R_s', 'R_x', 'R_a', 
             #    'u_friction', 'L',  'n_iterations'
-            fid_out.write(str(Year)+'\t'+str(DOY)+'\t'+str(Time)+'\t'+str(lai)+'\t'+str(f_g)+'\t'+str(Skyl)+
-                          '\t'+str(vza)+'\t'+str(sza)+'\t'+str(saa)+'\t'+str(Lsky)+'\t'+str(Rn)+'\t'+str(S_nC)+
-                          '\t'+str(S_nS)+'\t'+str(L_nC)+'\t'+str(L_nS)+'\t'+str(Tc)+'\t'+str(Ts)+'\t'+str(T_AC)+
-                          '\t'+str(LE)+'\t'+str(H)+'\t'+str(LE_C)+'\t'+str(H_C)+'\t'+str(LE_S)+'\t'+str(H_S)+
-                          '\t'+str(flag)+'\t'+str(z_0M)+'\t'+str(d_0)+'\t'+str(G)+'\t'+str(R_s)+'\t'+str(R_x)+
-                          '\t'+str(R_a)+'\t'+str(u_friction)+'\t'+str(L)+'\t'+str(n_iterations)+'\n')
+            fid_out.write(str(Year)+'\t'+str(DOY)+'\t'+str(Time)+'\t'+stra(lai)+'\t'+stra(f_g)+'\t'+stra(Skyl)+
+                          '\t'+stra(vza)+'\t'+stra(sza)+'\t'+stra(saa)+'\t'+stra(Lsky)+'\t'+stra(Rn)+'\t'+stra(S_nC)+
+                          '\t'+stra(S_nS)+'\t'+stra(L_nC)+'\t'+stra(L_nS)+'\t'+stra(Tc)+'\t'+stra(Ts)+'\t'+stra(T_AC)+
+                          '\t'+stra(LE)+'\t'+stra(H)+'\t'+stra(LE_C)+'\t'+stra(H_C)+'\t'+stra(LE_S)+'\t'+stra(H_S)+
+                          '\t'+stra(flag)+'\t'+stra(z_0M)+'\t'+stra(d_0)+'\t'+stra(G)+'\t'+stra(R_s)+'\t'+stra(R_x)+
+                          '\t'+stra(R_a)+'\t'+stra(u_friction)+'\t'+stra(L)+'\t'+str(n_iterations)+'\n')
             fid_out.flush()
         # Close all the files
         fid_out.close()
