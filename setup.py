@@ -36,7 +36,7 @@ def read_file(filepath, root=PROJECT_ROOT):
 LONG_DESCRIPTION = read_file("README.md")
 SHORT_DESCRIPTION = "Two Source Energy Balance (TSEB) Models to estimate sensible and latent heat flux (evapotranspiration) from radiometric surface temperature data"
 REQS = [
-    'numpy',
+    'numpy>=1.10',
     'gdal',
     'bokeh'
 ]
@@ -46,7 +46,7 @@ setup(
     packages              = [''],
     package_dir           = {'': 'src'},
     install_requires      = REQS,
-    version               = "1.0.2",
+    version               = "1.2",
     author                = "Hector Nieto",
     author_email          = "hector.nieto.solana@gmail.com",
     maintainer            = "Hector Nieto",
