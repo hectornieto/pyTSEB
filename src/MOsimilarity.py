@@ -90,17 +90,20 @@ def CalcL (ustar, Ta_K, rho, c_p, H, LE):
     ----------
     .. [Brutsaert2005] Brutsaert, W. (2005). Hydrology: an introduction (Vol. 61, No. 8).
         Cambridge: Cambridge University Press.'''
+    
+    import numpy as np
 
     # first convert latent heat into rate of surface evaporation (kg m-2 s-1)
     Lambda = met.CalcLambda(Ta_K)*1e6 #in J kg-1
     E = LE / Lambda
+    
     # Virtual sensible heat flux
     Hv=H+(0.61*Ta_K*c_p*E)
-    if Hv!=0:
-        L_const = k*gravity/Ta_K
-        L = -ustar**3 / ( L_const*(Hv/(rho*c_p) ))
-    else:
-        L = float('inf')
+    
+    L = np.ones(ustar.shape)*float('inf')    
+    i = Hv!=0
+    L_const = k*gravity/Ta_K
+    L[i] = -ustar[i]**3 / ( L_const[i]*(Hv[i]/(rho[i]*c_p[i]) ))
     return L
     
 def CalcPsi_H (zoL):
@@ -122,20 +125,19 @@ def CalcPsi_H (zoL):
         Cambridge: Cambridge University Press.
     '''
     
-    from math import log
-    Psi_H = 0.0
+    import numpy as np    
+    
+    Psi_H = np.zeros(zoL.shape)
     #for stable and netural (zoL = 0 -> Psi_H = 0) conditions
-    if zoL>=0.0:
-        a = 6.1
-        b = 2.5
-        Psi_H = -a * log( zoL + (1.0 + zoL**b)**(1./b))
+    a = 6.1
+    b = 2.5
+    Psi_H[zoL>=0.0] = -a * np.log( zoL[zoL>=0.0] + (1.0 + zoL[zoL>=0.0]**b)**(1./b))
     # for unstable conditions
-    else:
-        y = -zoL
-        c = 0.33		
-        d = 0.057
-        n = 0.78
-        Psi_H = ((1.0-d)/n) * log((c + y**n)/c)
+    y = -zoL
+    c = 0.33		
+    d = 0.057
+    n = 0.78
+    Psi_H[zoL<0.0] = ((1.0-d)/n) * np.log((c + y[zoL<0.0]**n)/c)
     return Psi_H
 
 def CalcPsi_M (zoL):
@@ -157,23 +159,24 @@ def CalcPsi_M (zoL):
         Cambridge: Cambridge University Press.
     '''
 
-    from math import log, pi,atan
-    Psi_M = 0.0
+    from math import pi
+    import numpy as np    
+    
+    Psi_M = np.zeros(zoL.shape)
     # for stable and netural (zoL = 0 -> Psi_M = 0) conditions
-    if zoL>=0.0:
-        a = 6.1 
-        b = 2.5
-        Psi_M = -a * log( zoL + (1.0 + zoL**b)**(1.0/b))
+    a = 6.1 
+    b = 2.5
+    Psi_M[zoL>=0.0] = -a * np.log( zoL[zoL>=0.0] + (1.0 + zoL[zoL>=0.0]**b)**(1.0/b))
     # for unstable conditions
-    else:
-        y = -zoL
-        a = 0.33
-        b = 0.41
-        x = (y/a)**0.333333
-        Psi_0 = -log(a) + 3**0.5*b*a**0.333333*pi/6.0
-        y = min(y, b**-3)
-        Psi_M = (log(a + y) - 3.0*b*y**0.333333 + (b*a**0.333333)/2.0 * log((1.0+x)**2/(1.0-x+x**2))+
-            3.0**0.5*b*a**0.333333*atan((2.0*x-1.0)/3**0.5) + Psi_0)
+    y = np.maximum(-zoL, 0.0)
+    a = 0.33
+    b = 0.41
+    x = (y/a)**0.333333
+    Psi_0 = -np.log(a) + 3**0.5*b*a**0.333333*pi/6.0
+    y = np.minimum(y, b**-3)
+    i = zoL < 0
+    Psi_M[i] = (np.log(a + y[i]) - 3.0*b*y[i]**0.333333 + (b*a**0.333333)/2.0 * np.log((1.0+x[i])**2/(1.0-x[i]+x[i]**2))+
+        3.0**0.5*b*a**0.333333*np.arctan((2.0*x[i]-1.0)/3**0.5) + Psi_0)
     return Psi_M
 
 def CalcPsi_M_B92 (zoL):
@@ -196,27 +199,21 @@ def CalcPsi_M_B92 (zoL):
         http://dx.doi.org/10.1029/92GL00084.
     '''
 
-    from math import log, pi
-    Psi_M = 0.0
+    import numpy as np    
+    Psi_M = np.zeros(zoL.shape)
     # for stable and netural (zoL = 0 -> Psi_M = 0) conditions, Eq. 2.59 in Brutasert 2005  
-    if zoL>=0.0:
-        a = 6.1 
-        b = 2.5
-        Psi_M = -a * log( zoL + (1.0 + zoL**b)**(1.0/b))
+    a = 6.1 
+    b = 2.5
+    Psi_M[zoL>=0.0] = -a * np.log( zoL[zoL>=0.0] + (1.0 + zoL[zoL>=0.0]**b)**(1.0/b))
     # for unstable conditions
-    else:
-        y=-zoL
-        if y <0.0059:
-            Psi_M=0.0
-        elif y<=15.025:
-            y_c=0.0059
-            Psi_M = 1.47*log((0.28+y**0.75)/(0.28+(0.0059+y_c)**0.75))-1.29*(y**(1./3.)-(0.0059+y_c)**(1./3.))
-        else:
-            y_c=0.0059
-            y=15.025
-            Psi_M = 1.47*log((0.28+y**0.75)/(0.28+(0.0059+y_c)**0.75))-1.29*(y**(1./3.)-(0.0059+y_c)**(1./3.))
-
-            
+    y=-zoL
+    Psi_M[np.logical_and(zoL<0.0, y<0.0059)] = 0.0
+    
+    i = np.logical_and(zoL<0, y>=0.0059)
+    y = np.minimum(y, 15.025)
+    y_c=0.0059
+    Psi_M[i] = 1.47*np.log((0.28+y[i]**0.75)/(0.28+(0.0059+y_c)**0.75))-1.29*(y[i]**(1./3.)-(0.0059+y_c)**(1./3.))
+          
     return Psi_M
 
 def CalcRichardson (u, z_u, d_0, T_R0, T_R1, T_A0, T_A1):
@@ -287,10 +284,10 @@ def CalcU_C (u_friction, h_C, d_0, z_0M):
         http://dx.doi.org/10.1016/0168-1923(95)02265-Y.
     '''
 
-    from math import log
+    import numpy as np
     # The original equation below has been refolmulated to use u_friction:
     # u_C = u * log((h_C - d_0) / z_0M)/(log ((z_u  - d_0) / z_0M)- Psi_M)
-    u_C = log((h_C - d_0) / z_0M) * u_friction/k
+    u_C = np.log((h_C - d_0) / z_0M) * u_friction/k
     return u_C
 
 def CalcU_Goudriaan (u_C, h_C, LAI, leaf_width, z):
@@ -324,9 +321,9 @@ def CalcU_Goudriaan (u_C, h_C, LAI, leaf_width, z):
     .. [Goudriaan1977] Goudriaan (1977) Crop micrometeorology: a simulation study
  '''
 
-    from math import exp
+    import numpy as np
     a=CalcA_Goudriaan (h_C,LAI,leaf_width) # extinction factor for wind speed
-    u_z = u_C * exp(-a * (1.0 - (z/h_C))) # Eq. 4.48 in Goudriaan 1977
+    u_z = u_C * np.exp(-a * (1.0 - (z/h_C))) # Eq. 4.48 in Goudriaan 1977
     return u_z
 
 def CalcA_Goudriaan (h_C,LAI,leaf_width):
@@ -380,17 +377,16 @@ def CalcU_star (u, z_u, L, d_0,z_0M, useRi=False):
     .. [Brutsaert2005] Brutsaert, W. (2005). Hydrology: an introduction (Vol. 61, No. 8).
         Cambridge: Cambridge University Press.
     ''' 
-    from math import log
-    Psi_M=0.0
-    Psi_M0=0.0
+    import numpy as np
+
     if useRi: 
         #use the approximation Ri ~ (z-d_0)./L from end of section 2.	2 from Norman et. al., 2000 (DTD paper) 
         Psi_M = CalcPsi_M(L);
         Psi_M0 = CalcPsi_M(L/(z_u - d_0)*z_0M)
     else:
         #calculate correction factors in other conditions
-        if L == 0.0: L=1e-36
+        L[L==0.0] = 1e-36
         Psi_M= CalcPsi_M((z_u - d_0)/L)
         Psi_M0 = CalcPsi_M(z_0M/L)
-    u_star = u * k / ( log( (z_u - d_0) / z_0M ) - Psi_M + Psi_M0)
+    u_star = u * k / ( np.log( (z_u - d_0) / z_0M ) - Psi_M + Psi_M0)
     return u_star

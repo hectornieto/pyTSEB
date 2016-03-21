@@ -22,7 +22,7 @@ def RunTSEBFromConfigFile(configFile):
     # Get the data from the widgets
     configData=setup.parseInputConfig(configFile,isImage=False)
     setup.GetDataTSEB(configData,isImage=False)
-    setup.RunTSEBPointSeries()
+    setup.RunTSEBPointSeriesArray()
     return
 
 if __name__=='__main__':

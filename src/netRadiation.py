@@ -187,10 +187,10 @@ def CalcKbe_Campbell(theta,x_LAD=1):
         biophysics. Springer, New York
         https://archive.org/details/AnIntroductionToEnvironmentalBiophysics.
     '''
-        
-    from math import tan, radians,sqrt
-    theta=radians(theta)
-    K_be=sqrt(x_LAD**2+tan(theta)**2)/(x_LAD+1.774*(x_LAD+1.182)**-0.733)
+
+    import numpy as np  
+    theta=np.radians(theta)
+    K_be=np.sqrt(x_LAD**2+np.tan(theta)**2)/(x_LAD+1.774*(x_LAD+1.182)**-0.733)
     return K_be
     
 def CalcLnKustas (T_C, T_S, Lsky, LAI, emisVeg, emisGrd,x_LAD=1):
@@ -232,19 +232,21 @@ def CalcLnKustas (T_C, T_S, Lsky, LAI, emisVeg, emisGrd,x_LAD=1):
         Pages 13-29, http://dx.doi.org/10.1016/S0168-1923(99)00005-2.
     '''
 
-    from math import exp,sqrt,log,cos,sin,radians
+    from math import sqrt,cos,sin,radians
+    import numpy as np    
+    
     # Integrate to get the diffuse transmitance
     taud=0
     for angle in range(0,90,5):
         akd=CalcKbe_Campbell(angle,x_LAD)# Eq. 15.4
-        taub=exp(-akd*LAI)
+        taub=np.exp(-akd*LAI)
         taud = taud+taub*cos(radians(angle))*sin(radians(angle))*radians(5)
     taud=2.0*taud
     #D I F F U S E   C O M P O N E N T S
     #Diffuse light canopy reflection coefficients  for a deep canopy	
-    akd=-log(taud)/LAI
+    akd=-np.log(taud)/LAI
     ameanl=emisVeg    
-    taudl=exp(-sqrt(ameanl)*akd*LAI)    #Eq 15.6
+    taudl=np.exp(-sqrt(ameanl)*akd*LAI)    #Eq 15.6
     # calculate long wave emissions from canopy, soil and sky
     L_C = emisVeg*met.CalcStephanBoltzmann(T_C)
     L_S = emisGrd*met.CalcStephanBoltzmann(T_S)
@@ -341,42 +343,43 @@ def CalcSnCampbell (LAI, sza, Sdn_dir, Sdn_dif, fvis,fnir, rho_leaf_vis,
         Pages 13-29, http://dx.doi.org/10.1016/S0168-1923(99)00005-2.
     '''
     
-    from math import radians, cos, sin, tan, log, sqrt, exp
+    from math import radians, cos, sin, sqrt
+    import numpy as np
     #calculate aborprtivity
     ameanv = 1.0-rho_leaf_vis-tau_leaf_vis
     ameann = 1.0-rho_leaf_nir-tau_leaf_nir
     # Calculate canopy beam extinction coefficient
     #Modification to include other LADs
-    akb=sqrt(x_LAD**2+tan(radians(sza))**2)/(x_LAD+1.774*(x_LAD+1.182)**-0.733) # Eq. 15.4
+    akb=np.sqrt(x_LAD**2+np.tan(np.radians(sza))**2)/(x_LAD+1.774*(x_LAD+1.182)**-0.733) # Eq. 15.4
     # Integrate to get the diffuse transmitance
     taud=0
     for angle in range(0,90,5):
         akd=CalcKbe_Campbell(angle,x_LAD) # Eq. 15.4
-        taub=exp(-akd*LAI)
+        taub=np.exp(-akd*LAI)
         taud = taud+taub*cos(radians(angle))*sin(radians(angle))*radians(5)
     taud=2.0*taud
     #D I F F U S E   C O M P O N E N T S
     #Diffuse light canopy reflection coefficients  for a deep canopy	
     #akd=-0.0683*log(LAI)+0.804                  # Fit to Fig 15.4 for x=1
-    akd=-log(taud)/LAI
+    akd=-np.log(taud)/LAI
     rcpyn=(1.0-sqrt(ameann))/(1.0+sqrt(ameann)) # Eq 15.7   
     rcpyv=(1.0-sqrt(ameanv))/(1.0+sqrt(ameanv))
     rdcpyn=2.0*akd*rcpyn/(akd+1.0)              #Eq 15.8      
     rdcpyv=2.0*akd*rcpyv/(akd+1.0) 
     #Diffuse canopy transmission coeff (visible) 				
     expfac = sqrt(ameanv)*akd*LAI
-    xnum = (rdcpyv*rdcpyv-1.0)*exp(-expfac)
-    xden = (rdcpyv*rsoilv-1.0)+rdcpyv*(rdcpyv-rsoilv)*exp(-2.0*expfac)
+    xnum = (rdcpyv*rdcpyv-1.0)*np.exp(-expfac)
+    xden = (rdcpyv*rsoilv-1.0)+rdcpyv*(rdcpyv-rsoilv)*np.exp(-2.0*expfac)
     taudv = xnum/xden                           #Eq 15.11
     #Diffuse canopy transmission coeff (NIR) 				
     expfac = sqrt(ameann)*akd*LAI;
-    xnum = (rdcpyn*rdcpyn-1.0)*exp(-expfac);
-    xden = (rdcpyn*rsoiln-1.0)+rdcpyn*(rdcpyn-rsoiln)*exp(-2.0*expfac)
+    xnum = (rdcpyn*rdcpyn-1.0)*np.exp(-expfac);
+    xden = (rdcpyn*rsoiln-1.0)+rdcpyn*(rdcpyn-rsoiln)*np.exp(-2.0*expfac)
     taudn = xnum/xden                           #Eq 15.11
     #Diffuse radiation surface albedo for a generic canopy
-    fact=((rdcpyn-rsoiln)/(rdcpyn*rsoiln-1.0))*exp(-2.0*sqrt(ameann)*akd*LAI)   #Eq 15.9
+    fact=((rdcpyn-rsoiln)/(rdcpyn*rsoiln-1.0))*np.exp(-2.0*sqrt(ameann)*akd*LAI)   #Eq 15.9
     albdn=(rdcpyn+fact)/(1.0+rdcpyn*fact)
-    fact=((rdcpyv-rsoilv)/(rdcpyv*rsoilv-1.0))*exp(-2.0*sqrt(ameanv)*akd*LAI)   #Eq 15.9
+    fact=((rdcpyv-rsoilv)/(rdcpyv*rsoilv-1.0))*np.exp(-2.0*sqrt(ameanv)*akd*LAI)   #Eq 15.9
     albdv=(rdcpyv+fact)/(1.0+rdcpyv*fact)
     #B E A M   C O M P O N E N T S
     #Direct beam extinction coeff (spher. LAD)  
@@ -388,22 +391,22 @@ def CalcSnCampbell (LAI, sza, Sdn_dir, Sdn_dif, fvis,fnir, rho_leaf_vis,
     rcpyv=(1.0-sqrt(ameanv))/(1.0+sqrt(ameanv))
     rbcpyn=2.0*akb*rcpyn/(akb+1.0)                                              #Eq 15.8      
     rbcpyv=2.0*akb*rcpyv/(akb+1.0); 
-    fact=((rbcpyn-rsoiln)/(rbcpyn*rsoiln-1.0))*exp(-2.0*sqrt(ameann)*akb*LAI)   #Eq 15.9
+    fact=((rbcpyn-rsoiln)/(rbcpyn*rsoiln-1.0))*np.exp(-2.0*sqrt(ameann)*akb*LAI)   #Eq 15.9
     albbn=(rbcpyn+fact)/(1.0+rbcpyn*fact)
-    fact=((rbcpyv-rsoilv)/(rbcpyv*rsoilv-1.0))*exp(-2.0*sqrt(ameanv)*akb*LAI)   #Eq 15.9
+    fact=((rbcpyv-rsoilv)/(rbcpyv*rsoilv-1.0))*np.exp(-2.0*sqrt(ameanv)*akb*LAI)   #Eq 15.9
     albbv=(rbcpyv+fact)/(1.0+rbcpyv*fact)
     #Weighted average albedo 
     albedo_dir=fvis*albbv+fnir*albbn
     albedo_dif=fvis*albdv+fnir*albdn
     #Direct beam+scattered canopy transmission coeff (visible) 				
     expfac = sqrt(ameanv)*akb*LAI
-    xnum = (rbcpyv*rbcpyv-1.0)*exp(-expfac)
-    xden = (rbcpyv*rsoilv-1.0)+rbcpyv*(rbcpyv-rsoilv)*exp(-2.0*expfac)
+    xnum = (rbcpyv*rbcpyv-1.0)*np.exp(-expfac)
+    xden = (rbcpyv*rsoilv-1.0)+rbcpyv*(rbcpyv-rsoilv)*np.exp(-2.0*expfac)
     taubtv = xnum/xden                                                          #Eq 15.11
     #Direct beam+scattered canopy transmission coeff (NIR) 				
     expfac = sqrt(ameann)*akb*LAI
-    xnum = (rbcpyn*rbcpyn-1.0)*exp(-expfac)
-    xden = (rbcpyn*rsoiln-1.0)+rbcpyn*(rbcpyn-rsoiln)*exp(-2.0*expfac)
+    xnum = (rbcpyn*rbcpyn-1.0)*np.exp(-expfac)
+    xden = (rbcpyn*rsoiln-1.0)+rbcpyn*(rbcpyn-rsoiln)*np.exp(-2.0*expfac)
     taubtn = xnum/xden                                                          #Eq 15.11
     tau_dir=fvis*taubtv+fnir*taubtn
     tau_dif=fvis*taudv+fnir*taudn

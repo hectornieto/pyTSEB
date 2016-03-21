@@ -291,9 +291,9 @@ def CalcVaporPressure(T_K):
     ea : float
         saturation water vapour pressure (mb).'''
    
-    from math import exp
+    import numpy as np
     T_C=T_K-273.15
-    ea= 6.112 * exp((17.67*T_C)/(T_C + 243.5))
+    ea= 6.112 * np.exp((17.67*T_C)/(T_C + 243.5))
     return ea
     
 def CalcDeltaVaporPressure(T_K):
@@ -309,7 +309,7 @@ def CalcDeltaVaporPressure(T_K):
     s : float
         slope of the saturation water vapour pressure (kPa K-1)'''
    
-    from math import exp
+    import numpy as np
     T_C=T_K-273.15
-    s= 4098.0 * (0.6108*exp(17.27*T_C/(T_C+237.3)))/((T_C+237.3)**2)
+    s= 4098.0 * (0.6108*np.exp(17.27*T_C/(T_C+237.3)))/((T_C+237.3)**2)
     return s
