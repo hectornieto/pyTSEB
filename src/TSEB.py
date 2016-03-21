@@ -264,7 +264,7 @@ def TSEB_2T(Tc,Ts,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
                 spectraGrd['rsoilv'], spectraGrd['rsoiln'])     
                 
     # And the net longwave radiation
-    L_nS[i], L_nC[i] = rad.CalcLnKustas(Tc[i], Ts[i], Lsky[i], LAI[i], emisVeg, emisGrd)
+    L_nC[i], L_nS[i] = rad.CalcLnKustas(Tc[i], Ts[i], Lsky[i], LAI[i], emisVeg, emisGrd)
     
     #Compute Net Radiation
     Rn_soil = S_nS + L_nS
