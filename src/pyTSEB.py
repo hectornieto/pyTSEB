@@ -835,7 +835,7 @@ class PyTSEB():
         import TSEB
         import numpy as np
 
-        print "Processing..."        
+        print("Processing...")        
         
         # Get the LAI
         lai=inDataArray['LAI']
@@ -923,7 +923,7 @@ class PyTSEB():
         outDataArray['albedo1']=1.0-Rn/self.Sdn
         outDataArray['F']=lai
             
-        print "Finished!"
+        print("Finished!")
             
         
     # This function has been replaced by RunTSEBImageArray, but is kept here
