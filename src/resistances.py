@@ -230,7 +230,7 @@ def CalcR_A (z_T, ustar, L, d_0, z_0H, useRi=False, z_star=False):
     try:
         Psi_H_star = np.zeros(ustar.shape)
     except:
-        print ustar
+        print(ustar)
     #i = np.logical_and(z_star>0, z_T<=z_star)    
     #Psi_H_star[i] = MO.CalcPsi_H_star(z_T[i], L[i], d_0[i], z_0H[i], z_star[i])
     
