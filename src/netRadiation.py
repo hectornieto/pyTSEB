@@ -289,7 +289,7 @@ def CalcRnOSEB(Sdn,Lsky, T_R, emis, albedo):
     return R_s, R_l
     
 def CalcSnCampbell (LAI, sza, Sdn_dir, Sdn_dif, fvis,fnir, rho_leaf_vis,
-                    tau_leaf_vis,rho_leaf_nir, tau_leaf_nir, rsoilv, rsoiln,x_LAD=1):
+                    tau_leaf_vis,rho_leaf_nir, tau_leaf_nir, rsoilv, rsoiln,x_LAD=1, LAI_eff=None):
     ''' Net shortwave radiation 
 
     Estimate net shorwave radiation for soil and canopy below a canopy using the [Campbell1998]_
@@ -324,7 +324,9 @@ def CalcSnCampbell (LAI, sza, Sdn_dir, Sdn_dif, fvis,fnir, rho_leaf_vis,
     x_LAD : float,  optional
         x parameter for the ellipsoildal Leaf Angle Distribution function of 
         Campbell 1988 [default=1, spherical LIDF].
-    
+    LAI_eff : float or None, optional
+        if set, its value is the directional effective LAI
+        to be used in the beam radiation, if set to None we assume homogeneous canopies
     Returns
     -------
     Rn_sw_veg : float
@@ -350,7 +352,10 @@ def CalcSnCampbell (LAI, sza, Sdn_dir, Sdn_dif, fvis,fnir, rho_leaf_vis,
     ameann = 1.0-rho_leaf_nir-tau_leaf_nir
     # Calculate canopy beam extinction coefficient
     #Modification to include other LADs
-    akb=np.sqrt(x_LAD**2+np.tan(np.radians(sza))**2)/(x_LAD+1.774*(x_LAD+1.182)**-0.733) # Eq. 15.4
+    if LAI_eff.any():
+        LAI_eff=np.array(LAI_eff)
+    else:
+        LAI_eff=np.array(LAI)
     # Integrate to get the diffuse transmitance
     taud=0
     for angle in range(0,90,5):
@@ -383,28 +388,26 @@ def CalcSnCampbell (LAI, sza, Sdn_dir, Sdn_dif, fvis,fnir, rho_leaf_vis,
     albdv=(rdcpyv+fact)/(1.0+rdcpyv*fact)
     #B E A M   C O M P O N E N T S
     #Direct beam extinction coeff (spher. LAD)  
-#==============================================================================
-#     akb=0.5/coszen
-#==============================================================================
+    akb=CalcKbe_Campbell(sza,x_LAD) # Eq. 15.4
     #Direct beam canopy reflection coefficients for a deep canopy
     rcpyn=(1.0-sqrt(ameann))/(1.0+sqrt(ameann))                                 #Eq 15.7   
     rcpyv=(1.0-sqrt(ameanv))/(1.0+sqrt(ameanv))
     rbcpyn=2.0*akb*rcpyn/(akb+1.0)                                              #Eq 15.8      
     rbcpyv=2.0*akb*rcpyv/(akb+1.0); 
-    fact=((rbcpyn-rsoiln)/(rbcpyn*rsoiln-1.0))*np.exp(-2.0*sqrt(ameann)*akb*LAI)   #Eq 15.9
+    fact=((rbcpyn-rsoiln)/(rbcpyn*rsoiln-1.0))*np.exp(-2.0*sqrt(ameann)*akb*LAI_eff)   #Eq 15.9
     albbn=(rbcpyn+fact)/(1.0+rbcpyn*fact)
-    fact=((rbcpyv-rsoilv)/(rbcpyv*rsoilv-1.0))*np.exp(-2.0*sqrt(ameanv)*akb*LAI)   #Eq 15.9
+    fact=((rbcpyv-rsoilv)/(rbcpyv*rsoilv-1.0))*np.exp(-2.0*sqrt(ameanv)*akb*LAI_eff)   #Eq 15.9
     albbv=(rbcpyv+fact)/(1.0+rbcpyv*fact)
     #Weighted average albedo 
     albedo_dir=fvis*albbv+fnir*albbn
     albedo_dif=fvis*albdv+fnir*albdn
     #Direct beam+scattered canopy transmission coeff (visible) 				
-    expfac = sqrt(ameanv)*akb*LAI
+    expfac = sqrt(ameanv)*akb*LAI_eff
     xnum = (rbcpyv*rbcpyv-1.0)*np.exp(-expfac)
     xden = (rbcpyv*rsoilv-1.0)+rbcpyv*(rbcpyv-rsoilv)*np.exp(-2.0*expfac)
     taubtv = xnum/xden                                                          #Eq 15.11
     #Direct beam+scattered canopy transmission coeff (NIR) 				
-    expfac = sqrt(ameann)*akb*LAI
+    expfac = sqrt(ameann)*akb*LAI_eff
     xnum = (rbcpyn*rbcpyn-1.0)*np.exp(-expfac)
     xden = (rbcpyn*rsoiln-1.0)+rbcpyn*(rbcpyn-rsoiln)*np.exp(-2.0*expfac)
     taubtn = xnum/xden                                                          #Eq 15.11
