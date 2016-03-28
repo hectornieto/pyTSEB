@@ -352,10 +352,10 @@ def CalcSnCampbell (LAI, sza, Sdn_dir, Sdn_dif, fvis,fnir, rho_leaf_vis,
     ameann = 1.0-rho_leaf_nir-tau_leaf_nir
     # Calculate canopy beam extinction coefficient
     #Modification to include other LADs
+    if type(LAI_eff)==type(None):
+        LAI_eff=LAI
     if LAI_eff.any():
         LAI_eff=np.array(LAI_eff)
-    else:
-        LAI_eff=np.array(LAI)
     # Integrate to get the diffuse transmitance
     taud=0
     for angle in range(0,90,5):
