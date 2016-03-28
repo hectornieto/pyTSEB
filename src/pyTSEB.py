@@ -1014,10 +1014,10 @@ class PyTSEB():
                     Omega=TSEB.CI.CalcOmega_Kustas(omega0,sza,wc=self.wc)
                     LAI_eff=F*Omega
                     # Estimate the net shorwave radiation 
-                    S_nS, S_nC = TSEB.rad.CalcSnCampbell (LAI_eff, sza, Sdn_dir, Sdn_dif, fvis,fnir, 
+                    S_nS, S_nC = TSEB.rad.CalcSnCampbell (lai, sza, Sdn_dir, Sdn_dif, fvis,fnir, 
                         self.spectraVeg['rho_leaf_vis'], self.spectraVeg['tau_leaf_vis'],
                         self.spectraVeg['rho_leaf_nir'], self.spectraVeg['tau_leaf_nir'], 
-                        self.spectraGrd['rsoilv'], self.spectraGrd['rsoiln'])
+                        self.spectraGrd['rsoilv'], self.spectraGrd['rsoiln'],LAI_eff=LAI_eff)
                     # And the net longwave radiation
                     L_nS,L_nC=TSEB.rad.CalcLnKustas (Tc, Ts,Lsky, lai,self.emisVeg, self.emisGrd)
                     # Run TSEB with the component temperatures Ts and Tc    
@@ -1497,10 +1497,10 @@ class PyTSEB():
                     Omega=TSEB.CI.CalcOmega_Kustas(omega0,sza,wc=wc)
                     LAI_eff=F*Omega
                     # Estimate the net shorwave radiation 
-                    S_nS, S_nC = TSEB.rad.CalcSnCampbell (LAI_eff, sza, Sdn_dir, Sdn_dif, fvis,fnir, 
+                    S_nS, S_nC = TSEB.rad.CalcSnCampbell (lai, sza, Sdn_dir, Sdn_dif, fvis,fnir, 
                         self.spectraVeg['rho_leaf_vis'], self.spectraVeg['tau_leaf_vis'],
                         self.spectraVeg['rho_leaf_nir'], self.spectraVeg['tau_leaf_nir'], 
-                        self.spectraGrd['rsoilv'], self.spectraGrd['rsoiln'])
+                        self.spectraGrd['rsoilv'], self.spectraGrd['rsoiln'],LAI_eff=LAI_eff)
                     # And the net longwave radiation
                     L_nS,L_nC=TSEB.rad.CalcLnKustas (Tc, Ts,Lsky, lai,self.emisVeg, self.emisGrd)
                     # Run TSEB with the component temperatures Ts and Tc    
