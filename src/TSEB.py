@@ -911,7 +911,7 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
                 flag[i] = 3
                 
             # Calculate net longwave radiation with current values of Tc and Ts
-            L_nC[i], L_nS[i] = rad.CalcLnKustas (Tc[i], Ts[i], Lsky[i], LAI_eff[i], emisVeg, emisGrd)
+            L_nC[i], L_nS[i] = rad.CalcLnKustas (Tc[i], Ts[i], Lsky[i], LAI[i], emisVeg, emisGrd)
             
             # Calculate total net radiation of soil and canopy        
             delta_R_n = L_nC + S_nC
