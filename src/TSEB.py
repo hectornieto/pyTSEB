@@ -45,8 +45,6 @@ TSEB models
 OSEB models
 -----------
 * :func:`OSEB`. One Source Energy Balance Model.
-* :func:`OSEB_BelowCanopy`. One Source Energy Balance Model of baresoil/understory beneath a canopy.
-* :func:`OSEB_Canopy`. One Source Energy Balance Model of a very dense canopy, i.e. `Big-leaf` model.
 
 Ancillary functions
 -------------------
@@ -61,8 +59,6 @@ Ancillary functions
 * :func:`CalcT_C`. Canopy temperature form composite radiometric temperature.
 * :func:`CalcT_C_Series.` Canopy temperature from canopy sensible heat flux and resistance in series.
 * :func:`CalcT_CS_Norman`. Component temperatures from dual angle composite radiometric tempertures.
-* :func:`CalcT_CS_4SAIL`. Component temperatures from dual angle composite radiometric tempertures. Using 4SAIl for the inversion.
-* :func:`Get4SAILEmissionParam`. Effective surface reflectance, and emissivities for soil and canopy using 4SAIL.
 * :func:`CalcT_S`. Soil temperature from form composite radiometric temperature.
 * :func:`CalcT_S_Series`. Soil temperature from soil sensible heat flux and resistance in series.
 '''
