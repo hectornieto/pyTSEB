@@ -34,6 +34,7 @@ PACKAGE CONTENTS
 * :func:`CalcEmiss_atm` Atmospheric emissivity.
 * :func:`CalcKbe_Campbell` Beam extinction coefficient.
 * :func:`CalcLnKustas` Net longwave radiation for soil and canopy layers.
+* :func:`CalcPotentialIrradianceWeiss` Net longwave radiation for soil and canopy layers.
 * :func:`CalcRnOSEB` Net radiation in a One Source Energy Balance model.
 * :func:`CalcSnCampbell` Net shortwave radiation. 
 '''
@@ -59,11 +60,11 @@ def CalcDifuseRatio(Sdn,sza,press=1013.25,SOLAR_CONSTANT=1360):
         Incoming shortwave radiation (W m-2).
     sza : float
         Solar Zenith Angle (degrees).
-    Wv : float, optional
-        Total column precipitable water vapour (g cm-2), default 1 g cm-2.
     press : float, optional
         atmospheric pressure (mb), default at sea level (1013mb).
-        
+    SOLAR_CONSTANT : float, optional
+        Solar constant in W m-2, default=1360 W m-2
+   
     Returns
     -------
     difvis : float
@@ -252,6 +253,10 @@ def CalcPotentialIrradianceWeiss(sza,press=1313.25, SOLAR_CONSTANT=1360, fnir_in
         Solar Zenith Angle (degrees)
     press : Optional[float]
         atmospheric pressure (mb)
+    SOLAR_CONSTANT : float, optional
+        Solar constant in W m-2, default=1360 W m-2
+    fnir_ini : float, optional
+        A priori fraction of NIR to total irradiance, default=0.5455
         
     Returns
     -------
@@ -264,8 +269,13 @@ def CalcPotentialIrradianceWeiss(sza,press=1313.25, SOLAR_CONSTANT=1360, fnir_in
     Rdifnir : float
         Potential diffuse NIR irradiance at the surface (W m-2)
     
-    based on Weiss & Normat 1985, following same strategy in Cupid's RADIN4 subroutine.
-    '''
+   References
+    ----------
+    .. [Weiss1985] Weiss and Norman (1985) Partitioning solar radiation into direct and diffuse,
+        visible and near-infrared components, Agricultural and Forest Meteorology,
+        Volume 34, Issue 2, Pages 205-213,
+        http://dx.doi.org/10.1016/0168-1923(85)90020-6.
+     '''
     import numpy as np
     # Convert input scalars to numpy arrays
     sza,press=map(np.asarray,(sza,press))
