@@ -258,10 +258,10 @@ def TSEB_2T(Tc,Ts,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
     
     # Calcualte short wave net radiation of canopy and soil
     LAI_eff = F*omega
-    S_nC[i], S_nS[i] = rad.CalcSnCampbell (LAI_eff[i], sza[i], Sdn_dir[i], Sdn_dif[i], fvis[i],
+    S_nC[i], S_nS[i] = rad.CalcSnCampbell (LAI, sza[i], Sdn_dir[i], Sdn_dif[i], fvis[i],
                  fnir[i], spectraVeg['rho_leaf_vis'], spectraVeg['tau_leaf_vis'],
                 spectraVeg['rho_leaf_nir'], spectraVeg['tau_leaf_nir'], 
-                spectraGrd['rsoilv'], spectraGrd['rsoiln'])     
+                spectraGrd['rsoilv'], spectraGrd['rsoiln'], LAI_eff = LAI_eff[i])     
                 
     # And the net longwave radiation
     L_nC[i], L_nS[i] = rad.CalcLnKustas(Tc[i], Ts[i], Lsky[i], LAI[i], emisVeg, emisGrd)
@@ -546,10 +546,10 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
     
     # Calcualte short wave net radiation of canopy and soil
     LAI_eff = F*Omega
-    S_nC[i], S_nS[i] = rad.CalcSnCampbell (LAI_eff[i], sza[i], Sdn_dir[i], Sdn_dif[i], fvis[i],
+    S_nC[i], S_nS[i] = rad.CalcSnCampbell (LAI, sza[i], Sdn_dir[i], Sdn_dif[i], fvis[i],
                  fnir[i], spectraVeg['rho_leaf_vis'], spectraVeg['tau_leaf_vis'],
                 spectraVeg['rho_leaf_nir'], spectraVeg['tau_leaf_nir'], 
-                spectraGrd['rsoilv'], spectraGrd['rsoiln'])    
+                spectraGrd['rsoilv'], spectraGrd['rsoiln'], LAI_eff = LAI_eff[i])    
 
     # Initially assume stable atmospheric conditions and set variables for 
     # iteration of the Monin-Obukhov length
@@ -874,10 +874,10 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
     
     # Calcualte short wave net radiation of canopy and soil
     LAI_eff=F*omega
-    S_nC[i], S_nS[i] = rad.CalcSnCampbell (LAI_eff[i], sza[i], Sdn_dir[i], Sdn_dif[i], 
+    S_nC[i], S_nS[i] = rad.CalcSnCampbell (LAI, sza[i], Sdn_dir[i], Sdn_dif[i], 
            fvis[i], fnir[i], spectraVeg['rho_leaf_vis'], spectraVeg['tau_leaf_vis'],
             spectraVeg['rho_leaf_nir'], spectraVeg['tau_leaf_nir'], 
-            spectraGrd['rsoilv'], spectraGrd['rsoiln'])    
+            spectraGrd['rsoilv'], spectraGrd['rsoiln'], LAI_eff = LAI_eff[i])    
     
     # First assume that canpy temperature equals the minumum of Air or radiometric T
     Tc[i] = np.minimum(Tr_K_1[i], Ta_K_1[i])
