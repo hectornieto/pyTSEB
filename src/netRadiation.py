@@ -47,7 +47,7 @@ sb=5.670373e-8
 
 import meteoUtils as met
 
-def CalcDifuseRatio(Sdn,sza,Wv=1,press=1013.25):
+def CalcDifuseRatio(Sdn,sza,press=1013.25,SOLAR_CONSTANT=1360):
     '''Fraction of difuse shortwave radiation.
 
     Partitions the incoming solar radiation into PAR and non-PR and
@@ -82,56 +82,44 @@ def CalcDifuseRatio(Sdn,sza,Wv=1,press=1013.25):
         Volume 34, Issue 2, Pages 205-213,
         http://dx.doi.org/10.1016/0168-1923(85)90020-6.
     '''
-    from math import radians, cos,exp, log10
-    coszen=abs(cos(radians(sza)))
+    
+    import numpy as np
+    # Convert input scalars to numpy arrays
+    Sdn,sza,press=map(np.asarray,(Sdn,sza,press))
+    difvis,difnir, fvis,fnir=[np.zeros(Sdn.shape) for i in range(4)]
+    fvis=fvis+0.6
+    fnir=fnir+0.4
     #Calculate potential (clear-sky) visible and NIR solar components
     # Weiss & Norman 1985
-    #Correct for curvature of atmos in airmas (Kasten and Young,1989)
-    if sza >90:
-        difvis,difnir, fvis,fnir=[1.0,1.0, 0.4,0.6]
-        return difvis,difnir, fvis,fnir
-    else:
-        #airmas=1.0/(abs(coszen)+0.50572*radians(96.07995-sza)**-1.6364)
-        airmas=1.0/coszen
-    #Visible PAR/NIR direct beam radiation
-    Rdirvis=600.*exp(-.185*airmas)*coszen                                   #Eq. 1
-    Rdirvis=max(0,Rdirvis)
-    w=1320.0*Wv*10**(-1.195+.4459*log10(airmas)-.0345*log10(airmas)**2)     #Eq. 6
-    Rdirnir=(720.*exp(-0.06*(press/1313.25)*airmas)-w)*coszen                               #Eq. 4
-    Rdirnir=max(0,Rdirnir)    
-    # Potential diffuse radiation
-    Rdifvis=0.4*(600.0-Rdirvis)*coszen                                      #Eq. 3
-    Rdifnir=0.6*(720.0-Rdirvis-w)*coszen                                    #Eq. 5
-    Rdifvis=max(0,Rdifvis)
-    Rdifnir=max(0,Rdifnir)      
+    Rdirvis,Rdifvis,Rdirnir,Rdifnir=CalcPotentialIrradianceWeiss(sza,press=press,
+                                                 SOLAR_CONSTANT=SOLAR_CONSTANT)
     #Potential total solar radiation
-    potvis=Rdirvis+Rdifvis
-    if potvis<=0:potvis=1e-6
-    potnir=Rdirnir+Rdifnir
-    if potnir<=0:potnir=1e-6
+    potvis=np.asarray(Rdirvis+Rdifvis)
+    potvis[potvis<=0]=1e-6
+    potnir=np.asarray(Rdirnir+Rdifnir)
+    potnir[potnir<=0]=1e-6
     fclear=Sdn/(potvis+potnir)
-    fclear=min(1.0,fclear)
+    fclear=np.minimum(1.0,fclear)
     #Partition SDN into VIS and NIR      
     fvis=potvis/(potvis+potnir)                                             #Eq. 7
     fnir=potnir/(potvis+potnir)                                            #Eq. 8
-    fvis=max(0,fvis)
-    fvis=min(1,fvis)
+    fvis=np.maximum(0,fvis)
+    fvis=np.minimum(1,fvis)
     fnir=1.0-fvis
     #Estimate direct beam and diffuse fractions in VIS and NIR wavebands
-    ratiox=fclear
-    if fclear > 0.9:ratiox=.9
+    ratiox=np.asarray(fclear)
+    ratiox[fclear > 0.9]=0.9
     dirvis=(Rdirvis/potvis)*(1.-((.9-ratiox)/.7)**.6667)                    #Eq. 11
-    if fclear > 0.88:ratiox=.88
+    ratiox=np.asarray(fclear)    
+    ratiox[fclear > 0.88]=0.88
     dirnir=(Rdirnir/potnir)*(1.-((.88-ratiox)/.68)**.6667)                  #Eq. 12
-    dirvis=max(0.0,dirvis)
-    dirnir=max(0.0,dirnir)
-    dirvis=min(1.0,Rdirvis/potvis,dirvis)
-    dirnir=min(1.0,Rdirnir/potnir,dirnir)
-    if dirvis < 0.01 and dirnir > 0.01:dirvis=.011
-    if dirnir < 0.01 and dirvis > 0.01:dirnir=.011
+    dirvis=np.maximum(0.0,dirvis)
+    dirnir=np.maximum(0.0,dirnir)
+    dirvis=np.minimum(1,dirvis)
+    dirnir=np.minimum(1,dirnir)
     difvis=1.0-dirvis
     difnir=1.0-dirnir
-    return difvis,difnir, fvis,fnir
+    return np.asarray(difvis),np.asarray(difnir), np.asarray(fvis),np.asarray(fnir)
 
 def CalcEmiss_atm(ea,Ta_K):
     '''Atmospheric emissivity
@@ -254,7 +242,70 @@ def CalcLnKustas (T_C, T_S, Lsky, LAI, emisVeg, emisGrd,x_LAD=1):
     L_nS = taudl*Lsky + (1.0-taudl)*L_C - L_S
     L_nC = (1.0-taudl)*(Lsky + L_S - 2.0*L_C)
     return L_nC,L_nS
+    
+def CalcPotentialIrradianceWeiss(sza,press=1313.25, SOLAR_CONSTANT=1360, fnir_ini=0.5455):
+    ''' Estimates the potential visible and NIR irradiance at the surface
+    
+    Parameters
+    ----------
+    sza : float
+        Solar Zenith Angle (degrees)
+    press : Optional[float]
+        atmospheric pressure (mb)
+        
+    Returns
+    -------
+    Rdirvis : float
+        Potential direct visible irradiance at the surface (W m-2)
+    Rdifvis : float
+        Potential diffuse visible irradiance at the surface (W m-2)
+    Rdirnir : float
+        Potential direct NIR irradiance at the surface (W m-2)
+    Rdifnir : float
+        Potential diffuse NIR irradiance at the surface (W m-2)
+    
+    based on Weiss & Normat 1985, following same strategy in Cupid's RADIN4 subroutine.
+    '''
+    import numpy as np
+    # Convert input scalars to numpy arrays
+    sza,press=map(np.asarray,(sza,press))
+    
+    # Set defaout ouput values
+    Rdirvis,Rdifvis,Rdirnir,Rdifnir,w=[np.zeros(sza.shape) for i in range(5)]
+    
+    coszen=np.cos(np.radians(sza))
+    #Calculate potential (clear-sky) visible and NIR solar components
+    # Weiss & Norman 1985
+    #Correct for curvature of atmos in airmas (Kasten and Young,1989)
+    i= sza <90
+    airmas=1.0/coszen
+    #Visible PAR/NIR direct beam radiation
+    Sco_vis=SOLAR_CONSTANT*(1.0-fnir_ini)
+    Sco_nir=SOLAR_CONSTANT*fnir_ini
+    # Directional trasnmissivity
+    # Calculate water vapour absorbance (Wang et al 1976)
+    #A=10**(-1.195+.4459*np.log10(1)-.0345*np.log10(1)**2)
+    #opticalDepth=np.log(10.)*A
+    #T=np.exp(-opticalDepth/coszen)
+    # Asssume that most absortion of WV is at the NIR
+    Rdirvis[i]=(Sco_vis*np.exp(-.185*(press[i]/1313.25)*airmas[i])-w[i])*coszen[i] # Modified Eq1 assuming water vapor absorption    
+    #Rdirvis=(Sco_vis*exp(-.185*(press/1313.25)*airmas))*coszen                                 #Eq. 1
+    Rdirvis=np.maximum(0,Rdirvis)    
+    # Potential diffuse radiation
+    Rdifvis[i]=0.4*(Sco_vis-Rdirvis[i])*coszen[i] # Eq 3                                      #Eq. 3
+    Rdifvis=np.maximum(0,Rdifvis)
 
+    # Same for NIR
+    #w=SOLAR_CONSTANT*(1.0-T)
+    w=SOLAR_CONSTANT*10**(-1.195+.4459*np.log10(coszen[i])-.0345*np.log10(coszen[i])**2) # Eq. .6
+    Rdirnir[i]=(Sco_nir*np.exp(-0.06*(press[i]/1313.25)*airmas[i])-w)*coszen[i]                               #Eq. 4
+    Rdirnir=np.maximum(0,Rdirnir)    
+    # Potential diffuse radiation
+    Rdifnir[i]=0.6*(Sco_nir-Rdirvis[i]-w)*coszen[i]                                    #Eq. 5
+    Rdifnir=np.maximum(0,Rdifnir)      
+    Rdirvis,Rdifvis,Rdirnir,Rdifnir=map(np.asarray,(Rdirvis,Rdifvis,Rdirnir,Rdifnir))
+    return Rdirvis,Rdifvis,Rdirnir,Rdifnir
+    
 def CalcRnOSEB(Sdn,Lsky, T_R, emis, albedo):
     ''' Net radiation in a One Source Energy Balance model
 
