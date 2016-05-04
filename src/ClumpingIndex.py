@@ -83,7 +83,7 @@ def CalcOmega0_Kustas(LAI, f_C,x_LAD=1,isLAIeff=True):
     trans = f_C*np.exp(-K_be * F)+(1.0-f_C)
     trans[trans<=0] = 1e-36
     # and then the nadir clumping factor
-    omega0 = -np.log(trans)/(LAI*K_be)
+    omega0 = -np.log(trans)/(F*K_be)
     return omega0
 
 def CalcOmega_Kustas(omega0,theta,wc=1):
