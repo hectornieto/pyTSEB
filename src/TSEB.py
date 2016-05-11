@@ -305,10 +305,10 @@ def TSEB_2T(Tc,Ts,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
         R_a[i] = res.CalcR_A(zt, u_friction[i], L[i], d_0[i], z_0H[i])
         # Calculate wind speed at the soil surface and in the canopy
         U_C = MO.CalcU_C (u_friction, hc, d_0, z_0M)
-        u_S = MO.CalcU_Goudriaan (U_C, hc, LAI, leaf_width, z0_soil)
-        u_d_zm = MO.CalcU_Goudriaan (U_C, hc, LAI, leaf_width, d_0+z_0M)
+        u_S = MO.CalcU_Goudriaan (U_C, hc, F*omega0, leaf_width, z0_soil) # Clumped vegetation enhanced wind speed for the soil surface 
+        u_d_zm = MO.CalcU_Goudriaan (U_C, hc, F, leaf_width, d_0+z_0M) # Wind speed is highly attenuated within the canopy volume
         # Calculate soil and canopy resistances         
-        R_x[i] = res.CalcR_X_Norman(F[i], leaf_width, u_d_zm[i])
+        R_x[i] = res.CalcR_X_Norman(LAI[i], leaf_width, u_d_zm[i]) # Vegetation in series with soil, i.e. well mixed, so we use the landscape LAI
         R_s[i] = res.CalcR_S_Kustas(u_S[i], Ts[i]-Tc[i])
         R_s=np.maximum( 1e-3,R_s)
         R_x=np.maximum( 1e-3,R_x)
@@ -591,10 +591,10 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
             R_a[i] = res.CalcR_A( zt, u_friction[i], L[i], d_0[i], z_0H[i])
             # Calculate wind speed at the soil surface and in the canopy
             U_C = MO.CalcU_C (u_friction, hc, d_0, z_0M)
-            u_S = MO.CalcU_Goudriaan (U_C, hc, LAI, leaf_width, z0_soil)
-            u_d_zm = MO.CalcU_Goudriaan (U_C, hc, LAI, leaf_width,d_0+z_0M)
+            u_S = MO.CalcU_Goudriaan (U_C, hc, F*omega0, leaf_width, z0_soil) # Clumped vegetation enhanced wind speed for the soil surface 
+            u_d_zm = MO.CalcU_Goudriaan (U_C, hc, F, leaf_width,d_0+z_0M) # Wind speed is highly attenuated within the canopy volume
             # Calculate soil and canopy resistances            
-            R_x[i] = res.CalcR_X_Norman(F[i], leaf_width, u_d_zm[i])
+            R_x[i] = res.CalcR_X_Norman(LAI[i], leaf_width, u_d_zm[i]) # Vegetation in series with soil, i.e. well mixed, so we use the landscape LAI
             R_s[i] = res.CalcR_S_Kustas(u_S[i], Ts[i]-Ta_K[i])
             R_s=np.maximum( 1e-3,R_s)
             R_x=np.maximum( 1e-3,R_x)
@@ -857,7 +857,7 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
     u_friction[i] = MO.CalcU_star(u[i], zu, Ri[i], d_0[i], z_0M[i], useRi=True)
     u_friction = np.maximum(u_friction_min, u_friction)    
     u_C = MO.CalcU_C(u_friction, hc, d_0, z_0M)
-    u_S=MO.CalcU_Goudriaan (u_C, hc, LAI, leaf_width, z0_soil)
+    u_S=MO.CalcU_Goudriaan (u_C, hc, F*omega0, leaf_width, z0_soil)  # Clumped vegetation enhanced wind speed for the soil surface 
     # deltaT based on equation from Guzinski et. al., 2015    
     deltaT=(Tr_K_1 - Tr_K_0) - (Ta_K_1- Ta_K_0)    
     R_s=res.CalcR_S_Kustas(u_S, deltaT)
@@ -865,8 +865,8 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
     # Calculate the other resistances resistances
     z_0H=res.CalcZ_0H(z_0M,kB=kB)
     R_a=res.CalcR_A (zu, u_friction, Ri, d_0, z_0H, useRi=True)
-    u_d_zm = MO.CalcU_Goudriaan (u_C, hc, LAI, leaf_width,d_0+z_0M)
-    R_x[i]=res.CalcR_X_Norman(F[i], leaf_width, u_d_zm[i])
+    u_d_zm = MO.CalcU_Goudriaan (u_C, hc, F, leaf_width,d_0+z_0M) # Wind speed is highly attenuated within the canopy volume
+    R_x[i]=res.CalcR_X_Norman(LAI[i], leaf_width, u_d_zm[i]) # Vegetation in series with soil, i.e. well mixed, so we use the landscape LAI
     
     # Calcualte short wave net radiation of canopy and soil
     LAI_eff=F*omega
