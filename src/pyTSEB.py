@@ -140,6 +140,9 @@ class PyTSEB():
         self.w_inputtxt=widgets.Text(description='Input File :', value=self.InputFile, width=500)
         self.w_output=widgets.Button(description='Select Output File')
         self.w_outputtxt=widgets.Text(description='Output File :', value=self.OutputTxtFile,width=500)
+        
+        self.w_runmodel=widgets.Button(description='Run pyTSEB', background_color='green')
+        
         # Create TSEB options widgets
         self.SelectModel()
         self.DefineSiteDescription()
@@ -160,6 +163,7 @@ class PyTSEB():
         display(widgets.HBox([self.w_output,self.w_outputtxt]))
         display(tabs)
         display(self.w_saveconfig)
+        display(self.w_runmodel)
         # Handle interactions        
         self.w_CalcG.on_trait_change(self._on_G_change, 'value')
         self.w_input.on_click(self._on_input_clicked)    
@@ -167,6 +171,7 @@ class PyTSEB():
         self.isImage=False
         self.w_loadconfig.on_click(self._on_loadconfig_clicked)
         self.w_saveconfig.on_click(self._on_saveconfig_clicked)
+        self.w_runmodel.on_click(self._on_runmodel_clicked)
                
     def LocalImageWidget(self):
         '''Creates a jupyter notebook GUI for running TSEB for an image'''
@@ -194,6 +199,8 @@ class PyTSEB():
         self.w_masktxt=widgets.Text(description='Mask:',value='0', width=500)
         self.w_output=widgets.Button(description='Select Output File')
         self.w_outputtxt=widgets.Text(description='Output File :', value=self.OutputImageFile, width=500)
+        
+        self.w_runmodel=widgets.Button(description='Run pyTSEB', background_color='green')
         # Create TSEB options widgets
         self.SelectModel()
         self.DefineSiteDescription()
@@ -230,6 +237,8 @@ class PyTSEB():
         display(widgets.HBox([self.w_output,self.w_outputtxt]))
         display(tabs)
         display(self.w_saveconfig) 
+        display(self.w_runmodel) 
+
         # Handle interactions
         self.w_LST.on_click(self._on_inputLST_clicked)    
         self.w_VZA.on_click(self._on_inputVZA_clicked)    
@@ -244,6 +253,7 @@ class PyTSEB():
         self.w_CalcG.on_trait_change(self._on_G_change, 'value')
         self.w_loadconfig.on_click(self._on_loadconfig_clicked)
         self.w_saveconfig.on_click(self._on_saveconfig_clicked)
+        self.w_runmodel.on_click(self._on_runmodel_clicked)
 
         self.isImage=True
 
@@ -634,6 +644,21 @@ class PyTSEB():
             self.w_GAmp.visible=True
             self.w_Gphase.visible=True
             self.w_Gshape.visible=True
+
+    def _on_runmodel_clicked(self, b):
+        # Change the colour of the button to know it is running
+        self.w_runmodel.background_color='yellow'
+        # Get the data from the widgets
+        self.GetDataTSEBWidgets(isImage = self.isImage)
+        #run TSEB
+        if self.isImage:
+            self.RunTSEBLocalImage()
+        else:
+            self.RunTSEBPointSeriesArray()
+        # Change the colour of the button to know it is running
+        self.w_runmodel.background_color='green'
+        
+
 
     def GetDataTSEBWidgets(self,isImage):
         '''Parses the parameters in the GUI to TSEB variables for running TSEB'''
