@@ -542,7 +542,7 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
     
     # Calcualte short wave net radiation of canopy and soil
     LAI_eff = F*Omega
-    S_nC[i], S_nS[i] = rad.CalcSnCampbell (LAI, sza[i], Sdn_dir[i], Sdn_dif[i], fvis[i],
+    S_nC[i], S_nS[i] = rad.CalcSnCampbell (LAI[i], sza[i], Sdn_dir[i], Sdn_dif[i], fvis[i],
                  fnir[i], spectraVeg['rho_leaf_vis'], spectraVeg['tau_leaf_vis'],
                 spectraVeg['rho_leaf_nir'], spectraVeg['tau_leaf_nir'], 
                 spectraGrd['rsoilv'], spectraGrd['rsoiln'], LAI_eff = LAI_eff[i])    
@@ -870,7 +870,7 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
     
     # Calcualte short wave net radiation of canopy and soil
     LAI_eff=F*omega
-    S_nC[i], S_nS[i] = rad.CalcSnCampbell (LAI, sza[i], Sdn_dir[i], Sdn_dif[i], 
+    S_nC[i], S_nS[i] = rad.CalcSnCampbell (LAI[i], sza[i], Sdn_dir[i], Sdn_dif[i], 
            fvis[i], fnir[i], spectraVeg['rho_leaf_vis'], spectraVeg['tau_leaf_vis'],
             spectraVeg['rho_leaf_nir'], spectraVeg['tau_leaf_nir'], 
             spectraGrd['rsoilv'], spectraGrd['rsoiln'], LAI_eff = LAI_eff[i])    
