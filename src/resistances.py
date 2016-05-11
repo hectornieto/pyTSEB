@@ -267,8 +267,7 @@ def CalcR_S_Kustas (u_S, deltaT):
     import numpy as np    
     
     deltaT = np.maximum(deltaT, 0.0)
-    R_S = np.ones(u_S.shape)*float('inf')    
-    R_S[u_S>0] = 1.0/ (KN_c* deltaT[u_S>0]**(1.0/3.0)+ KN_b * u_S[u_S>0])
+    R_S = 1.0/ (KN_c* deltaT**(1.0/3.0)+ KN_b * u_S)
     return R_S
 
 def CalcR_X_Norman(LAI, leaf_width, u_d_zm):
@@ -298,12 +297,9 @@ def CalcR_X_Norman(LAI, leaf_width, u_d_zm):
         surface temperature, Agricultural and Forest Meteorology, Volume 77, Issues 3-4,
         Pages 263-293, http://dx.doi.org/10.1016/0168-1923(95)02265-Y.
     '''
-    import numpy as np
-
     #C_dash = 130.0 # Original value proposed by McNaughton & Van der Hurk 1995
     C_dash_F = KN_C_dash/LAI
-    R_x = np.ones(u_d_zm.shape)*float('inf')
-    R_x[u_d_zm>0] = C_dash_F[u_d_zm>0]*(leaf_width/u_d_zm[u_d_zm>0])**0.5
+    R_x = C_dash_F*(leaf_width/u_d_zm)**0.5
     return R_x
   
 def CalcZ_0H (z_0M,kB=2):
