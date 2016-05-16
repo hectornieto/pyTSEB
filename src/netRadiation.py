@@ -244,7 +244,7 @@ def CalcLnKustas (T_C, T_S, Lsky, LAI, emisVeg, emisGrd,x_LAD=1):
     L_nC = (1.0-taudl)*(Lsky + L_S - 2.0*L_C)
     return L_nC,L_nS
     
-def CalcPotentialIrradianceWeiss(sza,press=1313.25, SOLAR_CONSTANT=1360, fnir_ini=0.5455):
+def CalcPotentialIrradianceWeiss(sza,press=1013.25, SOLAR_CONSTANT=1360, fnir_ini=0.5455):
     ''' Estimates the potential visible and NIR irradiance at the surface
     
     Parameters
