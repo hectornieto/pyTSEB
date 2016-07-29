@@ -302,7 +302,7 @@ def CalcPotentialIrradianceWeiss(sza,press=1013.25, SOLAR_CONSTANT=1360, fnir_in
     #Rdirvis=(Sco_vis*exp(-.185*(press/1313.25)*airmas))*coszen                                 #Eq. 1
     Rdirvis=np.maximum(0,Rdirvis)    
     # Potential diffuse radiation
-    Rdifvis[i]=0.4*(Sco_vis-Rdirvis[i])*coszen[i] # Eq 3                                      #Eq. 3
+    Rdifvis[i]=0.4*(Sco_vis*coszen[i]-Rdirvis[i]) # Eq 3                                      #Eq. 3
     Rdifvis=np.maximum(0,Rdifvis)
 
     # Same for NIR
@@ -311,7 +311,7 @@ def CalcPotentialIrradianceWeiss(sza,press=1013.25, SOLAR_CONSTANT=1360, fnir_in
     Rdirnir[i]=(Sco_nir*np.exp(-0.06*(press[i]/1313.25)*airmas[i])-w)*coszen[i]                               #Eq. 4
     Rdirnir=np.maximum(0,Rdirnir)    
     # Potential diffuse radiation
-    Rdifnir[i]=0.6*(Sco_nir-Rdirvis[i]-w)*coszen[i]                                    #Eq. 5
+    Rdifnir[i]=0.6*(Sco_nir*coszen[i]-Rdirvis[i]-w)                                    #Eq. 5
     Rdifnir=np.maximum(0,Rdifnir)      
     Rdirvis,Rdifvis,Rdirnir,Rdifnir=map(np.asarray,(Rdirvis,Rdifvis,Rdirnir,Rdifnir))
     return Rdirvis,Rdifvis,Rdirnir,Rdifnir
