@@ -221,7 +221,6 @@ def CalcLnKustas (T_C, T_S, Lsky, LAI, emisVeg, emisGrd,x_LAD=1):
         Pages 13-29, http://dx.doi.org/10.1016/S0168-1923(99)00005-2.
     '''
 
-    from math import sqrt,cos,sin,radians
     import numpy as np    
     
     # Integrate to get the diffuse transmitance
@@ -229,13 +228,13 @@ def CalcLnKustas (T_C, T_S, Lsky, LAI, emisVeg, emisGrd,x_LAD=1):
     for angle in range(0,90,5):
         akd=CalcKbe_Campbell(angle,x_LAD)# Eq. 15.4
         taub=np.exp(-akd*LAI)
-        taud = taud+taub*cos(radians(angle))*sin(radians(angle))*radians(5)
+        taud = taud+taub*np.cos(np.radians(angle))*np.sin(np.radians(angle))*np.radians(5)
     taud=2.0*taud
     #D I F F U S E   C O M P O N E N T S
     #Diffuse light canopy reflection coefficients  for a deep canopy	
     akd=-np.log(taud)/LAI
     ameanl=emisVeg    
-    taudl=np.exp(-sqrt(ameanl)*akd*LAI)    #Eq 15.6
+    taudl=np.exp(-np.sqrt(ameanl)*akd*LAI)    #Eq 15.6
     # calculate long wave emissions from canopy, soil and sky
     L_C = emisVeg*met.CalcStephanBoltzmann(T_C)
     L_S = emisGrd*met.CalcStephanBoltzmann(T_S)
@@ -406,7 +405,6 @@ def CalcSnCampbell (LAI, sza, Sdn_dir, Sdn_dif, fvis,fnir, rho_leaf_vis,
         Pages 13-29, http://dx.doi.org/10.1016/S0168-1923(99)00005-2.
     '''
     
-    from math import radians, cos, sin, sqrt
     import numpy as np
     #calculate aborprtivity
     ameanv = 1.0-rho_leaf_vis-tau_leaf_vis
@@ -422,53 +420,53 @@ def CalcSnCampbell (LAI, sza, Sdn_dir, Sdn_dif, fvis,fnir, rho_leaf_vis,
     for angle in range(0,90,5):
         akd=CalcKbe_Campbell(angle,x_LAD) # Eq. 15.4
         taub=np.exp(-akd*LAI)
-        taud = taud+taub*cos(radians(angle))*sin(radians(angle))*radians(5)
+        taud = taud+taub*np.cos(np.radians(angle))*np.sin(np.radians(angle))*np.radians(5)
     taud=2.0*taud
     #D I F F U S E   C O M P O N E N T S
     #Diffuse light canopy reflection coefficients  for a deep canopy	
     #akd=-0.0683*log(LAI)+0.804                  # Fit to Fig 15.4 for x=1
     akd=-np.log(taud)/LAI
-    rcpyn=(1.0-sqrt(ameann))/(1.0+sqrt(ameann)) # Eq 15.7   
-    rcpyv=(1.0-sqrt(ameanv))/(1.0+sqrt(ameanv))
+    rcpyn=(1.0-np.sqrt(ameann))/(1.0+np.sqrt(ameann)) # Eq 15.7   
+    rcpyv=(1.0-np.sqrt(ameanv))/(1.0+np.sqrt(ameanv))
     rdcpyn=2.0*akd*rcpyn/(akd+1.0)              #Eq 15.8      
     rdcpyv=2.0*akd*rcpyv/(akd+1.0) 
     #Diffuse canopy transmission coeff (visible) 				
-    expfac = sqrt(ameanv)*akd*LAI
+    expfac = np.sqrt(ameanv)*akd*LAI
     xnum = (rdcpyv*rdcpyv-1.0)*np.exp(-expfac)
     xden = (rdcpyv*rsoilv-1.0)+rdcpyv*(rdcpyv-rsoilv)*np.exp(-2.0*expfac)
     taudv = xnum/xden                           #Eq 15.11
     #Diffuse canopy transmission coeff (NIR) 				
-    expfac = sqrt(ameann)*akd*LAI;
+    expfac = np.sqrt(ameann)*akd*LAI;
     xnum = (rdcpyn*rdcpyn-1.0)*np.exp(-expfac);
     xden = (rdcpyn*rsoiln-1.0)+rdcpyn*(rdcpyn-rsoiln)*np.exp(-2.0*expfac)
     taudn = xnum/xden                           #Eq 15.11
     #Diffuse radiation surface albedo for a generic canopy
-    fact=((rdcpyn-rsoiln)/(rdcpyn*rsoiln-1.0))*np.exp(-2.0*sqrt(ameann)*akd*LAI)   #Eq 15.9
+    fact=((rdcpyn-rsoiln)/(rdcpyn*rsoiln-1.0))*np.exp(-2.0*np.sqrt(ameann)*akd*LAI)   #Eq 15.9
     albdn=(rdcpyn+fact)/(1.0+rdcpyn*fact)
-    fact=((rdcpyv-rsoilv)/(rdcpyv*rsoilv-1.0))*np.exp(-2.0*sqrt(ameanv)*akd*LAI)   #Eq 15.9
+    fact=((rdcpyv-rsoilv)/(rdcpyv*rsoilv-1.0))*np.exp(-2.0*np.sqrt(ameanv)*akd*LAI)   #Eq 15.9
     albdv=(rdcpyv+fact)/(1.0+rdcpyv*fact)
     #B E A M   C O M P O N E N T S
     #Direct beam extinction coeff (spher. LAD)  
     akb=CalcKbe_Campbell(sza,x_LAD) # Eq. 15.4
     #Direct beam canopy reflection coefficients for a deep canopy
-    rcpyn=(1.0-sqrt(ameann))/(1.0+sqrt(ameann))                                 #Eq 15.7   
-    rcpyv=(1.0-sqrt(ameanv))/(1.0+sqrt(ameanv))
+    rcpyn=(1.0-np.sqrt(ameann))/(1.0+np.sqrt(ameann))                                 #Eq 15.7   
+    rcpyv=(1.0-np.sqrt(ameanv))/(1.0+np.sqrt(ameanv))
     rbcpyn=2.0*akb*rcpyn/(akb+1.0)                                              #Eq 15.8      
     rbcpyv=2.0*akb*rcpyv/(akb+1.0); 
-    fact=((rbcpyn-rsoiln)/(rbcpyn*rsoiln-1.0))*np.exp(-2.0*sqrt(ameann)*akb*LAI_eff)   #Eq 15.9
+    fact=((rbcpyn-rsoiln)/(rbcpyn*rsoiln-1.0))*np.exp(-2.0*np.sqrt(ameann)*akb*LAI_eff)   #Eq 15.9
     albbn=(rbcpyn+fact)/(1.0+rbcpyn*fact)
-    fact=((rbcpyv-rsoilv)/(rbcpyv*rsoilv-1.0))*np.exp(-2.0*sqrt(ameanv)*akb*LAI_eff)   #Eq 15.9
+    fact=((rbcpyv-rsoilv)/(rbcpyv*rsoilv-1.0))*np.exp(-2.0*np.sqrt(ameanv)*akb*LAI_eff)   #Eq 15.9
     albbv=(rbcpyv+fact)/(1.0+rbcpyv*fact)
     #Weighted average albedo 
     albedo_dir=fvis*albbv+fnir*albbn
     albedo_dif=fvis*albdv+fnir*albdn
     #Direct beam+scattered canopy transmission coeff (visible) 				
-    expfac = sqrt(ameanv)*akb*LAI_eff
+    expfac = np.sqrt(ameanv)*akb*LAI_eff
     xnum = (rbcpyv*rbcpyv-1.0)*np.exp(-expfac)
     xden = (rbcpyv*rsoilv-1.0)+rbcpyv*(rbcpyv-rsoilv)*np.exp(-2.0*expfac)
     taubtv = xnum/xden                                                          #Eq 15.11
     #Direct beam+scattered canopy transmission coeff (NIR) 				
-    expfac = sqrt(ameann)*akb*LAI_eff
+    expfac = np.sqrt(ameann)*akb*LAI_eff
     xnum = (rbcpyn*rbcpyn-1.0)*np.exp(-expfac)
     xden = (rbcpyn*rsoiln-1.0)+rbcpyn*(rbcpyn-rsoiln)*np.exp(-2.0*expfac)
     taubtn = xnum/xden                                                          #Eq 15.11
