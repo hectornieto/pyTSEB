@@ -21,15 +21,21 @@ from setuptools import setup
 
 PROJECT_ROOT = os.path.dirname(__file__)
 
+
 def read_file(filepath, root=PROJECT_ROOT):
     """
     Return the contents of the specified `filepath`.
-
     * `root` is the base path and it defaults to the `PROJECT_ROOT` directory.
     * `filepath` should be a relative path, starting from `root`.
     """
-    with open(os.path.join(root, filepath)) as fd:
-        text = fd.read()
+    try:
+        # Python 2.x
+        with open(os.path.join(root, filepath)) as fd:
+            text = fd.read()
+    except UnicodeDecodeError:
+        # Python 3.x
+        with open(os.path.join(root, filepath), encoding = "utf8") as fd:
+            text = fd.read()    
     return text
 
 
