@@ -68,6 +68,7 @@ import resistances as res
 import MOsimilarity as MO
 import netRadiation as rad
 import ClumpingIndex as CI
+import numpy as np
 #==============================================================================
 # List of constants used in TSEB model and sub-routines   
 #==============================================================================
@@ -225,6 +226,8 @@ def TSEB_2T(Tc,Ts,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
     '''
     
     import numpy as np
+    # Convert input float scalars to arrays and parameters size
+    CalcG[1] = _check_default_parameter_size(CalcG[1],Tc)
     
     # Create the output variables
     [flag, T_ac, S_nS, S_nC, L_nS,L_nC, LE_c,H_c,LE_s,H_s,G,R_s,R_x,R_a,u_friction, 
@@ -511,7 +514,9 @@ def  TSEB_PT(Tr_K,vza,Ta_K,u,ea,p,Sdn_dir, Sdn_dif, fvis,fnir,sza,Lsky,
     '''
     
     import numpy as np    
-    
+     # Convert input float scalars to arrays and parameters size
+    Tr_K = np.asarray(Tr_K)
+    CalcG[1] = _check_default_parameter_size(CalcG[1],Tr_K)
     # Create the output variables
     [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,R_s,R_x,R_a,
      u_friction, L, n_iterations, F]=[np.zeros(Tr_K.shape) for i in range(20)]
@@ -817,6 +822,8 @@ def  DTD(Tr_K_0,Tr_K_1,vza,Ta_K_0,Ta_K_1,u,ea,p,Sdn_dir,Sdn_dif, fvis,fnir,sza,
     '''
 
     import numpy as np    
+    # Convert input float scalars to arrays and parameters size
+    CalcG[1] = _check_default_parameter_size(CalcG[1],Tr_K_1)
     
     # Create the output variables
     [flag, Ts, Tc, T_AC,S_nS, S_nC, L_nS,L_nC, LE_C,H_C,LE_S,H_S,G,
@@ -1026,6 +1033,8 @@ def  OSEB(Tr_K,Ta_K,u,ea,p,Sdn,Lsky,emis,albedo,z_0M,d_0,zu,zt, CalcG=[1,0.35], 
     '''
 
     import numpy as np
+    # Convert input float scalars to arrays and parameters size
+    CalcG[1] = _check_default_parameter_size(CalcG[1],Tr_K)
 
     # Check if differential temperatures are to be used  
     if len(T0_K) == 2:
@@ -1649,3 +1658,16 @@ def CalcT_S_Series(Tr_K,Ta_K,R_a,R_x,R_s,f_theta,H_S,rho,c_p):
     T_ac=T_ac_lin+Delta_T_ac    
     T_s=T_ac+H_S*R_s/(rho*c_p)
     return [T_s,T_ac]
+
+def _check_default_parameter_size(parameter, input_array):
+
+    parameter = np.asarray(parameter)
+    if parameter.size == 1:
+        parameter = np.ones(input_array.shape) * parameter
+        return np.asarray(parameter)
+    elif parameter.shape != input_array.shape:
+        raise ValueError(
+            'dimension mismatch between parameter array and input array with shapes %s and %s' %
+            (parameter.shape, input_array.shape))
+    else:
+        return np.asarray(parameter)
