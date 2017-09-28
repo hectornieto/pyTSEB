@@ -48,6 +48,41 @@ In BibTeX format:
   Number                   = {7},
   Pages                    = {2809--2825},
   Volume                   = {17},
-
   Doi                      = {10.5194/hess-17-2809-2013}
 }
+
+If you use the Dual Angle inversion approach for obtaining canopy and soil temperature with 4SAIL you *must* cite the following paper
+
+Guzinski, R., Nieto, H., Stisen, S., & Fensholt, R. (2015) Inter-comparison of energy balance and hydrological models for land surface energy flux estimation over a whole river catchment, Hydrology and Earth System  Sciences, 19, 2017-2036. 
+
+In BibTeX format:
+
+@Article{Guzinski2015,
+  Title                    = {Inter-comparison of energy balance and hydrological models for land surface energy flux estimation over a whole river catchment},
+  Author                   = {Guzinski, R. and Nieto, H. and Stisen, S. and Fensholt, R.},
+  Journal                  = {Hydrology and Earth System Sciences},
+  Year                     = {2015},
+  Number                   = {4},
+  Pages                    = {2017--2036},
+  Volume                   = {19},
+  Doi                      = {10.5194/hess-19-2017-2015},
+  Url                      = {http://www.hydrol-earth-syst-sci.net/19/2017/2015/}
+}
+
+If you use different coefficients for the Kustas and Norman resistances you *must* cite the following paper.
+
+William P. Kustas, Hector Nieto, Laura Morillas, Martha C. Anderson, Joseph G. Alfieri, Lawrence E. Hipps, Luis Villagarcía, Francisco Domingo, Monica Garcia: Revisiting the paper “Using radiometric surface temperature for surface energy flux estimation in Mediterranean drylands from a two-source perspective”, Remote Sensing of Environment, In Press. doi:10.1016/j.rse.2016.07.024.
+
+In BibTeX format:
+
+@Article{Kustas2016,
+  Title                    = {Revisiting the paper “Using radiometric surface temperature for surface energy flux estimation in Mediterranean drylands from a two-source perspective” },
+  Author                   = {William P. Kustas and Hector Nieto and Laura Morillas and Martha C. Anderson and Joseph G. Alfieri and Lawrence E. Hipps and Luis Villagarcía and Francisco Domingo and Monica Garcia},
+  Journal                  = {Remote Sensing of Environment },
+  Year                     = {2016},
+  Pages                    = { - },
+  Doi                      = {http://dx.doi.org/10.1016/j.rse.2016.07.024},
+  ISSN                     = {0034-4257},
+  Url                      = {http://www.sciencedirect.com/science/article/pii/S0034425716302814}
+}
+

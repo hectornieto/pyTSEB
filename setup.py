@@ -21,10 +21,10 @@ from setuptools import setup
 
 PROJECT_ROOT = os.path.dirname(__file__)
 
-
 def read_file(filepath, root=PROJECT_ROOT):
     """
     Return the contents of the specified `filepath`.
+
     * `root` is the base path and it defaults to the `PROJECT_ROOT` directory.
     * `filepath` should be a relative path, starting from `root`.
     """
@@ -41,18 +41,14 @@ def read_file(filepath, root=PROJECT_ROOT):
 
 LONG_DESCRIPTION = read_file("README.md")
 SHORT_DESCRIPTION = "Two Source Energy Balance (TSEB) Models to estimate sensible and latent heat flux (evapotranspiration) from radiometric surface temperature data"
-REQS = [
-    'numpy>=1.10',
-    'gdal',
-    'bokeh'
-]
+REQS = ['numpy>=1.10', 'gdal', 'bokeh', 'pyPro4Sail', 'pandas', 'netCDF4']
 
 setup(
     name                  = "pyTSEB",
-    packages              = [''],
-    package_dir           = {'': 'src'},
+    packages              = ['pyTSEB'],
+    dependency_links      = ['http://github.com/hectornieto/pyPro4Sail/tarball/master#egg=pyPro4Sail-v1.0'],
     install_requires      = REQS,
-    version               = "1.3",
+    version               = "2.1",
     author                = "Hector Nieto",
     author_email          = "hector.nieto.solana@gmail.com",
     maintainer            = "Hector Nieto",

@@ -1,51 +1,52 @@
 # TSEB model to run: [TSEB_PT: Kustas and Norman 1999 Priestley-Taylor TSEB, DTD: Norman et al. 2003 Dual Time Differenced TSEB, TSEB_2T: Component temperatures TSEB (To be implemented the patched/parallel very high resolution TSEB]
-TSEB_MODEL=TSEB_PT
+model=TSEB_PT
 
 #==============================================================================
 # Input Files with full path (any valid gdal raster file is accepcted (not HDF or NetCDF!!!)
 # Use forward slash '/' for path separators, even using Windows
 #==============================================================================
-# Input land surface temperature in Kelvin # mandatory file
-#If running DTD the input LST should contain at least 2 bands: [band 1: LST at time 1, band 2: LST at time 0 (sunrise)]
-#If running TSEB_2A the input LST should contain at least 2 bands: [band 1: Canopy temperature, band 2: soil temperature]
 
-Input_LST=./Input/ExampleImage_Trad_pm_am.tif
+# Input land surface temperature in Kelvin # mandatory file
+# If running DTD both T_R0 (sunrise) and T_R1 inputs are required
+# If running TSEB_2A the input T_R1 should contain at least 2 bands: [band 1: Canopy temperature, band 2: soil temperature]
+T_R1=./Input/ExampleImage_Trad_pm.tif
+T_R0=./Input/ExampleImage_Trad_am.tif
 
 # View Zenith Angle (degrees) # Optional, type either a full-path file or a single value for a constant value acroos the area
-Input_VZA=0.0 
+VZA=0.0 
 
 # Processing Mask (boolean) # Optional, type a full-path file for processing only on non-masked pixels (all pixels with values > 0 in the mask image will be processed)
-USE_MASK=0
+input_mask=0
 
 # Effective Leaf Area Index (m2/m2) # Optional, type either a full-path file or a single value for a constant value acroos the area
-Input_LAI=./Input/ExampleImage_LAI.tif
+LAI=./Input/ExampleImage_LAI.tif
 
 # Vegetation Fractional Cover # Optional, type either a full-path file or a single value for a constant value acroos the area
-Input_Fc=./Input/ExampleImage_Fc.tif
+f_c=./Input/ExampleImage_Fc.tif
 
 # Canopy height (m)# Optional, type either a full-path file or a single value for a constant value along the area
-Input_Hc=2.4 
+h_C=2.4 
 
 # Canopy height/with ratio (wc/hc) # Optional, type either a full-path file or a single value for a constant value along the area
-Input_Wc=1 
+w_C=1 
 
 # Green Fraction # Optional, type either a full-path file or a single value for a constant value along the area
-Input_Fg=1
+f_g=1
  
 #==============================================================================
 # Output File
 #==============================================================================
 # full path to output directory, The output GeoTIFF files will be stored in that folder with a standard name : Output_<TSEB_MODEL>.tif and Output_<TSEB_MODEL>_ancillary.tif
-OutputFile=./Output/test_image.tif
+output_file=./Output/test_image.tif
 
 #==============================================================================
 # Site Description
 #==============================================================================
 lat=38.289355	
 lon=-121.117794
-altitude=97
+alt=97
 stdlon=-105.0
-z_t=5
+z_T=5
 z_u=5
 
 
@@ -53,36 +54,36 @@ z_u=5
 # Meteorology
 #==============================================================================
 DOY=221	
-Time=10.9992	
-Ta_0=291.11
-Ta_1=299.18
+time=10.9992	
+T_A0=291.11
+T_A1=./Input/ExampleImage_Ta.tif
 u=2.15
 p=1011
 ea=13.4
-Sdn=861.74
-Ldn=''
+S_dn=861.74
+L_dn=
 
 #==============================================================================
 # Canopy and Soil spectra
 #==============================================================================
-emisVeg=0.98 # leaf emissivity
-emisGrd=0.95 # soil emissivity
+emis_C=0.98 # leaf emissivity
+emis_S=0.95 # soil emissivity
 
-# Leaf spectral properties:{rho_leaf_vis: visible reflectance,tau_leaf_vis: visible transmittance, rho_leaf_nir: NIR reflectance, tau_leaf_nir: NIR transmittance}
-rhovis=0.07
-tauvis=0.08
-rhonir=0.32
-taunir=0.33 
+# Leaf spectral properties:{rho_vis_C: visible reflectance, tau_vis_C: visible transmittance, rho_nir_C: NIR reflectance, tau_nir_C: NIR transmittance}
+rho_vis_C=0.07
+tau_vis_C=0.08
+rho_nir_C=0.32
+tau_nir_C=0.33 
 
-# Leaf spectral properties:{rsoilv: visible reflectance, rsoiln: NIR reflectance}
-rsoilv=0.15
-rsoiln=0.25
+# Soil spectral properties:{rho_vis_S: visible reflectance, rho_nir_S: NIR reflectance}
+rho_vis_S=0.15
+rho_nir_S=0.25
 
 #==============================================================================
 # Canopy and soil parameters
 #==============================================================================
 # Initial value for Priestley Taylor canopy transpiration
-Max_alpha_PT=1.26 
+alpha_PT=1.26 
 
 # Cambpbell 1990 leaf inclination distribution parameter:[x_LAD=1 for spherical LIDF, x_LAD=0 for vertical LIDF, x_LAD=float(inf) for horzontal LIDF]  
 x_LAD=1 
@@ -90,14 +91,21 @@ x_LAD=1
 # Bare soil roughness lenght (m)
 z0_soil=0.01 
 
- # Primary land cover CROP=11, GRASS=2, SHRUB=5, CONIFER=4, BROADLEAVED=3
-LANDCOVER=3
+# Primary land cover IGBP Land Cover Type Classification: CROP=12, GRASS=10, SHRUB=6, CONIFER=1, BROADLEAVED=4
+landcover=4
 
 # leaf effective width (m)
 leaf_width=0.1 
 
-# Green fraction
-f_g=1
+
+#==============================================================================
+# Resistances
+#==============================================================================
+resistance_form=0   # Resistance formulations: 0 - Kustas & Norman 1999; 1 - Choudhury & Monteih 1998; 2 - McNaughton & Van der Hurk 1995
+KN_b=0.012          # Kustas & Norman formulation parameter
+KN_c=0.0025         # Kustas & Norman formulation parameter
+KN_C_dash=90       # Kustas & Norman formulation parameter
+
 
 #==============================================================================
 # Additional options
@@ -106,9 +114,9 @@ f_g=1
 #1: default, estimate G as a ratio of Rn_soil, default G_ratio=0.35
 #0: Use a constant G, usually use G_Constant=0 to ignore the computation of G
 #2: estimate G from Santanello and Friedl with GAmp the maximum ration amplitude, Gphase, the time shift between G and Rn (hours) and Gshape the typical diurnal shape (hours)
-CalcG=0
+G_form=1
 G_ratio=0.35
 G_constant=0
-GAmp=0.35
-Gphase=3
-Gshape=24
+G_amp=0.35
+G_phase=3
+G_shape=24
