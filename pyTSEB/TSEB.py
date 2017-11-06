@@ -127,8 +127,7 @@ def TSEB_2T(
     calcG_params=[
         [1],
         0.35],
-    UseL=False,
-    massman_profile=[0,[]]):
+    UseL=False):
     ''' TSEB using component canopy and soil temperatures.
 
     Calculates the turbulent fluxes by the Two Source Energy Balance model
@@ -340,14 +339,12 @@ def TSEB_2T(
         params = {k: res_params[k][i] for k in res_params.keys()}
         R_x_params = {"u_friction": u_friction[i], "h_C": h_C[i], "d_0": d_0[i],
                       "z_0M": z_0M[i], "L": L[i],  "LAI": LAI[i], 
-                      "leaf_width": leaf_width[i], "massman_profile": massman_profile,
-                      "res_params": params}
+                      "leaf_width": leaf_width[i], "res_params": params}
         R_S_params = {"u_friction": u_friction[i], "h_C": h_C[i], "d_0": d_0[i],
                       "z_0M": z_0M[i], "L": L[i], "F": F[i], "omega0": omega0[i], 
                        "LAI": LAI[i], "leaf_width": leaf_width[i], 
                        "z0_soil": z0_soil[i], "z_u": z_u[i],  
-                       "deltaT": T_S[i] - T_C[i], "massman_profile": massman_profile,
-                       "res_params": params}
+                       "deltaT": T_S[i] - T_C[i], "res_params": params}
         res_types = {"R_A": R_A_params, "R_x": R_x_params, "R_S": R_S_params}
         R_A[i], R_x[i], R_S[i] = calc_resistances(resistance_form, res_types)
 
@@ -450,8 +447,7 @@ def TSEB_PT(
     calcG_params=[
         [1],
         0.35],
-    UseL=False,
-    massman_profile=[0,[]]):
+    UseL=False):
     '''Priestley-Taylor TSEB
 
     Calculates the Priestley Taylor TSEB fluxes using a single observation of
@@ -706,14 +702,13 @@ def TSEB_PT(
             params = {k: res_params[k][i] for k in res_params.keys()}
             R_x_params = {"u_friction": u_friction[i], "h_C": h_C[i], "d_0": d_0[i],
                           "z_0M": z_0M[i], "L": L[i], "F": F[i], "LAI": LAI[i], 
-                          "leaf_width": leaf_width[i], "massman_profile": massman_profile, 
-                          "res_params": params}
+                          "leaf_width": leaf_width[i], "res_params": params}
             R_S_params = {"u_friction": u_friction[i], "h_C": h_C[i], "d_0": d_0[i],
                           "z_0M": z_0M[i], "L": L[i], "F": F[i], "omega0": omega0[i], 
                            "LAI": LAI[i], "leaf_width": leaf_width[i],  
                            "z0_soil": z0_soil[i], "z_u": z_u[i],
-                            "deltaT": T_S[i] - T_C[i], "massman_profile": massman_profile, 
-                            'u':u[i],'rho':rho[i], 'c_p':c_p[i], 'f_cover':f_c[i], 'w_C':w_C[i],
+                            "deltaT": T_S[i] - T_C[i], 'u':u[i],'rho':rho[i], 
+                            'c_p':c_p[i], 'f_cover':f_c[i], 'w_C':w_C[i],
                             "res_params": params}
             res_types = {"R_A": R_A_params, "R_x": R_x_params, "R_S": R_S_params}
             R_A[i], R_x[i], R_S[i] = calc_resistances(resistance_form, res_types)
@@ -748,8 +743,8 @@ def TSEB_PT(
                           "z_0M": z_0M[i], "L": L[i], "F": F[i], "omega0": omega0[i],  
                           "LAI": LAI[i], "leaf_width": leaf_width[i], 
                            "z0_soil": z0_soil[i],  "z_u": z_u[i], 
-                           "deltaT": T_S[i] - T_C[i], "massman_profile": massman_profile,
-                           'u':u[i],'rho':rho[i], 'c_p':c_p[i], 'f_cover':f_c[i], 'w_C':w_C[i],"res_params": params}
+                           "deltaT": T_S[i] - T_C[i], 'u':u[i],'rho':rho[i], 
+                           'c_p':c_p[i], 'f_cover':f_c[i], 'w_C':w_C[i],"res_params": params}
             _, _, R_S[i] = calc_resistances(resistance_form, {"R_S": R_S_params})
 
             i = np.logical_and.reduce(
@@ -873,8 +868,7 @@ def DTD(
     calcG_params=[
         [1],
         0.35],
-    calc_Ri=True,
-    massman_profile=[0,[]]):
+    calc_Ri=True):
     ''' Calculate daytime Dual Time Difference TSEB fluxes
 
     Parameters
@@ -1098,16 +1092,14 @@ def DTD(
     params = {k: res_params[k] for k in res_params.keys()}
     R_x_params = {"u_friction": u_friction, "h_C": h_C, "d_0": d_0,
                   "z_0M": z_0M, "L": L_from_Ri, "F": F, "LAI": LAI, 
-                  "leaf_width": leaf_width, "massman_profile": massman_profile,
-                  "res_params": params}
+                  "leaf_width": leaf_width, "res_params": params}
     # based on equation from Guzinski et. al., 2015
     deltaT = (Tr_K_1 - Tr_K_0) - (T_A_K_1 - T_A_K_0)
     R_S_params = {"u_friction": u_friction, "h_C": h_C, "d_0": d_0,
                   "z_0M": z_0M, "L": L_from_Ri, "F": F,   
                   "omega0": omega0, "LAI": LAI,   
                   "leaf_width": leaf_width, "z0_soil": z0_soil, "z_u": z_u, 
-                  "deltaT": deltaT, "massman_profile": massman_profile, 
-                  "res_params": params}
+                  "deltaT": deltaT, "res_params": params}
     res_types = {"R_A": R_A_params, "R_x": R_x_params, "R_S": R_S_params}
     R_A, R_x, R_S = calc_resistances(resistance_form, res_types)
 
@@ -1227,8 +1219,7 @@ def DTD(
                           "z_0M": z_0M[i], "L": L_from_Ri[i], "F": F[i], "omega0": omega0[i],  
                           "LAI": LAI[i], "leaf_width": leaf_width[i], 
                            "z0_soil": z0_soil[i],  "z_u": z_u[i], 
-                           "deltaT": deltaT, "massman_profile": massman_profile, 
-                           "res_params": params}
+                           "deltaT": deltaT, "res_params": params}
             _, _, R_S[i] = calc_resistances(resistance_form, {"R_S": R_S_params})
             
         T_C_diff = np.asarray(np.fabs(T_C - T_C_prev))
@@ -2433,11 +2424,10 @@ def calc_resistances(res_form, res_types):
         R_A Parameters: 'z_T', 'u_friction', 'L', 'd_0', 'z_0H'
         Key: R_x
         R_x Parameters: 'u_friction', 'h_C', 'd_0', 'z_0M', 'L', 'F', 'LAI', 
-                        'leaf_width', 'massman_profile' 'res_params'
+                        'leaf_width', 'res_params'
         Key: R_S
         R_S Parameters: 'u_friction', 'h_C', 'd_0', 'z_0M', 'L', 'omega0', 'F',
-                        'leaf_width', 'z0_soil', 'z_u', 'deltaT', 
-                        'massman_profile', 'res_params'
+                        'leaf_width', 'z0_soil', 'z_u', 'deltaT', 'res_params'
     
     Returns
     -------
@@ -2468,19 +2458,18 @@ def calc_resistances(res_form, res_types):
     else:
         calc_R_A = False
     if 'R_x' in res_types.keys():
-        u_friction, h_C, d_0, z_0M, L, F, LAI, leaf_width, massman_profile, res_params = \
+        u_friction, h_C, d_0, z_0M, L, F, LAI, leaf_width, res_params = \
             [res_types['R_x'].get(k) for k in ['u_friction', 'h_C', 'd_0', 'z_0M', 
-                                               'L', 'F', 'LAI', 'leaf_width', 
-                                               'massman_profile', 'res_params']]
+                                               'L', 'F', 'LAI', 'leaf_width', 'res_params']]
         calc_R_x = True
     else:
         calc_R_x = False
     if 'R_S' in res_types.keys():
-        u_friction, h_C, d_0, z_0M, L, omega0, F, leaf_width, z0_soil, z_u, deltaT, massman_profile, u, rho, c_p, f_cover, w_C, res_params = \
+        u_friction, h_C, d_0, z_0M, L, omega0, F, leaf_width, z0_soil, z_u, deltaT, u, rho, c_p, f_cover, w_C, res_params = \
             [res_types['R_S'].get(k) for k in ['u_friction', 'h_C', 'd_0', 'z_0M', 
                                                'L', 'omega0', 'F', 'leaf_width',
                                                'z0_soil', 'z_u', 'deltaT', 
-                                               'massman_profile','u','rho', 'c_p', 'f_cover', 'w_C', 'res_params']]
+                                               'u','rho', 'c_p', 'f_cover', 'w_C', 'res_params']]
         
         calc_R_S = True
     else:
@@ -2494,12 +2483,8 @@ def calc_resistances(res_form, res_types):
     if res_form == KUSTAS_NORMAN_1999:
         if calc_R_x:
             u_C = wnd.calc_u_C_star(u_friction, h_C, d_0, z_0M, L) 
-            # Wind speed is highly attenuated within the canopy volume
-            if massman_profile[0] == 0:            
-                u_d_zm = wnd.calc_u_Goudriaan(u_C, h_C, F, leaf_width, d_0+z_0M)
-            else:
-                print("Massman wind profile is not implemented! Using Goudriaan wind profile.")
-                u_d_zm = wnd.calc_u_Goudriaan(u_C, h_C, F, leaf_width, d_0+z_0M)
+            # Wind speed is highly attenuated within the canopy volume          
+            u_d_zm = wnd.calc_u_Goudriaan(u_C, h_C, F, leaf_width, d_0+z_0M)
             # Vegetation in series with soil, i.e. well mixed, so we use
             # the landscape LAI
             R_x = res.calc_R_x_Norman(LAI, leaf_width, u_d_zm, res_params)
@@ -2507,11 +2492,7 @@ def calc_resistances(res_form, res_types):
             if u_C is None:
                 u_C = wnd.calc_u_C_star(u_friction, h_C, d_0, z_0M, L) 
             # Clumped vegetation enhanced wind speed for the soil surface
-            if massman_profile[0] == 0:
-                u_S = wnd.calc_u_Goudriaan(u_C, h_C, omega0 * F, leaf_width, z0_soil)
-            else:
-                print("Massman wind profile is not implemented! Using Goudriaan wind profile.")
-                u_d_zm = wnd.calc_u_Goudriaan(u_C, h_C, F, leaf_width, d_0+z_0M)
+            u_S = wnd.calc_u_Goudriaan(u_C, h_C, omega0 * F, leaf_width, z0_soil)
             R_S = res.calc_R_S_Kustas(u_S, deltaT, params = res_params)
     
     elif res_form == CHOUDHURY_MONTEITH_1988:
@@ -2548,11 +2529,7 @@ def calc_resistances(res_form, res_types):
         if calc_R_x:
             u_C = wnd.calc_u_C_star(u_friction, h_C, d_0, z_0M, L) 
             # Wind speed is highly attenuated within the canopy volume
-            if massman_profile[0] == 0:            
-                u_d_zm = wnd.calc_u_Goudriaan(u_C, h_C, F, leaf_width, d_0+z_0M)
-            else:
-                print("Massman wind profile is not implemented! Using Goudriaan wind profile.")
-                u_d_zm = wnd.calc_u_Goudriaan(u_C, h_C, F, leaf_width, d_0+z_0M)
+            u_d_zm = wnd.calc_u_Goudriaan(u_C, h_C, F, leaf_width, d_0+z_0M)
             # Vegetation in series with soil, i.e. well mixed, so we use
             # the landscape LAI
             R_x = res.calc_R_x_Norman(LAI, leaf_width, u_d_zm, res_params)
