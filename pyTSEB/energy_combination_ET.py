@@ -8,10 +8,6 @@ Created on Thu Nov  9 11:58:34 2017
 from pyTSEB import TSEB 
 import numpy as np
 
-# Leaf stomata distribution
-AMPHISTOMATOUS = 2
-HYPOSTOMATOUS = 1
-
 #==============================================================================
 # List of constants used in TSEB model and sub-routines
 #==============================================================================
@@ -22,7 +18,7 @@ u_friction_min = 0.01
 # Maximum number of interations
 ITERATIONS = 100
 # kB coefficient
-kB = 2.0
+kB = 2.3
 
 def penman_monteith(T_A_K, 
                     u, 
@@ -39,9 +35,84 @@ def penman_monteith(T_A_K,
                     calcG_params=[
                         [1],
                         0.35],
+                    UseL=False,
                     Rst_min=100,
-                    leaf_type=AMPHISTOMATOUS,
-                    environmental_factors=None):
+                    leaf_type=TSEB.res.AMPHISTOMATOUS,
+                    environmental_factors=1):
+    
+    '''Penman Monteith [Allen1998]_ energy combination model.
+    Calculates the Penman Monteith one source fluxes using meteorological and crop data.
+
+    Parameters
+    ----------
+    T_A_K : float
+        Air temperature (Kelvin).
+    u : float
+        Wind speed above the canopy (m s-1).
+    ea : float
+        Water vapour pressure above the canopy (mb).
+    p : float
+        Atmospheric pressure (mb), use 1013 mb by default.
+    Sn : float
+        Net shortwave radiation (W m-2).
+    L_dn : float
+        Downwelling longwave radiation (W m-2).
+    emis : float
+        Surface emissivity.
+    LAI : float
+        Effective Leaf Area Index (m2 m-2).
+    z_0M : float
+        Aerodynamic surface roughness length for momentum transfer (m).
+    d_0 : float
+        Zero-plane displacement height (m).
+    z_u : float
+        Height of measurement of windspeed (m).
+    z_T : float
+        Height of measurement of air temperature (m).
+    calcG_params : list[list,float or array], optional
+        Method to calculate soil heat flux,parameters.
+
+            * [[1],G_ratio]: default, estimate G as a ratio of Rn_S, default Gratio=0.35.
+            * [[0],G_constant] : Use a constant G, usually use 0 to ignore the computation of G.
+            * [[2,Amplitude,phase_shift,shape],time] : estimate G from Santanello and Friedl with G_param list of parameters (see :func:`~TSEB.calc_G_time_diff`).
+    UseL : float or None, optional
+        If included, its value will be used to force the Moning-Obukhov stability length.
+    Rst_min : float
+        Minimum (unstress) single-leaf stomatal coductance (s m -1), Default = 100 s m-1
+    leaf_type : int
+        1: Hipostomatous leaves (stomata only in one side of the leaf)
+        2: Amphistomatous leaves (stomata in both sides of the leaf)
+    environmental_factors : float [0-1]
+        Correction factor for stomatal conductance in case of biotic (water) or abiotic (atmospheric) stress. Default = 1.
+
+    Returns
+    -------
+    flag : int
+        Quality flag, see Appendix for description.
+    L_n : float
+        Net longwave radiation (W m-2)
+    LE : float
+        Latent heat flux (W m-2).
+    H : float
+        Sensible heat flux (W m-2).
+    G : float
+        Soil heat flux (W m-2).
+    R_A : float
+        Aerodynamic resistance to heat transport (s m-1).
+    u_friction : float
+        Friction velocity (m s-1).
+    L : float
+        Monin-Obuhkov length (m).
+    n_iterations : int
+        number of iterations until convergence of L.
+
+    References
+    ----------
+    .. [Allen1998] R.G. Allen, L.S. Pereira, D. Raes, M. Smith. Crop 
+        Evapotranspiration (guidelines for computing crop water requirements), 
+        FAO Irrigation and Drainage Paper No. 56. 1998
+
+    '''
     
     # Convert float scalars into numpy arrays and check parameters size
     T_A_K = np.asarray(T_A_K)
@@ -93,10 +164,16 @@ def penman_monteith(T_A_K,
     R_c=bulk_stomatal_conductance(LAI, 
                                   Rst_min, 
                                   leaf_type=leaf_type, 
-                                  environmental_factors=environmental_factors)
+                                  environmental_factors=1)
 
     # iteration of the Monin-Obukhov length
-    L = np.asarray(np.zeros(T_A_K.shape) + np.inf)
+    if isinstance(UseL, bool):
+        # Initially assume stable atmospheric conditions and set variables for
+        L = np.asarray(np.zeros(T_A_K.shape) + np.inf)
+        max_iterations = ITERATIONS
+    else:  # We force Monin-Obukhov lenght to the provided array/value
+        L = np.asarray(np.ones(T_A_K.shape) * UseL)
+        max_iterations = 1  # No iteration
     u_friction = TSEB.MO.calc_u_star(u, z_u, L, d_0, z_0M)
     u_friction = np.asarray(np.maximum(u_friction_min, u_friction))
 
@@ -113,14 +190,13 @@ def penman_monteith(T_A_K,
     i = np.ones(Rn.shape, dtype=bool)
     G[i] = TSEB.calc_G([calcG_params[0], calcG_array], Rn, i)
     
-    for n_iterations in range(ITERATIONS):
+    for n_iterations in range(max_iterations):
    
         if np.all(L_diff < L_thres):
-            print("Finished interation with a max. L diff: " + str(np.max(L_diff)))
+            #print("Finished interation with a max. L diff: " + str(np.max(L_diff)))
             break
         
-        print("Iteration " + str(n_iterations) +
-              ", max. L diff: " + str(np.max(L_diff)))
+        #print("Iteration " + str(n_iterations) + , max. L diff: " + str(np.max(L_diff)))
 
         i = np.logical_and(L_diff >= L_thres, flag != 255)
         iterations[i] = n_iterations
@@ -135,22 +211,23 @@ def penman_monteith(T_A_K,
         H[i]=Rn[i]-G[i]-LE[i]
         # Now L can be recalculated and the difference between iterations
         # derived
-        L[i] = TSEB.MO.calc_L(
-                u_friction[i],
-                T_A_K[i],
-                rho_a[i],
-                Cp[i],
-                H[i],
-                LE[i])
-        L_diff = np.asarray(np.fabs(L - L_old) / np.fabs(L_old))
-        L_diff[np.isnan(L_diff)] = np.inf
-        L_old = np.array(L)
-        L_old[L_old == 0] = 1e-36
-
-        # Calculate again the friction velocity with the new stability
-        # correctios
-        u_friction[i] = TSEB.MO.calc_u_star(u[i], z_u[i], L[i], d_0[i], z_0M[i])
-        u_friction = np.asarray(np.maximum(u_friction_min, u_friction))
+        if isinstance(UseL, bool):
+            L[i] = TSEB.MO.calc_L(
+                        u_friction[i],
+                        T_A_K[i],
+                        rho_a[i],
+                        Cp[i],
+                        H[i],
+                        LE[i])
+            L_diff = np.asarray(np.fabs(L - L_old) / np.fabs(L_old))
+            L_diff[np.isnan(L_diff)] = np.inf
+            L_old = np.array(L)
+            L_old[L_old == 0] = 1e-36
+    
+            # Calculate again the friction velocity with the new stability
+            # correctios
+            u_friction[i] = TSEB.MO.calc_u_star(u[i], z_u[i], L[i], d_0[i], z_0M[i])
+            u_friction = np.asarray(np.maximum(u_friction_min, u_friction))
 
     flag, Ln, LE, H, G, R_A, u_friction, L, n_iterations = map(
         np.asarray, (flag, Ln, LE, H, G, R_A, u_friction, L, n_iterations))
@@ -183,9 +260,133 @@ def shuttleworth_wallace(T_A_K,
                          calcG_params=[
                                 [1],
                                 0.35],
+                         UseL=False,
                          massman_profile=[0,[]],
-                         leaf_type=AMPHISTOMATOUS,
-                         environmental_factors=None):
+                         leaf_type=TSEB.res.AMPHISTOMATOUS,
+                         environmental_factors=1):
+                             
+    '''Shuttleworth and Wallace [Shuttleworth1995]_ dual source energy combination model.
+    Calculates turbulent fluxes using meteorological and crop data for a 
+    dual source system in series.
+    
+    T_A_K : float
+        Air temperature (Kelvin).
+    u : float
+        Wind speed above the canopy (m s-1).
+    ea : float
+        Water vapour pressure above the canopy (mb).
+    p : float
+        Atmospheric pressure (mb), use 1013 mb by default.
+    Sn_C : float
+        Canopy net shortwave radiation (W m-2).
+    Sn_S : float
+        Soil net shortwave radiation (W m-2).
+    L_dn : float
+        Downwelling longwave radiation (W m-2).
+    LAI : float
+        Effective Leaf Area Index (m2 m-2).
+    h_C : float
+        Canopy height (m).
+    emis_C : float
+        Leaf emissivity.
+    emis_S : flaot
+        Soil emissivity.
+    z_0M : float
+        Aerodynamic surface roughness length for momentum transfer (m).
+    d_0 : float
+        Zero-plane displacement height (m).
+    z_u : float
+        Height of measurement of windspeed (m).
+    z_T : float
+        Height of measurement of air temperature (m).
+    leaf_width : float, optional
+        average/effective leaf width (m).
+    z0_soil : float, optional
+        bare soil aerodynamic roughness length (m).
+    x_LAD : float, optional
+        Campbell 1990 leaf inclination distribution function chi parameter.
+    f_c : float, optional
+        Fractional cover.
+    w_C : float, optional
+        Canopy width to height ratio.
+    Rst_min : float
+        Minimum (unstress) single-leaf stomatal coductance (s m -1), 
+        Default = 100 s m-1
+    Rss : float
+        Resistance to water vapour transport in the soil surface (s m-1), 
+        Default = 500 s m-1 (moderately dry soil)
+    resistance_form : int, optional
+        Flag to determine which Resistances R_x, R_S model to use.
+
+            * 0 [Default] Norman et al 1995 and Kustas et al 1999.
+            * 1 : Choudhury and Monteith 1988.
+            * 2 : McNaughton and Van der Hurk 1995.
+            * 4 : Haghighi and Orr 2015
+
+    calcG_params : list[list,float or array], optional
+        Method to calculate soil heat flux,parameters.
+
+            * [[1],G_ratio]: default, estimate G as a ratio of Rn_S, default Gratio=0.35.
+            * [[0],G_constant] : Use a constant G, usually use 0 to ignore the computation of G.
+            * [[2,Amplitude,phase_shift,shape],time] : estimate G from Santanello and Friedl with G_param list of parameters (see :func:`~TSEB.calc_G_time_diff`).
+            
+    UseL : float or None, optional
+        If included, its value will be used to force the Moning-Obukhov stability length.
+    leaf_type : int
+        1: Hipostomatous leaves (stomata only in one side of the leaf)
+        2: Amphistomatous leaves (stomata in both sides of the leaf)
+    environmental_factors : float [0-1]
+        Correction factor for stomatal conductance in case of biotic (water) or abiotic (atmospheric) stress. Default = 1.
+
+    Returns
+    -------
+    flag : int
+        Quality flag, see Appendix for description.
+    T_S : float
+        Soil temperature  (Kelvin).
+    T_C : float
+        Canopy temperature  (Kelvin).
+    vpd_0 : float
+        Water pressure deficit at the canopy interface (mb).
+    L_nS : float
+        Soil net longwave radiation (W m-2)
+    L_nC : float
+        Canopy net longwave radiation (W m-2)
+    LE : float
+        Latent heat flux (W m-2).
+    H : float
+        Sensible heat flux (W m-2).
+    LE_C : float
+        Canopy latent heat flux (W m-2).
+    H_C : float
+        Canopy sensible heat flux (W m-2).
+    LE_S : float
+        Soil latent heat flux (W m-2).
+    H_S : float
+        Soil sensible heat flux (W m-2).
+    G : float
+        Soil heat flux (W m-2).
+    R_S : float
+        Soil aerodynamic resistance to heat transport (s m-1).
+    R_x : float
+        Bulk canopy aerodynamic resistance to heat transport (s m-1).
+    R_A : float
+        Aerodynamic resistance to heat transport (s m-1).
+    u_friction : float
+        Friction velocity (m s-1).
+    L : float
+        Monin-Obuhkov length (m).
+    n_iterations : int
+        number of iterations until convergence of L.
+
+    References
+    ----------
+    .. [Shuttleworth1995] W.J. Shuttleworth, J.S. Wallace, Evaporation from 
+        sparse crops - an energy combinatino theory, 
+        Quarterly Journal of the Royal Meteorological Society , Volume 111, Issue 469,
+        Pages 839-855,
+        http://dx.doi.org/10.1002/qj.49711146910.
+    '''
     
     # Convert float scalars into numpy arrays and check parameters size
     T_A_K = np.asarray(T_A_K)
@@ -268,7 +469,14 @@ def shuttleworth_wallace(T_A_K,
     
     # Initially assume stable atmospheric conditions and set variables for
     # iteration of the Monin-Obukhov length
-    L = np.asarray(np.zeros(T_A_K.shape) + np.inf)
+    # iteration of the Monin-Obukhov length
+    if isinstance(UseL, bool):
+        # Initially assume stable atmospheric conditions and set variables for
+        L = np.asarray(np.zeros(T_A_K.shape) + np.inf)
+        max_iterations = ITERATIONS
+    else:  # We force Monin-Obukhov lenght to the provided array/value
+        L = np.asarray(np.ones(T_A_K.shape) * UseL)
+        max_iterations = 1  # No iteration
     u_friction = TSEB.MO.calc_u_star(u, z_u, L, d_0, z_0M)
     u_friction = np.asarray(np.maximum(u_friction_min, u_friction))
     L_old = np.ones(T_A_K.shape)
@@ -283,14 +491,13 @@ def shuttleworth_wallace(T_A_K,
     Ln_S=Ln*np.exp(-0.95 * LAI)
     Ln_C=Ln-Ln_S
 
-    for n_iterations in range(ITERATIONS):
+    for n_iterations in range(max_iterations):
    
         if np.all(L_diff < L_thres):
-            print("Finished interation with a max. L diff: " + str(np.max(L_diff)))
+            #print("Finished interation with a max. L diff: " + str(np.max(L_diff)))
             break
         
-        print("Iteration " + str(n_iterations) +
-              ", max. L diff: " + str(np.max(L_diff)))
+        #print("Iteration " + str(n_iterations) +", max. L diff: " + str(np.max(L_diff)))
 
         i = np.logical_and(L_diff >= L_thres, flag != 255)
         iterations[i] = n_iterations
@@ -331,18 +538,18 @@ def shuttleworth_wallace(T_A_K,
         # Compute Soil Heat Flux Ratio
         G[i] = TSEB.calc_G([calcG_params[0], calcG_array], Rn_S, i)
         
-        # Eq. 12 in Shuttleworth & Wallace 1985
+        # Eq. 12 in [Shuttleworth1988]_
         PM_C = (delta[i]*(Rn[i]-G[i])+(rho_cp[i]*vpd[i]-delta[i]*R_x[i]*(Rn_S[i]-G[i]))/(R_A[i]+R_x[i]))/\
             (delta[i]+psicr[i]*(1.+R_c[i]/(R_A[i]+R_x[i])))
-        # Eq. 13 in Shuttleworth & Wallace 1985
+        # Eq. 13 in [Shuttleworth1988]_
         PM_S = (delta[i]*(Rn[i]-G[i])+(rho_cp[i]*vpd[i]-delta[i]*R_S[i]*Rn_C[i])/(R_A[i]+R_S[i]))/\
             (delta[i]+psicr[i]*(1.+R_ss[i]/(R_A[i]+R_S[i])))
-        # Eq. 11 in Shuttleworth & Wallace 1985
+        # Eq. 11 in [Shuttleworth1988]_
         LE[i] = C_c*PM_C+C_s*PM_S
         H[i] = Rn[i]-G[i]-LE[i]
         
         # Compute canopy and soil  fluxes
-        #Vapor pressure deficit at canopy source height (mb) # Eq. 8 in Shuttleworth & Wallace 1985
+        #Vapor pressure deficit at canopy source height (mb) # Eq. 8 in [Shuttleworth1988]_
         vpd_0[i]=vpd[i]+(delta[i]*(Rn[i]-G[i])-(delta[i]+psicr[i])*LE[i])*R_A[i]/(rho_cp[i])
         # Eq. 9 in Shuttleworth & Wallace 1985
         LE_S[i]=(delta[i]*(Rn_S[i]-G[i])+rho_cp[i]*vpd_0[i]/R_S[i])/\
@@ -360,22 +567,23 @@ def shuttleworth_wallace(T_A_K,
         
         # Now L can be recalculated and the difference between iterations
         # derived
-        L[i] = TSEB.MO.calc_L(
-                u_friction[i],
-                T_A_K[i],
-                rho_a[i],
-                Cp[i],
-                H[i],
-                LE[i])
-        L_diff = np.asarray(np.fabs(L - L_old) / np.fabs(L_old))
-        L_diff[np.isnan(L_diff)] = np.inf
-        L_old = np.array(L)
-        L_old[L_old == 0] = 1e-36
+        if isinstance(UseL, bool):
+            L[i] = TSEB.MO.calc_L(
+                    u_friction[i],
+                    T_A_K[i],
+                    rho_a[i],
+                    Cp[i],
+                    H[i],
+                    LE[i])
+            L_diff = np.asarray(np.fabs(L - L_old) / np.fabs(L_old))
+            L_diff[np.isnan(L_diff)] = np.inf
+            L_old = np.array(L)
+            L_old[L_old == 0] = 1e-36
 
-        # Calculate again the friction velocity with the new stability
-        # correctios
-        u_friction[i] = TSEB.MO.calc_u_star(u[i], z_u[i], L[i], d_0[i], z_0M[i])
-        u_friction = np.asarray(np.maximum(u_friction_min, u_friction))
+            # Calculate again the friction velocity with the new stability
+            # correctios
+            u_friction[i] = TSEB.MO.calc_u_star(u[i], z_u[i], L[i], d_0[i], z_0M[i])
+            u_friction = np.asarray(np.maximum(u_friction_min, u_friction))
     
     (flag,
      T_S,
@@ -414,50 +622,152 @@ def shuttleworth_wallace(T_A_K,
     
     return flag, T_S, T_C, vpd_0, Ln_S, Ln_C, LE, H, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A, u_friction, L, n_iterations
         
-def bulk_stomatal_conductance(LAI, Rst, leaf_type=AMPHISTOMATOUS, environmental_factors=None):
-    f_vpd=1.
-    f_temp=1.
-    f_rad=1.
-    f_stress=1.
-    if type(environmental_factors)!=type(None):
-        f_vpd=vpd_factor_Noilhan(environmental_factors[0], environmental_factors[1], g_vpd=0.025)
-        f_temp=temp_factor_Noilhan(environmental_factors[0])
-        if len(environmental_factors[0])>2:
-            f_rad=environmental_factors[3]
-            if len(environmental_factors[0])==4:
-                f_stress=environmental_factors[4]
+def bulk_stomatal_conductance(LAI, Rst, leaf_type=TSEB.res.AMPHISTOMATOUS, environmental_factors=1):
+    ''' Calculate the bulk canopy stomatal conductance.
+    
+    Parameters
+    ----------
+    LAI : float
+        Leaf Area Index (m2 m-2).
+    Rst_min : float
+        Minimum (unstressed) single-leaf stomatal coductance (s m -1), 
+        Default = 100 s m-1
+    leaf_type : int
+        1: Hipostomatous leaves (stomata only in one side of the leaf)
+        2: Amphistomatous leaves (stomata in both sides of the leaf)
+    environmental_factors : float [0-1]
+        Correction factor for stomatal conductance in case of biotic (water) 
+        or abiotic (atmospheric) stress. Default = 1.
 
-    factor=f_vpd*f_temp*f_rad*f_stress
-    R_c=Rst/(leaf_type*LAI*factor)
+    Returns
+    -------
+    R_c : float
+        Canopy bulk stomatal conductance (s m-1)
+    '''
+    
+    R_c=Rst/(leaf_type*LAI*environmental_factors)
     return np.asarray(R_c)
 
 def vpd_factor_Noilhan(T_A_K, ea, g_vpd=0.025):
-    es=TSEB.met.calc_vapor_pressure(T_A_K)
+    ''' Estimate stomatal stress due to vapour pressure deficit based on [Noilhan]_
+    
+    Parameteers
+    -----------
+    T_A_K : float
+        Air temperature (Kelvin).
+    ea : float
+        Water vapour pressure above the canopy (mb).
+    g_vdp : float
+        Empirical scale coefficient, use 0.025 mb-1 by default.
+    
+    Returns
+    -------
+    f : float 
+        Reduction factor in stomatal conductance [0-1]
+        
+    References
+    ----------
+    .. [Noilhan1989] J. Noilhan, S. Planton, A simple parameterization of
+        land surface processes for meteorological models, 
+        Monthly Weather Review , Volume 117, 1989,
+        Pages 536-549,
+        https://doi.org/10.1175/1520-0493(1989)117<0536:ASPOLS>2.0.CO;2.
+    '''
+    
+    es=TSEB.met.calc_vapor_pressure(T_A_K) # Calculate the saturation vapour pressure
     f=1.-g_vpd*(es-ea)
-    f=np.clip(f,0,1)
+    f=np.clip(f,0,1) # Ensure that the reduction factor lies between 0 and 1
     return f
 
 def temp_factor_Noilhan(T_A_K):
-    f=1.-0.0016*(298-T_A_K)**2
-    f=np.clip(f,0,1)
-    return f
+    ''' Estimate stomatal stress due to temperature based on [Noilhan]_
     
+    Parameteers
+    -----------
+    T_A_K : float
+        Air temperature (Kelvin).
+    
+    Returns
+    -------
+    f : float 
+        Reduction factor in stomatal conductance [0-1]
+        
+    References
+    ----------
+    .. [Noilhan1989] J. Noilhan, S. Planton, A simple parameterization of
+        land surface processes for meteorological models, 
+        Monthly Weather Review , Volume 117, 1989,
+        Pages 536-549,
+        https://doi.org/10.1175/1520-0493(1989)117<0536:ASPOLS>2.0.CO;2.
+    '''
+    
+    f=1.-0.0016*(298-T_A_K)**2
+    f=np.clip(f,0,1) # Ensure that the reduction factor lies between 0 and 1
+    return f
 
 def calc_T(H, T_A, R, rho_a, Cp):
+    ''' Calculate skin temperature by inversion of the equation for sensible heat transport
+    
+    Parameters
+    ----------
+    H : float
+        Sensible heat flux (W m-2)
+    T_A : float
+        Air temperature (K)
+    R : float
+        Aerodynamic resistance (s m-1)
+    rho_a : float
+        Density of air (kg m-3)
+    Cp : float
+        Heat capacity of air at constant pressure (J kg-1 K-1)
+    
+    '''
     
     T=T_A+H*R/(rho_a*Cp)
     return T
-    
 
 def calc_effective_resistances_SW(R_A, R_x, R_S, R_c, R_ss, delta, psicr):
+    ''' Calculate effective resistances to water vapour transport and soil 
+    and canopy contributions in ET for [Shuttleworth1985]_ model.
+    
+    Parameters
+    ----------
+    R_A : float
+        Aerodynamic resistance to heat transport (s m-1)
+    R_x : float
+        Bulk canopy aerodynamic resistance to heat transport (s m-1)
+    R_S : float
+        Soil aerodynamic resistance to heat transport (s m-1)
+    R_c : float
+        Canopy bulk stomatal conductance (s m-1)
+    Rss : float
+        Resistance to water vapour transport in the soil surface (s m-1) 
+    delta : float
+        Slope of the saturation water vapour pressure (kPa K-1)
+    psicr : float
+        Psicrometric constant (mb K-1)
+    
+    Returns
+    -------
+    R_a_SW : float
+        Aerodynamic effective resistance to water transport (s m-1)
+    R_s_SW : float
+        Soil aerodynamic effective resistance to water transport (s m-1)
+    R_c_SW : float
+        Bulk canopy aerodynamic effective resistance to water transport (s m-1)
+    C_s : float
+        Contribution to LE by the soil source
+    C_c : float
+        Contribution to LE by the canopy source
+    '''
+    
     delta_psicr=delta+psicr
     
-    R_a_SW=delta_psicr*R_A                              # Eq. 16 Shuttleworth and Wallace 1988
-    R_s_SW=delta_psicr*R_S + psicr*R_ss                 # Eq. 17 Shuttleworth and Wallace 1988
-    R_c_SW=delta_psicr*R_x + psicr*R_c                  # Eq. 18 Shuttleworth and Wallace 1988
-    C_c=1./(1.+R_c_SW*R_a_SW/(R_s_SW*(R_c_SW+R_a_SW)))   # Eq. 14 Shuttleworth and Wallace 1988
-    C_s=1./(1.+R_s_SW*R_a_SW/(R_c_SW*(R_s_SW+R_a_SW)))   # Eq. 15 Shuttleworth and Wallace 1988
+    R_a_SW=delta_psicr*R_A                              # Eq. 16 [Shuttleworth1988]_
+    R_s_SW=delta_psicr*R_S + psicr*R_ss                 # Eq. 17 [Shuttleworth1988]_
+    R_c_SW=delta_psicr*R_x + psicr*R_c                  # Eq. 18 [Shuttleworth1988]_
+    C_c=1./(1.+R_c_SW*R_a_SW/(R_s_SW*(R_c_SW+R_a_SW)))   # Eq. 14 [Shuttleworth1988]_
+    C_s=1./(1.+R_s_SW*R_a_SW/(R_c_SW*(R_s_SW+R_a_SW)))   # Eq. 15 [Shuttleworth1988]_
     
     return R_a_SW, R_s_SW, R_c_SW, C_s, C_c
-
-
+    
