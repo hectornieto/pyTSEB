@@ -30,6 +30,11 @@ The following Python libraries will be required:
 - netCDF4
 - bokeh
 
+With `conda`, you can create a complete environment with
+```
+conda env create -f environment.yml
+```
+
 ## Code Example
 ### High-level example
 
