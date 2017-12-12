@@ -26,6 +26,9 @@ The following Python libraries will be required:
 - Pandas
 - pyPro4Sail, at [https://github.com/hectornieto/pyPro4Sail]
 - GDAL, for running TSEB over an image
+- pandas
+- netCDF4
+- bokeh
 
 ## Code Example
 ### High-level example
