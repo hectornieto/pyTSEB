@@ -1,0 +1,14 @@
+name: pytseb
+channels:
+    - conda-forge
+dependencies:
+    - python=3
+    - gdal
+    - numpy
+    - scipy
+    - pandas
+    - jupyter
+    - notebook
+    - bokeh
+    - pip:
+        - https://github.com/hectornieto/pyPro4Sail/archive/master.zip
