@@ -66,7 +66,7 @@ Ancillary functions
 '''
 
 import numpy as np
-from FourSAIL import FourSAIL
+from pyPro4Sail.FourSAIL import FourSAIL
 
 import pyTSEB.meteo_utils as met
 import pyTSEB.resistances as res

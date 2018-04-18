@@ -38,7 +38,6 @@ PACKAGE CONTENTS
 * :func:`calc_tau_below_Campbell` Radiation transmission through a canopy.
 '''
 
-from FourSAIL import FourSAIL
 import numpy as np
 
 import pyTSEB.meteo_utils as met
