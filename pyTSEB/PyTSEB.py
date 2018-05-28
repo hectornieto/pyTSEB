@@ -314,8 +314,8 @@ class PyTSEB():
         # If longwave irradiance was not provided then estimate it based on air
         # temperature and humidity
         if not success:
-            emisAtm = rad.calc_emiss_atm(in_data['ea'], in_data['T_A1'])
-            in_data['L_dn'] = emisAtm * met.calc_stephan_boltzmann(in_data['T_A1'])
+            in_data['L_dn'] = rad.calc_longwave_irradiance(in_data['ea'], in_data['T_A1'], 
+                                                           in_data['z_T'])
             
         # Open the processing maks and get the id for the cells to process
         if self.p['input_mask'] != '0':
@@ -492,13 +492,12 @@ class PyTSEB():
         in_data['alpha_PT'] = self.p['alpha_PT']
         in_data['x_LAD'] = self.p['x_LAD']
         
-
         # Incoming long wave radiation
+        # If longwave irradiance was not provided then estimate it based on air
+        # temperature and humidity
         if 'L_dn' not in in_data.columns:
-            # If longwave irradiance was not provided then estimate it based on air
-            # temperature and humidity
-            emisAtm = rad.calc_emiss_atm(in_data['ea'], in_data['T_A1'])
-            in_data['L_dn'] = emisAtm * met.calc_stephan_boltzmann(in_data['T_A1'])
+            in_data['L_dn'] = rad.calc_longwave_irradiance(in_data['ea'], in_data['T_A1'], 
+                                                           in_data['z_T'])
 
         # Get the Soil Heat flux if G_form includes the option of measured G
         dims = in_data['LAI'].shape         

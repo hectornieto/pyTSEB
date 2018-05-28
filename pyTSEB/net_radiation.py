@@ -152,6 +152,33 @@ def calc_emiss_atm(ea, T_A_K):
     return np.asarray(emiss_air)
 
 
+def calc_longwave_irradiance(ea, T_A_K, z_T=2.0):
+    '''Longwave irradiance
+
+    Estimates longwave atmospheric irradiance from clear sky.
+
+    Parameters
+    ----------
+    ea : float
+        atmospheric vapour pressure (mb).
+    T_A_K : float
+        air temperature (K).
+    z_T: float
+        air temperature measurement height (m), default 2 m.
+
+    Returns
+    -------
+    L_dn : float
+        Longwave atmospheric irradiance (W m-2)
+    '''
+
+    # Assume dry adiabatic lapse rate of air temperature.
+    T_A_surface = T_A_K - z_T * 0.0098
+    emisAtm = calc_emiss_atm(ea, T_A_surface)
+    L_dn = emisAtm * met.calc_stephan_boltzmann(T_A_surface)
+    return np.asarray(L_dn)
+
+
 def calc_K_be_Campbell(theta, x_LAD=1):
     ''' Beam extinction coefficient
 
