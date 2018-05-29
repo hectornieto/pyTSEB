@@ -71,7 +71,7 @@ see the guidelines for input and configuration file preparation in :doc:`README_
 
 """
 
-from os.path import splitext, dirname, exists
+from os.path import join, splitext, dirname, basename, exists
 from os import mkdir
 import ast
 
@@ -900,7 +900,7 @@ class PyTSEB():
         return success, array
 
     def _write_raster_output(self, outfile, output, geo, prj, fields):
-        '''Writes the arrays of an output dictionary which keys match the list 
+        '''Writes the arrays of an output dictionary which keys match the list
            in fields to a raster file '''
 
         # If the output file has .nc extension then save it as netCDF,
@@ -909,37 +909,65 @@ class PyTSEB():
         if ext.lower() == ".nc":
             driver = "netCDF"
             opt = ["FORMAT=NC2"]
-            is_netCDF = True
+        elif ext.lower() == ".vrt":
+            driver = "VRT"
+            opt = []
         else:
             driver = "GTiff"
             opt = []
-            is_netCDF = False
 
-        # Save the data using GDAL
-        rows, cols = np.shape(output['H1'])
-        driver = gdal.GetDriverByName(driver)
-        nbands = len(fields)
-        ds = driver.Create(outfile, cols, rows, nbands, gdal.GDT_Float32, opt)
-        ds.SetGeoTransform(geo)
-        ds.SetProjection(prj)
-        for i, field in enumerate(fields):
-            band = ds.GetRasterBand(i + 1)
-            band.SetNoDataValue(np.NaN)
-            band.WriteArray(output[field])
-            band.FlushCache()
-        ds.FlushCache()
-        ds = None
-        
-        # In case of netCDF format use netCDF4 module to assign proper names 
-        # to variables (GDAL can't do this). Also it seems that GDAL has
-        # problems assigning projection to all the bands so fix that.
-        if is_netCDF:
-            ds = Dataset(outfile, 'a')
-            grid_mapping = ds["Band1"].grid_mapping
+        if driver in ["GTiff", "netCDF"]:
+            # Save the data using GDAL
+            rows, cols = np.shape(output['H1'])
+            driver = gdal.GetDriverByName(driver)
+            nbands = len(fields)
+            ds = driver.Create(outfile, cols, rows, nbands, gdal.GDT_Float32, opt)
+            ds.SetGeoTransform(geo)
+            ds.SetProjection(prj)
             for i, field in enumerate(fields):
-                ds.renameVariable("Band"+str(i+1), field)
-                ds[field].grid_mapping = grid_mapping
-            ds.close()
+                band = ds.GetRasterBand(i + 1)
+                band.SetNoDataValue(np.NaN)
+                band.WriteArray(output[field])
+                band.FlushCache()
+            ds.FlushCache()
+            ds = None
+
+            # In case of netCDF format use netCDF4 module to assign proper names
+            # to variables (GDAL can't do this). Also it seems that GDAL has
+            # problems assigning projection to all the bands so fix that.
+            if driver == "netCDF":
+                ds = Dataset(outfile, 'a')
+                grid_mapping = ds["Band1"].grid_mapping
+                for i, field in enumerate(fields):
+                    ds.renameVariable("Band"+str(i+1), field)
+                    ds[field].grid_mapping = grid_mapping
+                ds.close()
+
+        else:
+            # Save each individual oputput in a GeoTIFF file in .data directory using GDAL
+            out_dir = join(dirname(outfile),
+                           splitext(basename(outfile))[0] + ".data")
+            if not exists(out_dir):
+                mkdir(out_dir)
+            out_files = []
+            rows, cols = np.shape(output['H1'])
+            for i, field in enumerate(fields):
+                driver = gdal.GetDriverByName("GTiff")
+                out_path = join(out_dir, field + ".tif")
+                ds = driver.Create(out_path, cols, rows, 1, gdal.GDT_Float32, opt)
+                ds.SetGeoTransform(geo)
+                ds.SetProjection(prj)
+                band = ds.GetRasterBand(1)
+                band.SetNoDataValue(np.NaN)
+                band.WriteArray(output[field])
+                band.FlushCache()
+                ds.FlushCache()
+                out_files.extend([out_path])
+
+            # Create the Virtual Raster Table
+            out_vrt = out_dir.replace('.data', '.vrt')
+            print(out_files)
+            gdal.BuildVRT(out_vrt, out_files, separate=True)
             
     def _get_output_structure(self):
         ''' Output fields in TSEB'''
