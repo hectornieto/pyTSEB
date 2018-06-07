@@ -28,11 +28,13 @@ an image with constant meteorology forcing and a time-series of tabulated data.
 
 EXAMPLES
 ========
-The easiest way to get a feeling of TSEB and its configuration is throuh the ipython/jupyter notebooks.
+The easiest way to get a feeling of TSEB and its configuration is throuh the ipython/jupyter
+notebooks.
 
 Jupyter notebook pyTSEB GUI
 ---------------------------
-To configure TSEB for processing a time series of tabulated data, type in a ipython terminal or a jupyter notebook.
+To configure TSEB for processing a time series of tabulated data, type in a ipython terminal or a
+jupyter notebook.
 
 .. code-block:: ipython
 
@@ -91,17 +93,17 @@ class PyTSEB():
 
     def __init__(self, parameters):
         self.p = parameters
-        
+
         # Model description parameters
         self.model_type = self.p['model']
-        self.resistance_form = self.p['resistance_form']        
+        self.resistance_form = self.p['resistance_form']
         self.res_params = {}
         self.G_form = self.p['G_form']
 
     def run_TSEB_local_image(self):
         ''' Runs TSEB for all the pixel in an image'''
 
-        #======================================
+        # ======================================
         # Process the input
 
         # Create an input dictionary
@@ -111,18 +113,18 @@ class PyTSEB():
             subset = ast.literal_eval(self.p['subset'])
         else:
             subset = []
-        
+
         # Open the LST data according to the model
         try:
             fid = gdal.Open(self.p['T_R1'], gdal.GA_ReadOnly)
             prj = fid.GetProjection()
             geo = fid.GetGeoTransform()
-            if subset:                   
+            if subset:
                 T_R1 = fid.GetRasterBand(1).ReadAsArray(subset[0],
                                                         subset[1],
                                                         subset[2],
                                                         subset[3])
-                geo = [geo[0]+subset[0]*geo[1], geo[1], geo[2], 
+                geo = [geo[0]+subset[0]*geo[1], geo[1], geo[2],
                        geo[3]+subset[1]*geo[5], geo[4], geo[5]]
             else:
                 T_R1 = fid.GetRasterBand(1).ReadAsArray()
@@ -131,31 +133,31 @@ class PyTSEB():
             # In case of TSEB_PT or DTD models save noon temperature
             if self.model_type == 'TSEB_PT' or self.model_type == 'DTD':
                 in_data['T_R1'] = T_R1
-            
+
             # In case of TSEB_2T save both component temperatures
             if self.model_type == 'TSEB_2T':
-                in_data['T_C'] =  T_R1
+                in_data['T_C'] = T_R1
                 if subset:
                     in_data['T_S'] = fid.GetRasterBand(2).ReadAsArray(subset[0],
                                                                       subset[1],
                                                                       subset[2],
                                                                       subset[3])
                 else:
-                   in_data['T_S'] = fid.GetRasterBand(2).ReadAsArray() 
-                
+                    in_data['T_S'] = fid.GetRasterBand(2).ReadAsArray()
+
             fid = None
-        except:
+        except Exception as e:
             print('Error reading sunrise LST file ' + str(self.p['T_R0']))
             fid = None
             return
-                  
+
         # In case of DTD also need to read the sunrise/night LST
-        if self.model_type == 'DTD': 
+        if self.model_type == 'DTD':
             success, in_data['T_R0'] = self._open_GDAL_image(
                 self.p['T_R0'], dims, 'Sunrise LST', subset)
             if not success:
                 return
-            
+
         # Read the image mosaic and get the LAI
         success, in_data['LAI'] = self._open_GDAL_image(
             self.p['LAI'], dims, 'Leaf Area Index', subset)
@@ -201,7 +203,7 @@ class PyTSEB():
             self.p['alpha_PT'], dims, 'Initial alpha_PT', subset)
         if not success:
             return
-        
+
         # Read spectral properties
         success, in_data['rho_vis_C'] = self._open_GDAL_image(
             self.p['rho_vis_C'], dims, 'Leaf PAR Reflectance', subset)
@@ -235,7 +237,7 @@ class PyTSEB():
             self.p['emis_S'], dims, 'Soil Emissivity', subset)
         if not success:
             return
-        
+
         # Calculate illumination conditions
         success, lat = self._open_GDAL_image(self.p['lat'], dims, 'Latitude', subset)
         if not success:
@@ -243,7 +245,8 @@ class PyTSEB():
         success, lon = self._open_GDAL_image(self.p['lon'], dims, 'Longitude', subset)
         if not success:
             return
-        success, stdlon = self._open_GDAL_image(self.p['stdlon'], dims, 'Standard Longitude', subset)
+        success, stdlon = self._open_GDAL_image(self.p['stdlon'], dims, 'Standard Longitude', 
+                                                subset)
         if not success:
             return
         success, in_data['time'] = self._open_GDAL_image(self.p['time'], dims, 'Time', subset)
@@ -297,7 +300,7 @@ class PyTSEB():
         success, in_data['z0_soil'] = self._open_GDAL_image(
             self.p['z0_soil'], dims, 'Soil Roughness', subset)
         if not success:
-            return 
+            return
 
         # Incoming long wave radiation
         success, in_data['T_A1'] = self._open_GDAL_image(
@@ -314,38 +317,37 @@ class PyTSEB():
         # If longwave irradiance was not provided then estimate it based on air
         # temperature and humidity
         if not success:
-            in_data['L_dn'] = rad.calc_longwave_irradiance(in_data['ea'], in_data['T_A1'], 
+            in_data['L_dn'] = rad.calc_longwave_irradiance(in_data['ea'], in_data['T_A1'],
                                                            in_data['z_T'])
-            
+
         # Open the processing maks and get the id for the cells to process
         if self.p['input_mask'] != '0':
             success, mask = self._open_GDAL_image(
-                self.p['input_mask'], dims, 'input mask', subset) 
+                self.p['input_mask'], dims, 'input mask', subset)
             if not success:
-                print ("Please set input_mask=0 for processing the whole image.")
+                print("Please set input_mask=0 for processing the whole image.")
                 return
         # Otherwise create mask from landcover array
         else:
             mask = np.ones(dims)
-            mask[np.logical_or.reduce((in_data['landcover'] == res.WATER, 
+            mask[np.logical_or.reduce((in_data['landcover'] == res.WATER,
                                        in_data['landcover'] == res.URBAN,
                                        in_data['landcover'] == res.SNOW))] = 0
 
-
         # Get the Soil Heat flux if G_form includes the option of measured G
         # Constant G or constant ratio of soil reaching radiation
-        if self.G_form[0][0] == 0 or self.G_form[0][0] == 1:  
+        if self.G_form[0][0] == 0 or self.G_form[0][0] == 1:
             success, self.G_form[1] = self._open_GDAL_image(
                                             self.G_form[1], dims, 'G', subset)
             if not success:
-                return   
+                return
         # Santanello and Friedls G
-        elif self.G_form[0][0] == 2:  
+        elif self.G_form[0][0] == 2:
             # Set the time in the G_form flag to compute the Santanello and
             # Friedl G
             self.G_form[1] = in_data['time']
-        
-        # Set the Kustas and Norman resistance parameters          
+
+        # Set the Kustas and Norman resistance parameters
         if self.resistance_form == 0:
             success, self.res_params['KN_b'] = self._open_GDAL_image(
                 self.p['KN_b'], dims, 'Resistance parameter b', subset)
@@ -354,19 +356,18 @@ class PyTSEB():
             success, self.res_params['KN_c'] = self._open_GDAL_image(
                 self.p['KN_c'], dims, 'Resistance parameter c', subset)
             if not success:
-                return 
+                return
             success, self.res_params['KN_C_dash'] = self._open_GDAL_image(
                 self.p['KN_C_dash'], dims, 'Resistance parameter C\'', subset)
             if not success:
-                return         
-        
-        #======================================
+                return
+
+        # ======================================
         # Run the chosen model
-        
+
         out_data = self.run_TSEB(in_data, mask)
 
-
-        #======================================
+        # ======================================
         # Save output files
 
         # Output variables saved in images
@@ -405,9 +406,8 @@ class PyTSEB():
             prj,
             self.anc_fields)
         print('Saved Files')
-        
-        return in_data, out_data
 
+        return in_data, out_data
 
     def run_TSEB_point_series_array(self):
         ''' Runs TSEB for all the dates in point time-series'''
@@ -434,9 +434,9 @@ class PyTSEB():
             return sum(np.asarray(v, dtype=t) for t, v in zip(types, vals)
                        if v is not None)
 
-        #======================================
+        # ======================================
         # Process the input
-        
+
         # Read input data from CSV file
         in_data = pd.read_csv(self.p['input_file'], delim_whitespace=True)
         in_data.index = compose_date(
@@ -451,14 +451,15 @@ class PyTSEB():
 
         # Fill in data fields which might not be in the input file
         if 'SZA' not in in_data.columns:
-            sza, _ = met.calc_sun_angles(self.p['lat'], self.p['lon'], self.p[
-                                            'stdlon'], in_data['DOY'], in_data['time'])
+            sza, _ = met.calc_sun_angles(self.p['lat'], self.p['lon'],
+                                         self.p['stdlon'], in_data['DOY'], in_data['time'])
             in_data['SZA'] = sza
         if 'SAA' not in in_data.columns:
-            _, saa = met.calc_sun_angles(self.p['lat'], self.p['lon'], self.p[
-                                            'stdlon'], in_data['DOY'], in_data['time'])
+            _, saa = met.calc_sun_angles(self.p['lat'], self.p['lon'],
+                                         self.p['stdlon'], in_data['DOY'], in_data['time'])
             in_data['SAA'] = saa
-        if 'p' not in in_data.columns:  # Estimate barometric pressure from the altitude if not included in the table
+        if 'p' not in in_data.columns:
+            # Estimate barometric pressure from the altitude if not included in the table
             in_data['p'] = met.calc_pressure(self.p['alt'])
         if 'f_c' not in in_data.columns:  # Fractional cover
             in_data['f_c'] = self.p['f_c']  # Use default value
@@ -481,8 +482,8 @@ class PyTSEB():
         if 'emis_C' not in in_data.columns:
             in_data['emis_C'] = self.p['emis_C']
         if 'emis_S' not in in_data.columns:
-            in_data['emis_S'] = self.p['emis_S'] 
-            
+            in_data['emis_S'] = self.p['emis_S']
+
         # Fill in other data fields from the parameter file
         in_data['landcover'] = self.p['landcover']
         in_data['z_u'] = self.p['z_u']
@@ -491,16 +492,16 @@ class PyTSEB():
         in_data['z0_soil'] = self.p['z0_soil']
         in_data['alpha_PT'] = self.p['alpha_PT']
         in_data['x_LAD'] = self.p['x_LAD']
-        
+
         # Incoming long wave radiation
         # If longwave irradiance was not provided then estimate it based on air
         # temperature and humidity
         if 'L_dn' not in in_data.columns:
-            in_data['L_dn'] = rad.calc_longwave_irradiance(in_data['ea'], in_data['T_A1'], 
+            in_data['L_dn'] = rad.calc_longwave_irradiance(in_data['ea'], in_data['T_A1'],
                                                            in_data['z_T'])
 
         # Get the Soil Heat flux if G_form includes the option of measured G
-        dims = in_data['LAI'].shape         
+        dims = in_data['LAI'].shape
         if self.G_form[0][0] == 0:  # Constant G
             if 'G' in in_data.columns:
                 self.G_form[1] = in_data['G']
@@ -511,21 +512,21 @@ class PyTSEB():
             # Friedl G
             self.G_form[1] = in_data['time']
 
-        # Set the Kustas and Norman resistance parameters     
+        # Set the Kustas and Norman resistance parameters
         if self.resistance_form == 0:
-            self.res_params['KN_b'] =  np.ones(dims) * self.p['KN_b']
+            self.res_params['KN_b'] = np.ones(dims) * self.p['KN_b']
             self.res_params['KN_c'] = np.ones(dims) * self.p['KN_c']
             self.res_params['KN_C_dash'] = np.ones(dims) * self.p['KN_C_dash']
 
-        #======================================
+        # ======================================
         # Run the chosen model
 
         out_data = self.run_TSEB(in_data)
-        out_data = pd.DataFrame(data = np.stack(out_data.values()).T,
-                                index = in_data.index,
-                                columns = out_data.keys())
+        out_data = pd.DataFrame(data=np.stack(out_data.values()).T,
+                                index=in_data.index,
+                                columns=out_data.keys())
 
-        #======================================
+        # ======================================
         # Save output file
 
         # Output Headers
@@ -571,38 +572,38 @@ class PyTSEB():
 
         # Write the data
         csvData = pd.concat([in_data[['year',
-                                     'DOY',
-                                     'time',
-                                     'LAI',
-                                     'f_g',
-                                     'VZA',
-                                     'SZA',
-                                     'SAA',
-                                     'L_dn']],
+                                      'DOY',
+                                      'time',
+                                      'LAI',
+                                      'f_g',
+                                      'VZA',
+                                      'SZA',
+                                      'SAA',
+                                      'L_dn']],
                              out_data[['R_n1',
-                                      'Sn_C1',
-                                      'Sn_S1',
-                                      'Ln_C1',
-                                      'Ln_S1',
-                                      'T_C1',
-                                      'T_S1',
-                                      'T_AC1',
-                                      'LE1',
-                                      'H1',
-                                      'LE_C1',
-                                      'H_C1',
-                                      'LE_S1',
-                                      'H_S1',
-                                      'G1',
-                                      'R_S1',
-                                      'R_x1',
-                                      'R_A1',
-                                      'u_friction',
-                                      'L',
-                                      'Skyl',
-                                      'z_0M',
-                                      'd_0',
-                                      'flag']]],
+                                       'Sn_C1',
+                                       'Sn_S1',
+                                       'Ln_C1',
+                                       'Ln_S1',
+                                       'T_C1',
+                                       'T_S1',
+                                       'T_AC1',
+                                       'LE1',
+                                       'H1',
+                                       'LE_C1',
+                                       'H_C1',
+                                       'LE_S1',
+                                       'H_S1',
+                                       'G1',
+                                       'R_S1',
+                                       'R_x1',
+                                       'R_A1',
+                                       'u_friction',
+                                       'L',
+                                       'Skyl',
+                                       'z_0M',
+                                       'd_0',
+                                       'flag']]],
                             axis=1)
         csvData.to_csv(
             self.p['output_file'],
@@ -614,19 +615,18 @@ class PyTSEB():
 
         return in_data, out_data
 
+    def run_TSEB(self, in_data, mask=None):
 
-    def run_TSEB(self, in_data, mask = None):
-        
         print("Processing...")
-        
+
         if mask is None:
             mask = np.ones(in_data['LAI'].shape)
-        
+
         # Create the output dictionary
         out_data = dict()
         for field in self._get_output_structure():
             out_data[field] = np.zeros(in_data['LAI'].shape) + np.NaN
-        
+
         # Esimate diffuse and direct irradiance
         difvis, difnir, fvis, fnir = rad.calc_difuse_ratio(
             in_data['S_dn'], in_data['SZA'], press=in_data['p'])
@@ -634,26 +634,26 @@ class PyTSEB():
         out_data['fnir'] = fnir
         out_data['Skyl'] = difvis * fvis + difnir * fnir
         out_data['S_dn_dir'] = in_data['S_dn'] * (1.0 - out_data['Skyl'])
-        out_data['S_dn_dif'] = in_data['S_dn'] * out_data['Skyl']        
-        
-        #======================================
+        out_data['S_dn_dif'] = in_data['S_dn'] * out_data['Skyl']
+
+        # ======================================
         # First process bare soil cases
-        
+
         noVegPixels = in_data['LAI'] <= 0
         noVegPixels = np.logical_or.reduce(
-            (in_data['f_c'] <= 0.01, 
-             in_data['LAI'] <= 0, 
+            (in_data['f_c'] <= 0.01,
+             in_data['LAI'] <= 0,
              np.isnan(in_data['LAI'])))
-        #in_data['LAI'][noVegPixels] = 0
-        #in_data['f_c'][noVegPixels] = 0
+        # in_data['LAI'][noVegPixels] = 0
+        # in_data['f_c'][noVegPixels] = 0
         i = np.array(np.logical_and(noVegPixels, mask == 1))
-        
+
         # Calculate roughness
         out_data['z_0M'][i] = in_data['z0_soil'][i]
         out_data['d_0'][i] = 5 * out_data['z_0M'][i]
 
         # Net shortwave radition for bare soil
-        spectraGrdOSEB = out_data['fvis']  * \
+        spectraGrdOSEB = out_data['fvis'] * \
             in_data['rho_vis_S'] + out_data['fnir'] * in_data['rho_nir_S']
         out_data['Sn_S1'][i] = (1. - spectraGrdOSEB[i]) * \
             (out_data['S_dn_dir'][i] + out_data['S_dn_dif'][i])
@@ -689,27 +689,27 @@ class PyTSEB():
                                                   in_data['z_u'][i],
                                                   in_data['z_T'][i],
                                                   calcG_params=[self.G_form[0],
-                                                               self.G_form[1][i]],
+                                                                self.G_form[1][i]],
                                                   T0_K=T0_K)
-        
+
         # Set canopy fluxes to 0
-        out_data['Sn_C1'][i] = 0.0                                          
+        out_data['Sn_C1'][i] = 0.0
         out_data['Ln_C1'][i] = 0.0
         out_data['LE_C1'][i] = 0.0
         out_data['H_C1'][i] = 0.0
-        
-        #======================================
+
+        # ======================================
         # Then process vegetated cases
-        
+
         i = np.array(np.logical_and(~noVegPixels, mask == 1))
 
         # Calculate roughness
         out_data['z_0M'][i], out_data['d_0'][i] = \
-            res.calc_roughness(in_data['LAI'][i], 
-                               in_data['h_C'][i], 
-                               w_C = in_data['w_C'][i], 
-                               landcover = in_data['landcover'][i],
-                               f_c = in_data['f_c'][i])
+            res.calc_roughness(in_data['LAI'][i],
+                               in_data['h_C'][i],
+                               w_C=in_data['w_C'][i],
+                               landcover=in_data['landcover'][i],
+                               f_c=in_data['f_c'][i])
 
         # Net shortwave radiation for vegetation
         F = np.zeros(in_data['LAI'].shape)
@@ -730,23 +730,23 @@ class PyTSEB():
         LAI_eff = F * Omega
         [out_data['Sn_C1'][i],
          out_data['Sn_S1'][i]] = rad.calc_Sn_Campbell(in_data['LAI'][i],
-                                                     in_data['SZA'][i],
-                                                     out_data['S_dn_dir'][i],
-                                                     out_data['S_dn_dif'][i],
-                                                     out_data['fvis'][i],
-                                                     out_data['fnir'][i],
-                                                     in_data['rho_vis_C'][i],
-                                                     in_data['tau_vis_C'][i],
-                                                     in_data['rho_nir_C'][i],
-                                                     in_data['tau_nir_C'][i],
-                                                     in_data['rho_vis_S'][i],
-                                                     in_data['rho_nir_S'][i],
-                                                     x_LAD=in_data['x_LAD'][i],
-                                                     LAI_eff=LAI_eff[i])
+                                                      in_data['SZA'][i],
+                                                      out_data['S_dn_dir'][i],
+                                                      out_data['S_dn_dif'][i],
+                                                      out_data['fvis'][i],
+                                                      out_data['fnir'][i],
+                                                      in_data['rho_vis_C'][i],
+                                                      in_data['tau_vis_C'][i],
+                                                      in_data['rho_nir_C'][i],
+                                                      in_data['tau_nir_C'][i],
+                                                      in_data['rho_vis_S'][i],
+                                                      in_data['rho_nir_S'][i],
+                                                      x_LAD=in_data['x_LAD'][i],
+                                                      LAI_eff=LAI_eff[i])
 
         # Model settings
         calcG_params = [self.G_form[0], self.G_form[1][i]]
-        resistance_form = [self.resistance_form, 
+        resistance_form = [self.resistance_form,
                            {k: self.res_params[k][i] for k in self.res_params}]
 
         # Other fluxes for vegetation
@@ -822,10 +822,10 @@ class PyTSEB():
 
         elif self.model_type == 'TSEB_2T':
             # Run TSEB with the component temperatures T_S and T_C
-            [out_data['flag'][i], out_data['T_AC1'][i], out_data['Ln_S1'][i], 
-             out_data['Ln_C1'][i], out_data['LE_C1'][i], out_data['H_C1'][i], 
-             out_data['LE_S1'][i], out_data['H_S1'][i], out_data['G1'][i], 
-             out_data['R_S1'][i], out_data['R_x1'][i], out_data['R_A1'][i], 
+            [out_data['flag'][i], out_data['T_AC1'][i], out_data['Ln_S1'][i],
+             out_data['Ln_C1'][i], out_data['LE_C1'][i], out_data['H_C1'][i],
+             out_data['LE_S1'][i], out_data['H_S1'][i], out_data['G1'][i],
+             out_data['R_S1'][i], out_data['R_x1'][i], out_data['R_A1'][i],
              out_data['u_friction'][i], out_data['L'][i], out_data['n_iterations'][i]] = \
                      TSEB.TSEB_2T(in_data['T_C'][i],
                                   in_data['T_S'][i],
@@ -856,27 +856,27 @@ class PyTSEB():
 
         # Calculate the bulk fluxes
         out_data['LE1'] = out_data['LE_C1'] + out_data['LE_S1']
-        out_data['LE_partition'] = out_data['LE_C1'] / out_data['LE1'] 
+        out_data['LE_partition'] = out_data['LE_C1'] / out_data['LE1']
         out_data['H1'] = out_data['H_C1'] + out_data['H_S1']
         out_data['R_ns1'] = out_data['Sn_C1'] + out_data['Sn_S1']
         out_data['R_nl1'] = out_data['Ln_C1'] + out_data['Ln_S1']
         out_data['R_n1'] = out_data['R_ns1'] + out_data['R_nl1']
         out_data['delta_R_n1'] = out_data['Sn_C1'] + out_data['Ln_C1']
-        
-        print("Finished processing!")        
+
+        print("Finished processing!")
         return out_data
 
-    def _open_GDAL_image(self, inputString, dims, variable, subset = []):
+    def _open_GDAL_image(self, inputString, dims, variable, subset=[]):
         '''Open a GDAL image and returns and array with its first band'''
 
         if inputString == "":
             return False, None
-      
+
         success = True
         array = None
         try:
             array = np.zeros(dims) + float(inputString)
-        except:
+        except ValueError:
             try:
                 fid = gdal.Open(inputString, gdal.GA_ReadOnly)
                 if subset:
@@ -886,16 +886,14 @@ class PyTSEB():
                                                              subset[3])
                 else:
                     array = fid.GetRasterBand(1).ReadAsArray()
-            except:
+            except AttributeError:
                 print(
-                    'ERROR: file read ' +
-                    str(inputString) +
-                    '\n Please type a valid file name or a numeric value for ' +
-                    variable)
+                    'ERROR: file read ' + str(inputString) +
+                    '\n Please type a valid file name or a numeric value for ' + variable)
                 success = False
             finally:
                 fid = None
-                
+
         return success, array
 
     def _write_raster_output(self, outfile, output, geo, prj, fields):
@@ -967,24 +965,24 @@ class PyTSEB():
             out_vrt = out_dir.replace('.data', '.vrt')
             print(out_files)
             gdal.BuildVRT(out_vrt, out_files, separate=True)
-            
+
     def _get_output_structure(self):
         ''' Output fields in TSEB'''
-        
+
         outputStructure = (
             # resistances
-            'R_A1', # resistance to heat transport in the surface layer (s/m) at time t1
-            'R_x1', # resistance to heat transport in the canopy surface layer (s/m) at time t1
-            'R_S1', # resistance to heat transport from the soil surface (s/m) at time t1 fluxes
-            # Energy fluxes            
-            'R_n1',  # net radiation reaching the surface at time t1
+            'R_A1',  # resistance to heat transport in the surface layer (s/m) at time t1
+            'R_x1',  # resistance to heat transport in the canopy surface layer (s/m) at time t1
+            'R_S1',  # resistance to heat transport from the soil surface (s/m) at time t1 fluxes
+            # Energy fluxes
+            'R_n1',   # net radiation reaching the surface at time t1
             'R_ns1',  # net shortwave radiation reaching the surface at time t1
             'R_nl1',  # net longwave radiation reaching the surface at time t1
             'delta_R_n1',  # net radiation divergence in the canopy at time t1
-            'Sn_S1', # Shortwave radiation reaching the soil at time t1
-            'Sn_C1', # Shortwave radiation intercepted by the canopy at time t1
-            'Ln_S1', # Longwave radiation reaching the soil at time t1
-            'Ln_C1', # Longwave radiation intercepted by the canopy at time t1
+            'Sn_S1',  # Shortwave radiation reaching the soil at time t1
+            'Sn_C1',  # Shortwave radiation intercepted by the canopy at time t1
+            'Ln_S1',  # Longwave radiation reaching the soil at time t1
+            'Ln_C1',  # Longwave radiation intercepted by the canopy at time t1
             'H_C1',  # canopy sensible heat flux (W/m^2) at time t1
             'H_S1',  # soil sensible heat flux (W/m^2) at time t1
             'H1',  # total sensible heat flux (W/m^2) at time t1
@@ -1005,13 +1003,12 @@ class PyTSEB():
             'L',  # Monin Obukhov Length at time t1
             'u_friction',  # Friction velocity
             'theta_s1',  # Sun zenith angle at time t1
-            'F', # Leaf Area Index    
-            'z_0M', # Aerodynamic roughness length for momentum trasport (m)
-            'd_0', # Zero-plane displacement height (m)
-            'Skyl', 
-            'flag', # Quality flag
-            'n_iterations') # Number of iterations before model converged to stable value 
-            
+            'F',  # Leaf Area Index
+            'z_0M',  # Aerodynamic roughness length for momentum trasport (m)
+            'd_0',  # Zero-plane displacement height (m)
+            'Skyl',
+            'flag',  # Quality flag
+            'n_iterations')  # Number of iterations before model converged to stable value
 
         return outputStructure
 
@@ -1070,11 +1067,7 @@ class PyTSEB():
             return False
 
         if missing:
-            print ('ERROR: ' +
-                   str(list(missing)) +
-                   ' not found in file ' +
-                   self.p['input_file'])
+            print('ERROR: ' + str(list(missing)) + ' not found in file ' + self.p['input_file'])
             return False
         else:
             return True
-

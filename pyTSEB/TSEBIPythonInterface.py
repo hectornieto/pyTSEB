@@ -84,7 +84,7 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
 
     def point_time_series_widget(self):
         '''Creates a jupyter notebook GUI for running TSEB for a point time series dataset'''
-        
+
         # Load and save configuration buttons
         self.w_loadconfig = widgets.Button(
             description='Load Configuration File')
@@ -105,7 +105,7 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
         self.w_runmodel = widgets.Button(
             description='Run pyTSEB',
             background_color='green')
-       # Create TSEB options widgets
+        # Create TSEB options widgets
         self.select_model()
         self.define_site_description_time_series()
         self.spectral_properties_time_series()
@@ -149,13 +149,13 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
 
     def local_image_widget(self):
         '''Creates a jupyter notebook GUI for running TSEB for an image'''
-        
+
         # Load and save configuration buttons
         self.w_loadconfig = widgets.Button(
             description='Load Configuration File')
         self.w_saveconfig = widgets.Button(
             description='Save Configuration File')
-        # Input and output images   
+        # Input and output images
         self.w_T_R1_But = widgets.Button(
             description='Browse Radiometric Surface Temperature Image')
         self.w_T_R1 = widgets.Text(description='(K):', value='0', width=500)
@@ -163,7 +163,7 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
             description='Browse Sunrise Radiometric Surface Temperature Image')
         self.w_T_R0 = widgets.Text(description='(K):', value='0', width=500)
         self.w_T_R0_But.visible = False
-        self.w_T_R0.visible = False            
+        self.w_T_R0.visible = False
         self.w_VZA = widgets.Button(description='Browse VZA Image')
         self.w_VZAtxt = widgets.Text(description='VZA:', value='0', width=500)
         self.w_LAI = widgets.Button(description='Browse LAI Image')
@@ -309,7 +309,7 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
                                                     self.w_stdlon]),
                                       widgets.HBox([self.w_z_u,
                                                     self.w_z_T])],
-                                     background_color='#EEE')
+                                      background_color='#EEE')
 
     def define_site_description_image(self):
         '''Widgets for site description parameters'''
@@ -374,7 +374,7 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
         self.w_tau_nir_C_But = widgets.Button(description='Leaf trans. NIR')
         self.w_tau_nir_C = widgets.Text(
             description=' ', value=str(self.tau_nir_C), width=500)
-        
+
         self.w_rho_vis_S_But = widgets.Button(description='Soil refl. PAR')
         self.w_rho_vis_S = widgets.Text(
             description=' ', value=str(self.rho_vis_S), width=500)
@@ -387,7 +387,7 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
         self.w_emis_S_But = widgets.Button(description='Soil emissivity')
         self.w_emis_S = widgets.Text(
             description=' ', value=str(self.emis_S), width=500)
-            
+
         self.spec_page = widgets.VBox([widgets.HTML('Select leaf PAR reflectance image or type a constant value'),
                                       widgets.HBox([self.w_rho_vis_C_But, self.w_rho_vis_C]),
                                       widgets.HTML('Select leaf PAR transmitance image or type a constant value'),
@@ -403,7 +403,7 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
                                       widgets.HTML('Select leaf emissivity image or type a constant value'),
                                       widgets.HBox([self.w_emis_C_But, self.w_emis_C]),
                                       widgets.HTML('Select soil emissivity image or type a constant value'),
-                                      widgets.HBox([self.w_emis_S_But, self.w_emis_S])])            
+                                      widgets.HBox([self.w_emis_S_But, self.w_emis_S])])
 
         self.w_rho_vis_C_But.on_click(
             lambda b: self._on_input_clicked(b, 'Leaf PAR Reflectance', self.w_rho_vis_C))
@@ -421,7 +421,7 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
             lambda b: self._on_input_clicked(b, 'Leaf Emissivity', self.w_emis_C))
         self.w_emis_S_But.on_click(
             lambda b: self._on_input_clicked(b, 'Soil Emissivity', self.w_emis_S))
-        
+
     def spectral_properties_time_series(self):
         '''Widgets for site spectral properties'''
 
@@ -479,7 +479,7 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
         self.w_p = widgets.Text(description='(mb):', value='', width=500)
 
         self.met_page = widgets.VBox([widgets.HTML('Select Day of Year image or type a constant value'),
-                                     widgets.HBox([self.w_DOY_But, self.w_DOY]), 
+                                     widgets.HBox([self.w_DOY_But, self.w_DOY]),
                                      widgets.HTML('Select time (decimal) image or type a constant value'),
                                      widgets.HBox([self.w_time_But, self.w_time]),
                                      widgets.HTML('Select air temperature image(s) or type a constant value'),
@@ -501,7 +501,7 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
         self.w_DOY_But.on_click(
             lambda b: self._on_input_clicked(b, 'Day of Year', self.w_DOY))
         self.w_time_But.on_click(
-            lambda b: self._on_input_clicked(b, 'Decimal Time', self.w_time))        
+            lambda b: self._on_input_clicked(b, 'Decimal Time', self.w_time))
         self.w_T_A0_But.on_click(
             lambda b: self._on_input_clicked(b, 'Sunrise Air Temperature', self.w_T_A0))
         self.w_T_A1_But.on_click(
@@ -516,7 +516,7 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
             lambda b: self._on_input_clicked(b, 'Longwave Irradiance', self.w_L_dn))
         self.w_pBut.on_click(
             lambda b: self._on_input_clicked(b, 'Pressure', self.w_p))
-            
+
     def surface_properties_time_series(self):
         '''Widgets for canopy properties'''
 
@@ -561,24 +561,24 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
         self.calc_row_options()
         self.veg_page = widgets.VBox([widgets.HBox([self.w_PT, self.w_LAD, self.w_leafwidth]),
                                       widgets.HBox([self.w_zsoil, self.w_lc, lcText]),
-                                      widgets.HBox([self.w_row, self.w_rowaz])], 
-                                      background_color='#EEE')    
-    
+                                      widgets.HBox([self.w_row, self.w_rowaz])],
+                                     background_color='#EEE')
+
     def surface_properties_image(self):
         '''Widgets for canopy properties'''
-        
+
         self.w_PT_But = widgets.Button(
             description='Browse Initial alphaPT Image')
-        self.w_PT = widgets.Text(description=' ', value=str(self.max_PT), width=500)        
+        self.w_PT = widgets.Text(description=' ', value=str(self.max_PT), width=500)
         self.w_LAD_But = widgets.Button(
             description='Browse Leaf Angle Distribution Image')
-        self.w_LAD = widgets.Text(description='(degrees)', value=str(self.x_LAD), width=500)        
+        self.w_LAD = widgets.Text(description='(degrees)', value=str(self.x_LAD), width=500)
         self.w_leafwidth_But = widgets.Button(
             description='Browse Leaf Width Image')
         self.w_leafwidth = widgets.Text(description='(m)', value=str(self.leaf_width), width=500)
         self.w_zsoil_But = widgets.Button(
             description='Browse Soil Roughness Image')
-        self.w_zsoil = widgets.Text(description='(m)', value=str(self.z0soil), width=500)        
+        self.w_zsoil = widgets.Text(description='(m)', value=str(self.z0soil), width=500)
         self.w_lc_But = widgets.Button(
             description='Browse Land Cover Image')
         # Landcover classes and values come from IGBP Land Cover Type Classification
@@ -610,7 +610,7 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
                                       widgets.HBox([self.w_lc_But, self.w_lc]),
                                       lcText,
                                       widgets.HBox([self.w_row, self.w_rowaz])], background_color='#EEE')
-                                      
+
         self.w_PT_But.on_click(
             lambda b: self._on_input_clicked(b, 'Initial alphaPT', self.w_PT))
         self.w_LAD_But.on_click(
@@ -634,10 +634,10 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
             description='Row orientation',
             width=80)
         self.w_rowaz.visible = False
-        
+
     def resistances_time_series(self):
         '''Widgets for resistance model selection'''
-        
+
         self.w_res = widgets.ToggleButtons(
             description='Select TSEB model to run:',
             options={
@@ -654,10 +654,10 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
             value=self.KN_C_dash, min=0, max=9999, description="KN99 C'", width=80)
         self.KN_params_box = widgets.HBox([self.w_KN_b, self.w_KN_c, self.w_KN_C_dash])
         self.res_page = widgets.VBox([self.w_res, self.KN_params_box], background_color='#EEE')
-            
+
     def resistances_image(self):
         '''Widgets for resistance model selection'''
-        
+
         self.w_res = widgets.ToggleButtons(
             description='Select TSEB model to run:',
             options={
@@ -666,41 +666,38 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
                 'McNaughton & Van der Hurk': 2},
             value=self.res,
             width=300)
-            
+
         self.w_PT_But = widgets.Button(
             description='Browse Initial alphaPT Image')
-        self.w_PT = widgets.Text(description=' ', value=str(self.max_PT), width=500)            
-            
-        self.w_KN_b_But = widgets.Button(
-            description = 'Browse Resistance Parameter b Image')
+        self.w_PT = widgets.Text(description=' ', value=str(self.max_PT), width=500)
+
+        self.w_KN_b_But = widgets.Button(description='Browse Resistance Parameter b Image')
         self.w_KN_b = widgets.Text(
             value=str(self.KN_b), description=' ', width=500)
-        self.w_KN_c_But = widgets.Button(
-            description = ('Browse Resistance Parameter c image'))
+        self.w_KN_c_But = widgets.Button(description=('Browse Resistance Parameter c image'))
         self.w_KN_c = widgets.Text(
             value=str(self.KN_c), description='(m s-1 K-1/3)', width=500)
-        self.w_KN_C_dash_But = widgets.Button(
-            description = ("Browse Resistance Parameter C' Image"))
+        self.w_KN_C_dash_But = widgets.Button(description=("Browse Resistance Parameter C' Image"))
         self.w_KN_C_dash = widgets.Text(
             value=str(self.KN_C_dash), description="s1/2 m-1", width=500)
-        self.KN_params_box =  widgets.VBox([widgets.HTML('Select resistance parameter b image or type a constant value'),
-                                            widgets.HBox([self.w_KN_b_But, self.w_KN_b]),
-                                            widgets.HTML('Select resistance parameter c image or type a constant value'),
-                                            widgets.HBox([self.w_KN_c_But, self.w_KN_c]),
-                                            widgets.HTML('Select resistance parameter C\' image or type a constant value'),
-                                            widgets.HBox([self.w_KN_C_dash_But, self.w_KN_C_dash])], background_color='#EEE')
+        self.KN_params_box = widgets.VBox([widgets.HTML('Select resistance parameter b image or type a constant value'),
+                                           widgets.HBox([self.w_KN_b_But, self.w_KN_b]),
+                                           widgets.HTML('Select resistance parameter c image or type a constant value'),
+                                           widgets.HBox([self.w_KN_c_But, self.w_KN_c]),
+                                           widgets.HTML('Select resistance parameter C\' image or type a constant value'),
+                                           widgets.HBox([self.w_KN_C_dash_But, self.w_KN_C_dash])], background_color='#EEE')
         self.res_page = widgets.VBox([self.w_res, self.KN_params_box], background_color='#EEE')
-        
+
         self.w_KN_b_But.on_click(
             lambda b: self._on_input_clicked(b, 'Resistance Parameter b', self.w_KN_b))
         self.w_KN_c_But.on_click(
             lambda b: self._on_input_clicked(b, 'Resistance Parameter c', self.w_KN_c))
         self.w_KN_C_dash_But.on_click(
             lambda b: self._on_input_clicked(b, 'Resistance Parameter C\'', self.w_KN_C_dash))
-        
+
     def additional_options_point(self):
         '''Widgets for additional TSEB options'''
-        
+
         self.calc_G_options()
         self.opt_page = widgets.VBox([
             self.w_G_form,
@@ -711,7 +708,7 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
 
     def calc_G_options(self):
         '''Widgets for method for computing soil heat flux'''
-        
+
         self.w_G_form = widgets.ToggleButtons(
             description='Select method for soil heat flux',
             options={
@@ -738,12 +735,12 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
         self.w_G_shape = widgets.BoundedFloatText(
             value=self.G_shape, min=0, max=24, description='Time shape (h)', width=80)
         self.w_G_shape.visible = False
-        
+
     def get_data_TSEB_widgets(self, is_image):
         '''Parses the parameters in the GUI to TSEB variables for running TSEB'''
-        
+
         self.params['model'] = self.w_model.value
-        
+
         self.params['lat'] = self.w_lat.value
         self.params['lon'] = self.w_lon.value
         self.params['alt'] = self.w_alt.value
@@ -756,16 +753,16 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
         self.params['rho_vis_C'] = self.w_rho_vis_C.value
         self.params['tau_vis_C'] = self.w_tau_vis_C.value
         self.params['rho_nir_C'] = self.w_rho_nir_C.value
-        self.params['tau_nir_C'] =  self.w_tau_nir_C.value
+        self.params['tau_nir_C'] = self.w_tau_nir_C.value
         self.params['rho_vis_S'] = self.w_rho_vis_S.value
         self.params['rho_nir_S'] = self.w_rho_nir_S.value
-        
+
         self.params['alpha_PT'] = self.w_PT.value
         self.params['x_LAD'] = self.w_LAD.value
         self.params['leaf_width'] = self.w_leafwidth.value
         self.params['z0_soil'] = self.w_zsoil.value
         self.params['landcover'] = self.w_lc.value
-        
+
         self.params['resistance_form'] = self.w_res.value
         self.params['KN_b'] = self.w_KN_b.value
         self.params['KN_c'] = self.w_KN_c.value
@@ -806,7 +803,7 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
             self.params['ea'] = self.w_ea.value
             self.params['L_dn'] = self.w_L_dn.value
             self.params['p'] = self.w_p.value
-                                  
+
             if self.params['model'] == 'DTD':
                 self.params['T_R0'] = self.w_T_R0.value
                 self.params['T_A0'] = self.w_T_A0.value
@@ -815,12 +812,12 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
             self.params['f_c'] = self.f_c
             self.params['f_g'] = self.f_g
             self.params['w_C'] = self.w_c
-            
+
         self.ready = True
 
     def _on_model_change(self, name, value):
         '''Behaviour when TSEB model is changed'''
-        
+
         if value == 'DTD':
             self.w_T_R0_But.visible = True
             self.w_T_R0.visible = True
@@ -834,15 +831,15 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
 
     def _on_row_change(self, name, value):
         '''Behaviour when selecting a canopy in row'''
-        
+
         if value == 0:
             self.w_rowaz.visible = False
         else:
             self.w_rowaz.visible = True
-            
+
     def _on_res_change(self, name, value):
         '''Behaviour when changing the resistance model'''
-        
+
         if value == 0:
             self.KN_params_box.visible = True
         else:
@@ -850,7 +847,7 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
 
     def _on_G_change(self, name, value):
         '''Behaviour when changing the soil heat flux model'''
-        
+
         if value == 0:
             self.w_Gratio.visible = False
             self.w_Gconstant.visible = True
@@ -902,10 +899,10 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
         self.w_leafwidth.value = config_data['leaf_width']
         self.w_zsoil.value = config_data['z0_soil']
         if config_data['landcover'].isdigit():
-            config_data['landcover'] = int(config_data['landcover'])            
+            config_data['landcover'] = int(config_data['landcover'])
         if config_data['landcover'] not in self.w_lc.options.values():
                 options = self.w_lc.options.copy()
-                options.update({config_data['landcover']:config_data['landcover']})
+                options.update({config_data['landcover']: config_data['landcover']})
                 self.w_lc.options = options
         self.w_lc.value = config_data['landcover']
         self.w_G_form.value = int(config_data['G_form'])
@@ -944,7 +941,7 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
 
     def _on_saveconfig_clicked(self, b):
         '''Opens a configuration file and writes the parameters in the GUI into the file'''
-        
+
         output_file = self._get_output_filename(
             title='Select Output Configuration File')
         if not output_file:
@@ -1035,11 +1032,11 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
 
     def _on_input_clicked(self, b, name, value_widget):
         value_widget.value = self._get_input_filename("Select "+name+" Image")
-        
+
     def _input_dropdown_clicked(self, b, name, value_widget):
         filename = self._get_input_filename("Select "+name+" Image")
         options = value_widget.options.copy()
-        options.update({filename:filename})
+        options.update({filename: filename})
         value_widget.options = options
         value_widget.value = filename
 
@@ -1063,7 +1060,7 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
 
     def _setup_tkinter(self):
         '''Creates a Tkinter input file dialog'''
-        
+
         # Import Tkinter GUI widgets
         if sys.version_info.major == 2:
             from tkFileDialog import askopenfilename, asksaveasfilename
@@ -1102,5 +1099,3 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
         self.run(is_image=self.is_image)
         # Change the colour of the button to know it has finished
         self.w_runmodel.background_color = 'green'
-
-    
