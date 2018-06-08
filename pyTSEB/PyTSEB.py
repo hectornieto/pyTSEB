@@ -76,6 +76,7 @@ see the guidelines for input and configuration file preparation in :doc:`README_
 from os.path import join, splitext, dirname, basename, exists
 from os import mkdir
 import ast
+from collections import OrderedDict
 
 import gdal
 import numpy as np
@@ -99,6 +100,10 @@ class PyTSEB():
         self.resistance_form = self.p['resistance_form']
         self.res_params = {}
         self.G_form = self.p['G_form']
+        if 'subset' in self.p:
+            self.subset = ast.literal_eval(self.p['subset'])
+        else:
+            self.subset = []
 
     def run_TSEB_local_image(self):
         ''' Runs TSEB for all the pixel in an image'''
@@ -108,259 +113,110 @@ class PyTSEB():
 
         # Create an input dictionary
         in_data = dict()
+        temp_data = dict()
+        res_params = dict()
+        input_fields = self._get_input_structure(self.model_type)
 
-        if 'subset' in self.p:
-            subset = ast.literal_eval(self.p['subset'])
-        else:
-            subset = []
-
-        # Open the LST data according to the model
+        # Process the first field to get projection and dimension
         try:
-            fid = gdal.Open(self.p['T_R1'], gdal.GA_ReadOnly)
+            field = list(input_fields)[0]
+            fid = gdal.Open(self.p[field], gdal.GA_ReadOnly)
             prj = fid.GetProjection()
             geo = fid.GetGeoTransform()
-            if subset:
-                T_R1 = fid.GetRasterBand(1).ReadAsArray(subset[0],
-                                                        subset[1],
-                                                        subset[2],
-                                                        subset[3])
-                geo = [geo[0]+subset[0]*geo[1], geo[1], geo[2],
-                       geo[3]+subset[1]*geo[5], geo[4], geo[5]]
+            if self.subset:
+                in_data[field] = fid.GetRasterBand(1).ReadAsArray(self.subset[0],
+                                                                  self.subset[1],
+                                                                  self.subset[2],
+                                                                  self.subset[3])
+                geo = [geo[0]+self.subset[0]*geo[1], geo[1], geo[2],
+                       geo[3]+self.subset[1]*geo[5], geo[4], geo[5]]
             else:
-                T_R1 = fid.GetRasterBand(1).ReadAsArray()
-            dims = np.shape(T_R1)
-
-            # In case of TSEB_PT or DTD models save noon temperature
-            if self.model_type == 'TSEB_PT' or self.model_type == 'DTD':
-                in_data['T_R1'] = T_R1
-
-            # In case of TSEB_2T save both component temperatures
-            if self.model_type == 'TSEB_2T':
-                in_data['T_C'] = T_R1
-                if subset:
-                    in_data['T_S'] = fid.GetRasterBand(2).ReadAsArray(subset[0],
-                                                                      subset[1],
-                                                                      subset[2],
-                                                                      subset[3])
-                else:
-                    in_data['T_S'] = fid.GetRasterBand(2).ReadAsArray()
-
+                in_data[field] = fid.GetRasterBand(1).ReadAsArray()
+            dims = np.shape(in_data[field])
             fid = None
         except Exception as e:
-            print('Error reading sunrise LST file ' + str(self.p['T_R0']))
+            print('Error reading ' + input_fields[field])
             fid = None
             return
 
-        # In case of DTD also need to read the sunrise/night LST
-        if self.model_type == 'DTD':
-            success, in_data['T_R0'] = self._open_GDAL_image(
-                self.p['T_R0'], dims, 'Sunrise LST', subset)
-            if not success:
-                return
-
-        # Read the image mosaic and get the LAI
-        success, in_data['LAI'] = self._open_GDAL_image(
-            self.p['LAI'], dims, 'Leaf Area Index', subset)
-        if not success:
-            return
-        # Read the image View Zenith Angle
-        success, in_data['VZA'] = self._open_GDAL_image(
-            self.p['VZA'], dims, 'View Zenith Angle', subset)
-        if not success:
-            return
-        # Read the fractional cover data
-        success, in_data['f_c'] = self._open_GDAL_image(
-            self.p['f_c'], dims, 'Fractional Cover', subset)
-        if not success:
-            return
-        # Read the Canopy Height data
-        success, in_data['h_C'] = self._open_GDAL_image(
-            self.p['h_C'], dims, 'Canopy Height', subset)
-        if not success:
-            return
-        # Read the canopy witdth ratio
-        success, in_data['w_C'] = self._open_GDAL_image(
-            self.p['w_C'], dims, 'Canopy Width Ratio', subset)
-        if not success:
-            return
-        # Read the Green fraction
-        success, in_data['f_g'] = self._open_GDAL_image(
-            self.p['f_g'], dims, 'Green Fraction', subset)
-        if not success:
-            return
-        # Read landcover
-        success, in_data['landcover'] = self._open_GDAL_image(
-            self.p['landcover'], dims, 'Landcover', subset)
-        if not success:
-            return
-        # Read leaf angle distribution
-        success, in_data['x_LAD'] = self._open_GDAL_image(
-            self.p['x_LAD'], dims, 'Leaf Angle Distribution', subset)
-        if not success:
-            return
-        # Read initial alpha_PT
-        success, in_data['alpha_PT'] = self._open_GDAL_image(
-            self.p['alpha_PT'], dims, 'Initial alpha_PT', subset)
-        if not success:
-            return
-
-        # Read spectral properties
-        success, in_data['rho_vis_C'] = self._open_GDAL_image(
-            self.p['rho_vis_C'], dims, 'Leaf PAR Reflectance', subset)
-        if not success:
-            return
-        success, in_data['tau_vis_C'] = self._open_GDAL_image(
-            self.p['tau_vis_C'], dims, 'Leaf PAR Transmitance', subset)
-        if not success:
-            return
-        success, in_data['rho_nir_C'] = self._open_GDAL_image(
-            self.p['rho_nir_C'], dims, 'Leaf NIR Reflectance', subset)
-        if not success:
-            return
-        success, in_data['tau_nir_C'] = self._open_GDAL_image(
-            self.p['tau_nir_C'], dims, 'Leaf NIR Transmitance', subset)
-        if not success:
-            return
-        success, in_data['rho_vis_S'] = self._open_GDAL_image(
-            self.p['rho_vis_S'], dims, 'Soil PAR Reflectance', subset)
-        if not success:
-            return
-        success, in_data['rho_nir_S'] = self._open_GDAL_image(
-            self.p['rho_nir_S'], dims, 'Soil NIR Reflectance', subset)
-        if not success:
-            return
-        success, in_data['emis_C'] = self._open_GDAL_image(
-            self.p['emis_C'], dims, 'Leaf Emissivity', subset)
-        if not success:
-            return
-        success, in_data['emis_S'] = self._open_GDAL_image(
-            self.p['emis_S'], dims, 'Soil Emissivity', subset)
-        if not success:
-            return
-
-        # Calculate illumination conditions
-        success, lat = self._open_GDAL_image(self.p['lat'], dims, 'Latitude', subset)
-        if not success:
-            return
-        success, lon = self._open_GDAL_image(self.p['lon'], dims, 'Longitude', subset)
-        if not success:
-            return
-        success, stdlon = self._open_GDAL_image(self.p['stdlon'], dims, 'Standard Longitude', 
-                                                subset)
-        if not success:
-            return
-        success, in_data['time'] = self._open_GDAL_image(self.p['time'], dims, 'Time', subset)
-        if not success:
-            return
-        success, doy = self._open_GDAL_image(self.p['DOY'], dims, 'DOY', subset)
-        if not success:
-            return
-        in_data['SZA'], in_data['SAA'] = met.calc_sun_angles(
-            lat, lon, stdlon, doy, in_data['time'])
-        # Wind speed
-        success, in_data['u'] = self._open_GDAL_image(
-            self.p['u'], dims, 'Wind speed', subset)
-        if not success:
-            return
-        # Vapour pressure
-        success, in_data['ea'] = self._open_GDAL_image(
-            self.p['ea'], dims, 'Vapour pressure', subset)
-        if not success:
-            return
-        # Air pressure
-        success, in_data['p'] = self._open_GDAL_image(
-            self.p['p'], dims, 'Pressure', subset)
-        # If pressure was not provided then estimate it based of altitude
-        if not success:
-            success, alt = self._open_GDAL_image(self.p['alt'], dims, 'Altitude', subset)
-            if success:
-                in_data['p'] = met.calc_pressure(alt)
+        # Process other input fields
+        for field in list(input_fields)[1:]:
+            # Some fields might need special treatment
+            if field in ["lat", "lon", "stdlon", "DOY", "time"]:
+                success, temp_data[field] = self._open_GDAL_image(field, dims)
+            elif field == "T_C":
+                success, in_data[field] = self._open_GDAL_image("T_R1", dims)
+            elif field == "T_S":
+                success, in_data[field] = self._open_GDAL_image("T_R1", dims, band=2)
+            elif field == "input_mask":
+                    if self.p['input_mask'] == '0':
+                        # Create mask from landcover array
+                        mask = np.ones(dims)
+                        mask[np.logical_or.reduce((in_data['landcover'] == res.WATER,
+                                                   in_data['landcover'] == res.URBAN,
+                                                   in_data['landcover'] == res.SNOW))] = 0
+                        success = True
+                    else:
+                        success, mask = self._open_GDAL_image(field, dims)
+            elif field in ['KN_b', 'KN_c', 'KN_c_dash']:
+                success, res_params[field] = self._open_GDAL_image(field, dims)
+            elif field == "G":
+                # Get the Soil Heat flux if G_form includes the option of
+                # Constant G or constant ratio of soil reaching radiation
+                if self.G_form[0][0] == TSEB.G_CONSTANT or self.G_form[0][0] == TSEB.G_RATIO:
+                    success, self.G_form[1] = self._open_GDAL_image(self.G_form[1], dims)
+                # Santanello and Friedls G
+                elif self.G_form[0][0] == TSEB.G_TIME_DIFF:
+                    # Set the time in the G_form flag to compute the Santanello and
+                    # Friedl G
+                    self.G_form[1] = in_data['time']
             else:
-                return
-        success, in_data['S_dn'] = self._open_GDAL_image(
-            self.p['S_dn'], dims, 'Shortwave irradiance', subset)
-        if not success:
-            return
-        # Wind speed measurement height
-        success, in_data['z_u'] = self._open_GDAL_image(
-            self.p['z_u'], dims, 'Wind speed height', subset)
-        if not success:
-            return
-        # Air temperature mesurement height
-        success, in_data['z_T'] = self._open_GDAL_image(
-            self.p['z_T'], dims, 'Air temperature height', subset)
-        if not success:
-            return
-        # Leaf width
-        success, in_data['leaf_width'] = self._open_GDAL_image(
-            self.p['leaf_width'], dims, 'Leaf Width', subset)
-        if not success:
-            return
-        # Soil roughness
-        success, in_data['z0_soil'] = self._open_GDAL_image(
-            self.p['z0_soil'], dims, 'Soil Roughness', subset)
-        if not success:
-            return
+                success, in_data[field] = self._open_GDAL_image(field, dims)
 
-        # Incoming long wave radiation
-        success, in_data['T_A1'] = self._open_GDAL_image(
-            self.p['T_A1'], dims, 'Air Temperature', subset)
-        if not success:
-            return
-        if self.model_type == 'DTD':
-            success, in_data['T_A0'] = self._open_GDAL_image(
-                self.p['T_A0'], dims, 'Air Temperature at time 0', subset)
-        if not success:
-            return
-        success, in_data['L_dn'] = self._open_GDAL_image(
-            self.p['L_dn'], dims, 'Longwave irradiance', subset)
-        # If longwave irradiance was not provided then estimate it based on air
-        # temperature and humidity
-        if not success:
-            in_data['L_dn'] = rad.calc_longwave_irradiance(in_data['ea'], in_data['T_A1'],
-                                                           in_data['z_T'])
-
-        # Open the processing maks and get the id for the cells to process
-        if self.p['input_mask'] != '0':
-            success, mask = self._open_GDAL_image(
-                self.p['input_mask'], dims, 'input mask', subset)
             if not success:
-                print("Please set input_mask=0 for processing the whole image.")
-                return
-        # Otherwise create mask from landcover array
-        else:
-            mask = np.ones(dims)
-            mask[np.logical_or.reduce((in_data['landcover'] == res.WATER,
-                                       in_data['landcover'] == res.URBAN,
-                                       in_data['landcover'] == res.SNOW))] = 0
-
-        # Get the Soil Heat flux if G_form includes the option of measured G
-        # Constant G or constant ratio of soil reaching radiation
-        if self.G_form[0][0] == 0 or self.G_form[0][0] == 1:
-            success, self.G_form[1] = self._open_GDAL_image(
-                                            self.G_form[1], dims, 'G', subset)
-            if not success:
-                return
-        # Santanello and Friedls G
-        elif self.G_form[0][0] == 2:
-            # Set the time in the G_form flag to compute the Santanello and
-            # Friedl G
-            self.G_form[1] = in_data['time']
-
-        # Set the Kustas and Norman resistance parameters
-        if self.resistance_form == 0:
-            success, self.res_params['KN_b'] = self._open_GDAL_image(
-                self.p['KN_b'], dims, 'Resistance parameter b', subset)
-            if not success:
-                return
-            success, self.res_params['KN_c'] = self._open_GDAL_image(
-                self.p['KN_c'], dims, 'Resistance parameter c', subset)
-            if not success:
-                return
-            success, self.res_params['KN_C_dash'] = self._open_GDAL_image(
-                self.p['KN_C_dash'], dims, 'Resistance parameter C\'', subset)
-            if not success:
-                return
+                # Some fields are optional is some circumstances or can be calculated if missing.
+                if field in ["SZA", "SAA"]:
+                    try:
+                        in_data['SZA'], in_data['SAA'] = met.calc_sun_angles(temp_data["lat"],
+                                                                             temp_data["lon"],
+                                                                             temp_data["stdlon"],
+                                                                             temp_data["DOY"],
+                                                                             temp_data["time"])
+                    except KeyError as e:
+                        print("ERROR: Cannot calculate or read "+input_fields[field] +
+                              ". "+field+" or parameter "+str(e)+" are missing.")
+                        return
+                elif field == "p":
+                    try:
+                        in_data["p"] = met.calc_pressure(in_data["alt"])
+                    except KeyError as e:
+                        print("ERROR: Cannot calculate or read "+input_fields[field] +
+                              ". "+field+" or parameter "+str(e)+" are missing.")
+                        return
+                elif field == "L_dn":
+                    try:
+                        in_data['L_dn'] = rad.calc_longwave_irradiance(in_data['ea'],
+                                                                       in_data['T_A1'],
+                                                                       in_data['z_T'])
+                    except KeyError as e:
+                        print("ERROR: Cannot calculate or read "+input_fields[field] +
+                              ". "+field+" or parameter "+str(e)+" are missing.")
+                        return
+                elif (field in ['KN_b', 'KN_c', 'KN_c_dash'] and
+                      self.resistance_form != TSEB.KUSTAS_NORMAN_1999):
+                    print("ERROR: Cannot read"+input_fields[field] + ".")
+                    return
+                elif field == "input_mask":
+                    print("Please set input_mask=0 for processing the whole image.")
+                    return
+                elif field in ["alt", "lat", "lon", "stdlon", "doy", "time"]:
+                    pass
+                else:
+                    print('ERROR: file read ' + field +
+                          '\n Please type a valid file name or a numeric value for ' +
+                          input_fields[field])
+                    return
+        temp_data = None
 
         # ======================================
         # Run the chosen model
@@ -866,30 +722,39 @@ class PyTSEB():
         print("Finished processing!")
         return out_data
 
-    def _open_GDAL_image(self, inputString, dims, variable, subset=[]):
+    def _open_GDAL_image(self, parameter, dims, band=1):
         '''Open a GDAL image and returns and array with its first band'''
-
-        if inputString == "":
-            return False, None
 
         success = True
         array = None
+
+        # See if the parameter is a number
+        try:
+            array = np.zeros(dims) + float(parameter)
+            return success, array
+        except ValueError:
+            pass
+
+        # Otherwise see if the parameter is a parameter name
+        try:
+            inputString = self.p[parameter]
+        except KeyError:
+            success = False
+            return success, array
+        # If it is then get the value of that parameter
         try:
             array = np.zeros(dims) + float(inputString)
         except ValueError:
             try:
                 fid = gdal.Open(inputString, gdal.GA_ReadOnly)
-                if subset:
-                    array = fid.GetRasterBand(1).ReadAsArray(subset[0],
-                                                             subset[1],
-                                                             subset[2],
-                                                             subset[3])
+                if self.subset:
+                    array = fid.GetRasterBand(band).ReadAsArray(self.subset[0],
+                                                                self.subset[1],
+                                                                self.subset[2],
+                                                                self.subset[3])
                 else:
-                    array = fid.GetRasterBand(1).ReadAsArray()
+                    array = fid.GetRasterBand(band).ReadAsArray()
             except AttributeError:
-                print(
-                    'ERROR: file read ' + str(inputString) +
-                    '\n Please type a valid file name or a numeric value for ' + variable)
                 success = False
             finally:
                 fid = None
@@ -1011,6 +876,71 @@ class PyTSEB():
             'n_iterations')  # Number of iterations before model converged to stable value
 
         return outputStructure
+
+    def _get_input_structure(self, model):
+        if model == "TSEB_PT":
+            input_fields = OrderedDict([
+                                # General parameters
+                                ("T_R1", "Land Surface Temperature"),
+                                ("LAI", "Leaf Area Index"),
+                                ("VZA", "View Zenith Angle for LST"),
+                                ("landcover", "Landcover"),
+                                ("input_mask", "Input Mask"),
+                                # Vegetation parameters
+                                ("f_c", "Fractional Cover"),
+                                ("h_C", "Canopy Height"),
+                                ("w_C", "Canopy Width Ratio"),
+                                ("f_g", "Green Vegetation Fraction"),
+                                ("leaf_width", "Leaf Width"),
+                                ("x_LAD", "Leaf Angle Distribution"),
+                                ("alpha_PT", "Initial Priestley-Taylor Alpha Value"),
+                                # Spectral Properties
+                                ("rho_vis_C", "Leaf PAR Reflectance"),
+                                ("tau_vis_C", "Leaf PAR Transmitance"),
+                                ("rho_nir_C", "Leaf NIR Reflectance"),
+                                ("tau_nir_C", "Leaf NIR Transmitance"),
+                                ("rho_vis_S", "Soil PAR Reflectance"),
+                                ("rho_nir_S", "Soil NIR Reflectance"),
+                                ("emis_C", "Leaf Emissivity"),
+                                ("emis_S", "Soil Emissivity"),
+                                # Illumination conditions
+                                ("lat", "Latitude"),
+                                ("lon", "Longitude"),
+                                ("stdlon", "Standard Longitude"),
+                                ("time", "Observation Time for LST"),
+                                ("DOY", "Observation Day Of Year for LST"),
+                                ("SZA", "Sun Zenith Angle"),
+                                ("SAA", "Sun Azimuth Angle"),
+                                # Meteorological parameters
+                                ("T_A1", "Air temperature"),
+                                ("u", "Wind Speed"),
+                                ("ea", "Vapour Pressure"),
+                                ("alt", "Altitude"),
+                                ("p", "Pressure"),
+                                ("S_dn", "Shortwave Irradiance"),
+                                ("z_T", "Air Temperature Height"),
+                                ("z_u", "Wind Speed Height"),
+                                ("z0_soil", "Soil Roughness"),
+                                ("L_dn", "Longwave Irradiance"),
+                                # Resistance parameters
+                                ("KN_b", "Kustas and Norman Resistance Parameter b"),
+                                ("KN_c", "Kustas and Norman Resistance Parameter c"),
+                                ("KN_C_dash", "Kustas and Norman Resistance Parameter c-dash"),
+                                # Soil heat flux parameter
+                                ("G", "Soil Heat Flux Parameter")])
+        elif model == "TSEB_2T":
+            input_fields = self._get_input_structure("TSEB_PT")
+            del input_fields["T_R1"]
+            input_fields["T_C"] = "Canopy Temperature"
+            input_fields["T_S"] = "Soil Temperature"
+        elif model == "DTD":
+            input_fields = self._get_input_structure("TSEB_PT")
+            input_fields["T_R0"] = "Early Morning Land Surface Temperature"
+            input_fields["T_A0"] = "Early Morning Air Temperature"
+        else:
+            print("Unknown model name")
+            input_fields = {}
+        return input_fields
 
     def _required_data_present(self, in_data):
         '''Checks that all the data required for TSEB is contained in an input ascci table'''
