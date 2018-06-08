@@ -98,6 +98,12 @@ MCNAUGHTON_VANDERHURK = 2
 CHOUDHURY_MONTEITH_ALPHA_1988 = 3
 HADHIGHI_AND_OR_2015 = 4
 
+# Soil heat flux formulation constants
+G_CONSTANT = 0
+G_RATIO = 1
+G_TIME_DIFF = 2
+G_TIME_DIFF_SIGMOID = 3
+
 def TSEB_2T(
     T_C,
     T_S,
@@ -1553,14 +1559,14 @@ def calc_G(calcG_params, Rn_S, i=None):
 
     if i is None:
         i = np.ones(Rn_S.shape, dtype=bool)
-    if calcG_params[0][0] == 0:
+    if calcG_params[0][0] == G_CONSTANT:
         G = calcG_params[1][i]
-    elif calcG_params[0][0] == 1:
+    elif calcG_params[0][0] == G_RATIO:
         G = calc_G_ratio(Rn_S[i], calcG_params[1][i])
-    elif calcG_params[0][0] == 2:
+    elif calcG_params[0][0] == G_TIME_DIFF:
         G = calc_G_time_diff(Rn_S[i], [calcG_params[1][i], calcG_params[
                            0][1], calcG_params[0][2], calcG_params[0][3]])
-    elif calcG_params[0][0] == 3:
+    elif calcG_params[0][0] == G_TIME_DIFF_SIGMOID:
         G = calc_G_time_diff_sigmoid(Rn_S[i], [calcG_params[1][i], calcG_params[
                            0][1], calcG_params[0][2], calcG_params[0][3], 
                             calcG_params[0][4], calcG_params[0][5], calcG_params[0][6]])
