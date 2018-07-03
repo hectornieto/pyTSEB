@@ -16,7 +16,7 @@
 
 from re import match
 
-from pyTSEB.PyTSEB import PyTSEB
+from pyTSEB.PyTSEB import PyTSEB, PyTSEB2T, PyDTD
 
 
 class TSEBConfigFileInterface():
@@ -209,11 +209,19 @@ class TSEBConfigFileInterface():
     def run(self, is_image):
 
         if self.ready:
-            pyTSEB = PyTSEB(self.params)
-            if is_image:
-                pyTSEB.run_TSEB_local_image()
+            if self.params['model'] == "TSEB_PT":
+                model = PyTSEB(self.params)
+            elif self.params['model'] == "TSEB_2T":
+                model = PyTSEB2T(self.params)
+            elif self.params['model'] == "DTD":
+                model = PyDTD(self.params)
             else:
-                in_data, out_data = pyTSEB.run_TSEB_point_series_array()
+                print("Unknown model: " + self.params['model'] + "!")
+                return None
+            if is_image:
+                model.process_local_image()
+            else:
+                in_data, out_data = model.process_point_series_array()
                 return in_data, out_data
         else:
             print("pyTSEB will not be run due to errors in the input data.")
