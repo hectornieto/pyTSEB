@@ -352,12 +352,14 @@ class PyTSEB(object):
 
         # Get the Soil Heat flux if G_form includes the option of measured G
         dims = in_data['LAI'].shape
-        if self.G_form[0][0] == 0:  # Constant G
+        if self.G_form[0][0] == TSEB.G_CONSTANT:
             if 'G' in in_data.columns:
                 self.G_form[1] = in_data['G']
-        elif self.G_form[0][0] == 1:
+            else:
+                self.G_form[1] = np.ones(dims) * self.G_form[1]
+        elif self.G_form[0][0] == TSEB.G_RATIO:
             self.G_form[1] = np.ones(dims) * self.G_form[1]
-        elif self.G_form[0][0] == 2:  # Santanello and Friedls G
+        elif self.G_form[0][0] == TSEB.G_TIME_DIFF:
             # Set the time in the G_form flag to compute the Santanello and
             # Friedl G
             self.G_form[1] = in_data['time']
