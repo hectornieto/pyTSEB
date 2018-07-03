@@ -106,7 +106,19 @@ class PyTSEB(object):
             self.subset = []
 
     def process_local_image(self):
-        ''' Runs TSEB for all the pixel in an image'''
+        ''' Prepare input data and calculate energy fluxes for all the pixel in an image.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        in_data : dict
+            All the input data coming into the model.
+        out_data : dict
+            All the output data coming out of the model.
+        '''
 
         # ======================================
         # Process the input
@@ -257,7 +269,19 @@ class PyTSEB(object):
         return in_data, out_data
 
     def process_point_series_array(self):
-        ''' Runs TSEB for all the dates in point time-series'''
+        ''' Prepare input data and calculate energy fluxes for all the dates in point time-series.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        in_data : dict
+            All the input data coming into the model.
+        out_data : dict
+            All the output data coming out of the model.
+        '''
 
         def compose_date(
                 years,
@@ -468,6 +492,21 @@ class PyTSEB(object):
         return in_data, out_data
 
     def run(self, in_data, mask=None):
+        ''' Execute the routines to calculate energy fluxes.
+
+        Parameters
+        ----------
+        in_data : dict
+            The input data for the model.
+        mask : int array or None
+            If None then fluxes will be calculated for all input points. Otherwise, fluxes will be
+            calculated only for points for which mask is 1.
+
+        Returns
+        -------
+        out_data : dict
+            The output data from the model.
+        '''
 
         print("Processing...")
 
@@ -589,6 +628,22 @@ class PyTSEB(object):
         return out_data
 
     def _call_flux_model_veg(self, in_data, out_data, model_params, i):
+        ''' Call a TSEB_PT model to calculate fluxes for data points containing vegetation.
+
+        Parameters
+        ----------
+        in_data : dict
+            The input data for the model.
+        out_data : dict
+            Dict containing the output data from the model which will be updated. It also contains
+            previusly calculated shortwave radiation and roughness values which are used as input
+            data.
+
+        Returns
+        -------
+        None
+        '''
+
         [out_data['flag'][i], out_data['T_S1'][i], out_data['T_C1'][i],
          out_data['T_AC1'][i], out_data['Ln_S1'][i], out_data['Ln_C1'][i],
          out_data['LE_C1'][i], out_data['H_C1'][i], out_data['LE_S1'][i],
@@ -623,6 +678,22 @@ class PyTSEB(object):
                               resistance_form=model_params["resistance_form"])
 
     def _call_flux_model_soil(self, in_data, out_data, model_params, i):
+        ''' Call a OSEB model to calculate soil fluxes for data points containing no vegetation.
+
+        Parameters
+        ----------
+        in_data : dict
+            The input data for the model.
+        out_data : dict
+            Dict containing the output data from the model which will be updated. It also contains
+            previusly calculated shortwave radiation and roughness values which are used as input
+            data.
+
+        Returns
+        -------
+        None
+        '''
+
         [out_data['flag'][i],
          out_data['Ln_S1'][i],
          out_data['LE_S1'][i],
@@ -646,7 +717,27 @@ class PyTSEB(object):
                                                   calcG_params=model_params["calcG_params"])
 
     def _open_GDAL_image(self, parameter, dims, band=1):
-        '''Open a GDAL image and returns and array with its first band'''
+        '''Set model input parameter as an array.
+
+        Parameters
+        ----------
+        parameter : float or string
+            If float it should be the value of the parameter. If string of a number it is also
+            the value of the parameter. Otherwise it is the name of the parameter and the value, or
+            path to raster file which contains the values, is read from the parameters dictionary.
+        dims : int list
+            The dimensions of the output parameter array.
+        band : int (default = 1)
+            Band (in GDAL convention) of raster file to be read, if parameter is to be read from a
+            raster file.
+
+        Returns
+        -------
+        success : boolean
+            True is the parameter was succefully set, false otherwise.
+        array : float array
+            The set parameter array.
+        '''
 
         success = True
         array = None
@@ -685,8 +776,28 @@ class PyTSEB(object):
         return success, array
 
     def _write_raster_output(self, outfile, output, geo, prj, fields):
-        '''Writes the arrays of an output dictionary which keys match the list
-           in fields to a raster file '''
+        '''Write the specified arrays of a dictionary to a raster file.
+
+        Parameters
+        ----------
+        outfile : string
+            Path to the output raster. If the path ends in ".nc" the output will be saved in a
+            netCDF file. If the path ends in ".vrt" then the outputs will be saved in a GDAL
+            virtual raster with the actual data saved as GeoTIFFs (one per field) in .data
+            sub-folder. Otherwise, the output will be saved as one GeoTIFF.
+        output : dict
+            The dictionary containing the output data arrays.
+        geo : float list
+            The GDAL geotransform array.
+        prj : string
+            The GDAL projection string.
+        fields : string list
+            The list of output fields from the output dictionary to save to file.
+
+        Returns
+        -------
+        None
+        '''
 
         # If the output file has .nc extension then save it as netCDF,
         # otherwise assume that the output should be a GeoTIFF
@@ -755,9 +866,19 @@ class PyTSEB(object):
             gdal.BuildVRT(out_vrt, out_files, separate=True)
 
     def _get_output_structure(self):
-        ''' Output fields in TSEB'''
+        ''' Output fields' names for TSEB model.
 
-        outputStructure = (
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        output_structure: string tuple
+            Names of the output fields.
+        '''
+
+        output_structure = (
             # resistances
             'R_A1',  # resistance to heat transport in the surface layer (s/m) at time t1
             'R_x1',  # resistance to heat transport in the canopy surface layer (s/m) at time t1
@@ -798,9 +919,21 @@ class PyTSEB(object):
             'flag',  # Quality flag
             'n_iterations')  # Number of iterations before model converged to stable value
 
-        return outputStructure
+        return output_structure
 
     def _get_input_structure(self):
+        ''' Input fields' names for TSEB_PT model. Only relevant for image processing mode.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        input_fields: string ordered dict
+            Names (keys) and descriptions (values) of TSEB_PT input fields.
+        '''
+
         input_fields = OrderedDict([
                             # General parameters
                             ("T_R1", "Land Surface Temperature"),
@@ -853,10 +986,39 @@ class PyTSEB(object):
         return input_fields
 
     def _set_special_model_input(self, field, dims):
+        ''' Special processing for setting certain input fields. Only relevant for image processing
+        mode.
+
+        Parameters
+        ----------
+        field : string
+            The name of the input field for which the special processing is needed.
+        dims : int list
+            The dimensions of the output parameter array.
+
+        Returns
+        -------
+        success : boolean
+            True is the parameter was succefully set, false otherwise.
+        array : float array
+            The set parameter array.
+        '''
         return False, None
 
     def _get_required_data_columns(self):
-        '''Columns required in an input asci table if running in point time-series mode'''
+        ''' Input columns' names required in an input asci table for TSEB_PT model. Only relevant
+        for point time-series processing mode.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        required_columns : string tuple
+            Names of the required input columns.
+        '''
+
         required_columns = ('year',
                             'DOY',
                             'time',
@@ -877,13 +1039,37 @@ class PyDTD(PyTSEB):
         super().__init__(parameters)
 
     def _get_input_structure(self):
+        ''' Input fields' names for DTD model.  Only relevant for image processing mode.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        outputStructure: string ordered dict
+            Names (keys) and descriptions (values) of DTD input fields.
+        '''
+
         input_fields = super()._get_input_structure()
         input_fields["T_R0"] = "Early Morning Land Surface Temperature"
         input_fields["T_A0"] = "Early Morning Air Temperature"
         return input_fields
 
     def _get_required_data_columns(self):
-        '''Columns required in an input asci table if running in point time-series mode'''
+        ''' Input columns' names required in an input asci table for TSEB_PT model. Only relevant
+        for point time-series processing mode.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        required_columns : string tuple
+            Names of the required input columns.
+        '''
+
         required_columns = ('year',
                             'DOY',
                             'time',
@@ -900,6 +1086,22 @@ class PyDTD(PyTSEB):
         return required_columns
 
     def _call_flux_model_veg(self, in_data, out_data, model_params, i):
+        ''' Call a DTD model to calculate fluxes for data points containing vegetation.
+
+        Parameters
+        ----------
+        in_data : dict
+            The input data for the model.
+        out_data : dict
+            Dict containing the output data from the model which will be updated. It also contains
+            previusly calculated shortwave radiation and roughness values which are used as input
+            data.
+
+        Returns
+        -------
+        None
+        '''
+
         [out_data['flag'][i], out_data['T_S1'][i], out_data['T_C1'][i],
          out_data['T_AC1'][i], out_data['Ln_S1'][i], out_data['Ln_C1'][i],
          out_data['LE_C1'][i], out_data['H_C1'][i], out_data['LE_S1'][i],
@@ -936,6 +1138,22 @@ class PyDTD(PyTSEB):
                           resistance_form=model_params["resistance_form"])
 
     def _call_flux_model_soil(self, in_data, out_data, model_params, i):
+        ''' Call a OSEB model to calculate soil fluxes for data points containing no vegetation.
+
+        Parameters
+        ----------
+        in_data : dict
+            The input data for the model.
+        out_data : dict
+            Dict containing the output data from the model which will be updated. It also contains
+            previusly calculated shortwave radiation and roughness values which are used as input
+            data.
+
+        Returns
+        -------
+        None
+        '''
+
         [out_data['flag'][i],
          out_data['Ln_S1'][i],
          out_data['LE_S1'][i],
@@ -966,6 +1184,18 @@ class PyTSEB2T(PyTSEB):
         super().__init__(parameters)
 
     def _get_input_structure(self):
+        ''' Input fields' names for TSEB_2T model.  Only relevant for image processing mode.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        outputStructure: string ordered dict
+            Names (keys) and descriptions (values) of TSEB_2T input fields.
+        '''
+
         input_fields = super()._get_input_structure()
         del input_fields["T_R1"]
         input_fields["T_C"] = "Canopy Temperature"
@@ -973,7 +1203,24 @@ class PyTSEB2T(PyTSEB):
         return input_fields
 
     def _set_special_model_input(self, field, dims):
-        # Some fields might need special treatment
+        ''' Special processing for setting certain input fields. Only relevant for image processing
+        mode.
+
+        Parameters
+        ----------
+        field : string
+            The name of the input field for which the special processing is needed.
+        dims : int list
+            The dimensions of the output parameter array.
+
+        Returns
+        -------
+        success : boolean
+            True is the parameter was succefully set, false otherwise.
+        array : float array
+            The set parameter array.
+        '''
+
         if field == "T_C":
             success, val = self._open_GDAL_image("T_R1", dims)
         elif field == "T_S":
@@ -984,7 +1231,19 @@ class PyTSEB2T(PyTSEB):
         return success, val
 
     def _get_required_data_columns(self):
-        '''Columns required in an input asci table if running in point time-series mode'''
+        ''' Input columns' names required in an input asci table for TSEB_PT model. Only relevant
+        for point time-series processing mode.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        required_columns : string tuple
+            Names of the required input columns.
+        '''
+
         required_columns = ('year',
                             'DOY',
                             'time',
@@ -999,6 +1258,22 @@ class PyTSEB2T(PyTSEB):
         return required_columns
 
     def _call_flux_model_veg(self, in_data, out_data, model_params, i):
+        ''' Call a TSEB_2T model to calculate fluxes for data points containing vegetation.
+
+        Parameters
+        ----------
+        in_data : dict
+            The input data for the model.
+        out_data : dict
+            Dict containing the output data from the model which will be updated. It also contains
+            previusly calculated shortwave radiation and roughness values which are used as input
+            data.
+
+        Returns
+        -------
+        None
+        '''
+
         [out_data['flag'][i], out_data['T_AC1'][i], out_data['Ln_S1'][i],
          out_data['Ln_C1'][i], out_data['LE_C1'][i], out_data['H_C1'][i],
          out_data['LE_S1'][i], out_data['H_S1'][i], out_data['G1'][i],
@@ -1032,6 +1307,22 @@ class PyTSEB2T(PyTSEB):
                               resistance_form=model_params["resistance_form"])
 
     def _call_flux_model_soil(self, in_data, out_data, model_params, i):
+        ''' Call a OSEB model to calculate soil fluxes for data points containing no vegetation.
+
+        Parameters
+        ----------
+        in_data : dict
+            The input data for the model.
+        out_data : dict
+            Dict containing the output data from the model which will be updated. It also contains
+            previusly calculated shortwave radiation and roughness values which are used as input
+            data.
+
+        Returns
+        -------
+        None
+        '''
+
         [out_data['flag'][i],
          out_data['Ln_S1'][i],
          out_data['LE_S1'][i],
