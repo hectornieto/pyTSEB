@@ -155,7 +155,7 @@ class PyTSEB(object):
         for field in list(input_fields)[1:]:
             # Some fields might need special treatment
             if field in ["lat", "lon", "stdlon", "DOY", "time"]:
-                success, temp_data[field] = self._open_GDAL_image(field, dims)
+                success, temp_data[field] = self._set_param_array(field, dims)
             elif field == "input_mask":
                     if self.p['input_mask'] == '0':
                         # Create mask from landcover array
@@ -165,14 +165,14 @@ class PyTSEB(object):
                                                    in_data['landcover'] == res.SNOW))] = 0
                         success = True
                     else:
-                        success, mask = self._open_GDAL_image(field, dims)
+                        success, mask = self._set_param_array(field, dims)
             elif field in ['KN_b', 'KN_c', 'KN_c_dash']:
-                success, res_params[field] = self._open_GDAL_image(field, dims)
+                success, res_params[field] = self._set_param_array(field, dims)
             elif field == "G":
                 # Get the Soil Heat flux if G_form includes the option of
                 # Constant G or constant ratio of soil reaching radiation
                 if self.G_form[0][0] == TSEB.G_CONSTANT or self.G_form[0][0] == TSEB.G_RATIO:
-                    success, self.G_form[1] = self._open_GDAL_image(self.G_form[1], dims)
+                    success, self.G_form[1] = self._set_param_array(self.G_form[1], dims)
                 # Santanello and Friedls G
                 elif self.G_form[0][0] == TSEB.G_TIME_DIFF:
                     # Set the time in the G_form flag to compute the Santanello and
@@ -184,7 +184,7 @@ class PyTSEB(object):
                 if val is not None:
                     in_data[field] = val
                 else:
-                    success, in_data[field] = self._open_GDAL_image(field, dims)
+                    success, in_data[field] = self._set_param_array(field, dims)
 
             if not success:
                 # Some fields are optional is some circumstances or can be calculated if missing.
@@ -260,10 +260,10 @@ class PyTSEB(object):
         outdir = dirname(self.p['output_file'])
         if not exists(outdir):
             mkdir(outdir)
-        self._write_raster_output(self.p['output_file'], out_data, geo, prj, self.fields)
+        self.write_raster_output(self.p['output_file'], out_data, geo, prj, self.fields)
         outputfile = splitext(self.p['output_file'])[0] + '_ancillary' + \
                      splitext(self.p['output_file'])[1]
-        self._write_raster_output(outputfile, out_data, geo, prj, self.anc_fields)
+        self.write_raster_output(outputfile, out_data, geo, prj, self.anc_fields)
         print('Saved Files')
 
         return in_data, out_data
@@ -716,7 +716,7 @@ class PyTSEB(object):
                                                   in_data['z_T'][i],
                                                   calcG_params=model_params["calcG_params"])
 
-    def _open_GDAL_image(self, parameter, dims, band=1):
+    def _set_param_array(self, parameter, dims, band=1):
         '''Set model input parameter as an array.
 
         Parameters
@@ -775,7 +775,7 @@ class PyTSEB(object):
 
         return success, array
 
-    def _write_raster_output(self, outfile, output, geo, prj, fields):
+    def write_raster_output(self, outfile, output, geo, prj, fields):
         '''Write the specified arrays of a dictionary to a raster file.
 
         Parameters
@@ -1222,9 +1222,9 @@ class PyTSEB2T(PyTSEB):
         '''
 
         if field == "T_C":
-            success, val = self._open_GDAL_image("T_R1", dims)
+            success, val = self._set_param_array("T_R1", dims)
         elif field == "T_S":
-            success, val = self._open_GDAL_image("T_R1", dims, band=2)
+            success, val = self._set_param_array("T_R1", dims, band=2)
         else:
             success = False
             val = None
