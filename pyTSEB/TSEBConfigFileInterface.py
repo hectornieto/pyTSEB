@@ -16,7 +16,8 @@
 
 from re import match
 
-from pyTSEB.PyTSEB import PyTSEB
+from pyTSEB.PyTSEB import PyTSEB, PyTSEB2T, PyDTD
+
 
 class TSEBConfigFileInterface():
 
@@ -24,7 +25,7 @@ class TSEBConfigFileInterface():
 
         # Variables common to both image and point series runs
         self.input_site_description_vars = (
-            'landcover',            
+            'landcover',
             'lat',
             'lon',
             'alt',
@@ -60,7 +61,7 @@ class TSEBConfigFileInterface():
             'calc_row',
             'row_az',
             'output_file')
-        
+
         # Variables only for image runs
         self.input_image_vars = (
             'T_R1',
@@ -82,12 +83,12 @@ class TSEBConfigFileInterface():
             'S_dn',
             'L_dn',
             'p')
-            
+
         # variables only for point series runs
         self.input_point_vars = (
-            'input_file', 
-            'f_c', 
-            'f_g', 
+            'input_file',
+            'f_c',
+            'f_g',
             'w_C')
 
         self.params = {}
@@ -95,7 +96,7 @@ class TSEBConfigFileInterface():
 
     def parse_input_config(self, input_file, is_image=False):
         ''' Parses the information contained in a configuration file into a dictionary'''
-        
+
         # Prepare a list of expected input variables
         if is_image:
             input_vars = list(self.input_image_vars)
@@ -105,11 +106,11 @@ class TSEBConfigFileInterface():
         input_vars.extend(self.input_spectral_properties_vars)
         input_vars.extend(self.input_vegetation_properties_vars)
         input_vars.extend(self.input_model_formulation_vars)
-        
+
         # Read contents of the configuration file
         config_data = dict()
         try:
-            with open (input_file, 'r') as fid:
+            with open(input_file, 'r') as fid:
                 for line in fid:
                     if match('\s', line):  # skip empty line
                         continue
@@ -127,55 +128,56 @@ class TSEBConfigFileInterface():
         return config_data
 
     def get_data(self, config_data, is_image):
-        '''Parses the parameters in a configuration file directly to TSEB variables for running TSEB'''  
+        '''Parses the parameters in a configuration file directly to TSEB variables for running
+           TSEB'''
         try:
-            
-            for var_name in self.input_site_description_vars:        
+
+            for var_name in self.input_site_description_vars:
                 if is_image:
                     self.params[var_name] = str(config_data[var_name]).strip('"')
                 else:
                     self.params[var_name] = float(config_data[var_name])
-                    
+
             for var_name in self.input_vegetation_properties_vars:
                 if is_image:
                     self.params[var_name] = str(config_data[var_name]).strip('"')
                 else:
                     self.params[var_name] = float(config_data[var_name])
-            
+
             for var_name in self.input_spectral_properties_vars:
                 if is_image:
                     self.params[var_name] = str(config_data[var_name]).strip('"')
                 else:
-                    self.params[var_name] = float(config_data[var_name])            
-                    
-            self.params['model'] = config_data['model']            
+                    self.params[var_name] = float(config_data[var_name])
+
+            self.params['model'] = config_data['model']
             self.params['resistance_form'] = int(config_data['resistance_form'])
             for var_name in ['KN_b', 'KN_c', 'KN_C_dash']:
                 if is_image:
                     self.params[var_name] = str(config_data[var_name]).strip('"')
                 else:
-                    self.params[var_name] = float(config_data[var_name])    
-        
+                    self.params[var_name] = float(config_data[var_name])
+
             if 'calc_row' not in config_data or int(config_data['calc_row']) == 0:
                 self.params['calc_row'] = [0, 0]
             else:
                 self.params['calc_row'] = [
                     1,
                     float(config_data['row_az'])]
-        
+
             if int(config_data['G_form']) == 0:
                 self.params['G_form'] = [[0], float(config_data['G_constant'])]
             elif int(config_data['G_form']) == 1:
                 self.params['G_form'] = [[1], float(config_data['G_ratio'])]
             elif int(config_data['G_form']) == 2:
-                self.params['G_form'] = [[2, 
+                self.params['G_form'] = [[2,
                                          float(config_data['G_amp']),
                                          float(config_data['G_phase']),
                                          float(config_data['G_shape'])],
-                                        12.0]
-        
+                                         12.0]
+
             self.params['output_file'] = config_data['output_file']
-            
+
             if is_image:
                 # Get the input parameters which are specific for running in image
                 # mode
@@ -183,7 +185,7 @@ class TSEBConfigFileInterface():
                     try:
                         self.params[var] = str(config_data[var]).strip('"')
                     except KeyError as e:
-                        if (var == 'T_A0' or var=='T_R0') and self.params['model'] != 'DTD':
+                        if (var == 'T_A0' or var == 'T_R0') and self.params['model'] != 'DTD':
                             pass
                         elif (var == 'subset'):
                             pass
@@ -196,23 +198,30 @@ class TSEBConfigFileInterface():
                 self.params['f_c'] = float(config_data['f_c'])
                 self.params['f_g'] = float(config_data['f_g'])
                 self.params['w_C'] = float(config_data['w_C'])
-                
+
             self.ready = True
-            
+
         except KeyError as e:
             print('Error: missing parameter '+str(e)+' in the input data.')
         except ValueError as e:
             print('Error: '+str(e))
-            
 
     def run(self, is_image):
 
         if self.ready:
-            pyTSEB = PyTSEB(self.params)
-            if is_image:
-                pyTSEB.run_TSEB_local_image()
+            if self.params['model'] == "TSEB_PT":
+                model = PyTSEB(self.params)
+            elif self.params['model'] == "TSEB_2T":
+                model = PyTSEB2T(self.params)
+            elif self.params['model'] == "DTD":
+                model = PyDTD(self.params)
             else:
-                in_data, out_data = pyTSEB.run_TSEB_point_series_array()
+                print("Unknown model: " + self.params['model'] + "!")
+                return None
+            if is_image:
+                model.process_local_image()
+            else:
+                in_data, out_data = model.process_point_series_array()
                 return in_data, out_data
         else:
             print("pyTSEB will not be run due to errors in the input data.")
