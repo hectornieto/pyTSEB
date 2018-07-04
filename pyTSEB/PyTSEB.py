@@ -90,6 +90,12 @@ import pyTSEB.resistances as res
 import pyTSEB.clumping_index as CI
 
 
+# Constants for indicating whether model output field should be saved to file
+S_N = 0  # Save Not
+S_P = 1  # Save as Primary output
+S_A = 2  # Save as Ancillary output
+
+
 class PyTSEB(object):
 
     def __init__(self, parameters):
@@ -239,31 +245,18 @@ class PyTSEB(object):
         # ======================================
         # Save output files
 
-        # Output variables saved in images
-        self.fields = ('H1', 'LE1', 'R_n1', 'G1')
-        # Ancillary output variables
-        self.anc_fields = (
-            'H_C1',
-            'LE_C1',
-            'LE_partition',
-            'T_C1',
-            'T_S1',
-            'R_ns1',
-            'R_nl1',
-            'delta_R_n1',
-            'u_friction',
-            'L',
-            'R_S1',
-            'R_x1',
-            'R_A1',
-            'flag')
+        # Output variables to be saved in images
+        all_fields = self._get_output_structure()
+        primary_fields = [field for field, save in all_fields.items() if save == S_P]
+        ancillary_fields = [field for field, save in all_fields.items() if save == S_A]
+        print(primary_fields)
         outdir = dirname(self.p['output_file'])
         if not exists(outdir):
             mkdir(outdir)
-        self.write_raster_output(self.p['output_file'], out_data, geo, prj, self.fields)
+        self.write_raster_output(self.p['output_file'], out_data, geo, prj, primary_fields)
         outputfile = splitext(self.p['output_file'])[0] + '_ancillary' + \
                      splitext(self.p['output_file'])[1]
-        self.write_raster_output(outputfile, out_data, geo, prj, self.anc_fields)
+        self.write_raster_output(outputfile, out_data, geo, prj, ancillary_fields)
         print('Saved Files')
 
         return in_data, out_data
@@ -874,50 +867,51 @@ class PyTSEB(object):
 
         Returns
         -------
-        output_structure: string tuple
-            Names of the output fields.
+        output_structure: ordered dict
+            Names of the output fields as keys and instructions on whether the output
+            should be saved to file as values.
         '''
 
-        output_structure = (
-            # resistances
-            'R_A1',  # resistance to heat transport in the surface layer (s/m) at time t1
-            'R_x1',  # resistance to heat transport in the canopy surface layer (s/m) at time t1
-            'R_S1',  # resistance to heat transport from the soil surface (s/m) at time t1 fluxes
+        output_structure = OrderedDict([
             # Energy fluxes
-            'R_n1',   # net radiation reaching the surface at time t1
-            'R_ns1',  # net shortwave radiation reaching the surface at time t1
-            'R_nl1',  # net longwave radiation reaching the surface at time t1
-            'delta_R_n1',  # net radiation divergence in the canopy at time t1
-            'Sn_S1',  # Shortwave radiation reaching the soil at time t1
-            'Sn_C1',  # Shortwave radiation intercepted by the canopy at time t1
-            'Ln_S1',  # Longwave radiation reaching the soil at time t1
-            'Ln_C1',  # Longwave radiation intercepted by the canopy at time t1
-            'H_C1',  # canopy sensible heat flux (W/m^2) at time t1
-            'H_S1',  # soil sensible heat flux (W/m^2) at time t1
-            'H1',  # total sensible heat flux (W/m^2) at time t1
-            'G1',  # ground heat flux (W/m^2) at time t1
-            'LE_C1',  # canopy latent heat flux (W/m^2) at time t1
-            'LE_S1',  # soil latent heat flux (W/m^2) at time t1
-            'LE1',  # total latent heat flux (W/m^2) at time t1
-            'LE_partition',  # Latent Heat Flux Partition (LEc/LE) at time t1
+            ('R_n1', S_P),   # net radiation reaching the surface at time t1
+            ('R_ns1', S_A),  # net shortwave radiation reaching the surface at time t1
+            ('R_nl1', S_A),  # net longwave radiation reaching the surface at time t1
+            ('delta_R_n1', S_A),  # net radiation divergence in the canopy at time t1
+            ('Sn_S1', S_N),  # Shortwave radiation reaching the soil at time t1
+            ('Sn_C1', S_N),  # Shortwave radiation intercepted by the canopy at time t1
+            ('Ln_S1', S_N),  # Longwave radiation reaching the soil at time t1
+            ('Ln_C1', S_N),  # Longwave radiation intercepted by the canopy at time t1
+            ('H_C1', S_A),  # canopy sensible heat flux (W/m^2) at time t1
+            ('H_S1', S_N),  # soil sensible heat flux (W/m^2) at time t1
+            ('H1', S_P),  # total sensible heat flux (W/m^2) at time t1
+            ('LE_C1', S_A),  # canopy latent heat flux (W/m^2) at time t1
+            ('LE_S1', S_N),  # soil latent heat flux (W/m^2) at time t1
+            ('LE1', S_P),  # total latent heat flux (W/m^2) at time t1
+            ('LE_partition', S_A),  # Latent Heat Flux Partition (LEc/LE) at time t1
+            ('G1', S_P),  # ground heat flux (W/m^2) at time t1
             # temperatures (might not be accurate)
-            'T_C1',  # canopy temperature at time t1 (deg C)
-            'T_S1',  # soil temperature at time t1 (deg C)
-            'T_AC1',  # air temperature at the canopy interface at time t1 (deg C)
+            ('T_C1', S_A),  # canopy temperature at time t1 (deg C)
+            ('T_S1', S_A),  # soil temperature at time t1 (deg C)
+            ('T_AC1', S_N),  # air temperature at the canopy interface at time t1 (deg C)
+            # resistances
+            ('R_A1', S_A),  # resistance to heat transport in the surface layer (s/m) at time t1
+            ('R_x1', S_A), # resistance to heat transport in the canopy surface layer (s/m) at time t1
+            ('R_S1', S_A),  # resistance to heat transport from the soil surface (s/m) at time t1 fluxes
             # miscaleneous
-            'albedo1',    # surface albedo (Rs_out/Rs_in)
-            'omega0',  # nadir view vegetation clumping factor
-            'alpha',  # the priestly Taylor factor
-            'Ri',  # Richardson number at time t1
-            'L',  # Monin Obukhov Length at time t1
-            'u_friction',  # Friction velocity
-            'theta_s1',  # Sun zenith angle at time t1
-            'F',  # Leaf Area Index
-            'z_0M',  # Aerodynamic roughness length for momentum trasport (m)
-            'd_0',  # Zero-plane displacement height (m)
-            'Skyl',
-            'flag',  # Quality flag
-            'n_iterations')  # Number of iterations before model converged to stable value
+            ('albedo1', S_N),    # surface albedo (Rs_out/Rs_in)
+            ('omega0', S_N),  # nadir view vegetation clumping factor
+            ('alpha', S_N),  # the priestly Taylor factor
+            ('Ri', S_N),  # Richardson number at time t1
+            ('L', S_A),  # Monin Obukhov Length at time t1
+            ('u_friction', S_A),  # Friction velocity
+            ('theta_s1', S_N),  # Sun zenith angle at time t1
+            ('F', S_N),  # Leaf Area Index
+            ('z_0M', S_N),  # Aerodynamic roughness length for momentum trasport (m)
+            ('d_0', S_N),  # Zero-plane displacement height (m)
+            ('Skyl', S_N),
+            ('flag', S_A),  # Quality flag
+            ('n_iterations', S_N)])  # Number of iterations before model converged to stable value
 
         return output_structure
 
