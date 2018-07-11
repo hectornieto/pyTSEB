@@ -75,9 +75,9 @@ import pyTSEB.net_radiation as rad
 import pyTSEB.clumping_index as CI
 import pyTSEB.wind_profile as wnd
 
-#==============================================================================
+# ==============================================================================
 # List of constants used in TSEB model and sub-routines
-#==============================================================================
+# ==============================================================================
 # Change threshold in  Monin-Obukhov lengh to stop the iterations
 L_thres = 0.00001
 # Change threshold in  friction velocity to stop the iterations
@@ -92,9 +92,9 @@ kB = 0.0
 sb = 5.670373e-8
 
 # Resistance formulation constants
-KUSTAS_NORMAN_1999 = 0 
-CHOUDHURY_MONTEITH_1988 = 1 
-MCNAUGHTON_VANDERHURK = 2 
+KUSTAS_NORMAN_1999 = 0
+CHOUDHURY_MONTEITH_1988 = 1
+MCNAUGHTON_VANDERHURK = 2
 CHOUDHURY_MONTEITH_ALPHA_1988 = 3
 HADHIGHI_AND_OR_2015 = 4
 
@@ -104,36 +104,36 @@ G_RATIO = 1
 G_TIME_DIFF = 2
 G_TIME_DIFF_SIGMOID = 3
 
-def TSEB_2T(
-    T_C,
-    T_S,
-    T_A_K,
-    u,
-    ea,
-    p,
-    Sn_C,
-    Sn_S,
-    L_dn,
-    LAI,
-    h_C,
-    emis_C,
-    emis_S,
-    z_0M,
-    d_0,
-    z_u,
-    z_T,
-    leaf_width=0.1,
-    z0_soil=0.01,
-    alpha_PT=1.26,
-    x_LAD=1.0,
-    f_c=1.0,
-    f_g=1.0,
-    w_C=1.0,
-    resistance_form=[0, {}],
-    calcG_params=[
-        [1],
-        0.35],
-    UseL=False):
+
+def TSEB_2T(T_C,
+            T_S,
+            T_A_K,
+            u,
+            ea,
+            p,
+            Sn_C,
+            Sn_S,
+            L_dn,
+            LAI,
+            h_C,
+            emis_C,
+            emis_S,
+            z_0M,
+            d_0,
+            z_u,
+            z_T,
+            leaf_width=0.1,
+            z0_soil=0.01,
+            alpha_PT=1.26,
+            x_LAD=1.0,
+            f_c=1.0,
+            f_g=1.0,
+            w_C=1.0,
+            resistance_form=[0, {}],
+            calcG_params=[
+                [1],
+                0.35],
+            UseL=False):
     ''' TSEB using component canopy and soil temperatures.
 
     Calculates the turbulent fluxes by the Two Source Energy Balance model
@@ -338,19 +338,19 @@ def TSEB_2T(
         i = np.logical_and(L_diff >= L_thres, flag != 255)
         iterations[i] = n_iterations
         flag[i] = 0
-        
+
         # Calculate aerodynamic resistances
-        R_A_params = {"z_T": z_T[i], "u_friction": u_friction[i], "L": L[i], 
+        R_A_params = {"z_T": z_T[i], "u_friction": u_friction[i], "L": L[i],
                       "d_0": d_0[i], "z_0H": z_0H[i]}
         params = {k: res_params[k][i] for k in res_params.keys()}
         R_x_params = {"u_friction": u_friction[i], "h_C": h_C[i], "d_0": d_0[i],
-                      "z_0M": z_0M[i], "L": L[i],  "LAI": LAI[i], 
+                      "z_0M": z_0M[i], "L": L[i],  "LAI": LAI[i],
                       "leaf_width": leaf_width[i], "res_params": params}
         R_S_params = {"u_friction": u_friction[i], "h_C": h_C[i], "d_0": d_0[i],
-                      "z_0M": z_0M[i], "L": L[i], "F": F[i], "omega0": omega0[i], 
-                       "LAI": LAI[i], "leaf_width": leaf_width[i], 
-                       "z0_soil": z0_soil[i], "z_u": z_u[i],  
-                       "deltaT": T_S[i] - T_C[i], "res_params": params}
+                      "z_0M": z_0M[i], "L": L[i], "F": F[i], "omega0": omega0[i],
+                      "LAI": LAI[i], "leaf_width": leaf_width[i],
+                      "z0_soil": z0_soil[i], "z_u": z_u[i],
+                      "deltaT": T_S[i] - T_C[i], "res_params": params}
         res_types = {"R_A": R_A_params, "R_x": R_x_params, "R_S": R_S_params}
         R_A[i], R_x[i], R_S[i] = calc_resistances(resistance_form, res_types)
 
@@ -421,39 +421,39 @@ def TSEB_2T(
      n_iterations) = map(np.asarray, (flag, T_AC, Ln_S, Ln_C, LE_C, H_C, LE_S, H_S,
                                       G, R_S, R_x, R_A, u_friction, L, iterations))
 
-    return flag, T_AC, Ln_S, Ln_C, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A, u_friction, L, n_iterations
+    return (flag, T_AC, Ln_S, Ln_C, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A, u_friction, L,
+            n_iterations)
 
 
-def TSEB_PT(
-    Tr_K,
-    vza,
-    T_A_K,
-    u,
-    ea,
-    p,
-    Sn_C,
-    Sn_S,
-    L_dn,
-    LAI,
-    h_C,
-    emis_C,
-    emis_S,
-    z_0M,
-    d_0,
-    z_u,
-    z_T,
-    leaf_width=0.1,
-    z0_soil=0.01,
-    alpha_PT=1.26,
-    x_LAD=1,
-    f_c=1.0,
-    f_g=1.0,
-    w_C=1.0,
-    resistance_form=[0, {}],
-    calcG_params=[
-        [1],
-        0.35],
-    UseL=False):
+def TSEB_PT(Tr_K,
+            vza,
+            T_A_K,
+            u,
+            ea,
+            p,
+            Sn_C,
+            Sn_S,
+            L_dn,
+            LAI,
+            h_C,
+            emis_C,
+            emis_S,
+            z_0M,
+            d_0,
+            z_u,
+            z_T,
+            leaf_width=0.1,
+            z0_soil=0.01,
+            alpha_PT=1.26,
+            x_LAD=1,
+            f_c=1.0,
+            f_g=1.0,
+            w_C=1.0,
+            resistance_form=[0, {}],
+            calcG_params=[
+                [1],
+                0.35],
+            UseL=False):
     '''Priestley-Taylor TSEB
 
     Calculates the Priestley Taylor TSEB fluxes using a single observation of
@@ -703,19 +703,19 @@ def TSEB_PT(
                     (i, alpha_PT_rec < alpha_PT, alpha_PT_rec > 0.0))] = 3
 
             # Calculate aerodynamic resistances
-            R_A_params = {"z_T": z_T[i], "u_friction": u_friction[i], "L": L[i], 
+            R_A_params = {"z_T": z_T[i], "u_friction": u_friction[i], "L": L[i],
                           "d_0": d_0[i], "z_0H": z_0H[i]}
             params = {k: res_params[k][i] for k in res_params.keys()}
             R_x_params = {"u_friction": u_friction[i], "h_C": h_C[i], "d_0": d_0[i],
-                          "z_0M": z_0M[i], "L": L[i], "F": F[i], "LAI": LAI[i], 
+                          "z_0M": z_0M[i], "L": L[i], "F": F[i], "LAI": LAI[i],
                           "leaf_width": leaf_width[i], "res_params": params}
             R_S_params = {"u_friction": u_friction[i], "h_C": h_C[i], "d_0": d_0[i],
-                          "z_0M": z_0M[i], "L": L[i], "F": F[i], "omega0": omega0[i], 
-                           "LAI": LAI[i], "leaf_width": leaf_width[i],  
-                           "z0_soil": z0_soil[i], "z_u": z_u[i],
-                            "deltaT": T_S[i] - T_C[i], 'u':u[i],'rho':rho[i], 
-                            'c_p':c_p[i], 'f_cover':f_c[i], 'w_C':w_C[i],
-                            "res_params": params}
+                          "z_0M": z_0M[i], "L": L[i], "F": F[i], "omega0": omega0[i],
+                          "LAI": LAI[i], "leaf_width": leaf_width[i],
+                          "z0_soil": z0_soil[i], "z_u": z_u[i],
+                          "deltaT": T_S[i] - T_C[i], 'u': u[i], 'rho': rho[i],
+                          "c_p": c_p[i], "f_cover": f_c[i], "w_C": w_C[i],
+                          "res_params": params}
             res_types = {"R_A": R_A_params, "R_x": R_x_params, "R_S": R_S_params}
             R_A[i], R_x[i], R_S[i] = calc_resistances(resistance_form, res_types)
 
@@ -746,11 +746,11 @@ def TSEB_PT(
             # Recalculate soil resistance using new soil temperature
             params = {k: res_params[k][i] for k in res_params.keys()}
             R_S_params = {"u_friction": u_friction[i], "h_C": h_C[i], "d_0": d_0[i],
-                          "z_0M": z_0M[i], "L": L[i], "F": F[i], "omega0": omega0[i],  
-                          "LAI": LAI[i], "leaf_width": leaf_width[i], 
-                           "z0_soil": z0_soil[i],  "z_u": z_u[i], 
-                           "deltaT": T_S[i] - T_C[i], 'u':u[i],'rho':rho[i], 
-                           'c_p':c_p[i], 'f_cover':f_c[i], 'w_C':w_C[i],"res_params": params}
+                          "z_0M": z_0M[i], "L": L[i], "F": F[i], "omega0": omega0[i],
+                          "LAI": LAI[i], "leaf_width": leaf_width[i],
+                          "z0_soil": z0_soil[i],  "z_u": z_u[i],
+                          "deltaT": T_S[i] - T_C[i], "u": u[i], "rho": rho[i],
+                          "c_p": c_p[i], "f_cover": f_c[i], "w_C": w_C[i], "res_params": params}
             _, _, R_S[i] = calc_resistances(resistance_form, {"R_S": R_S_params})
 
             i = np.logical_and.reduce(
@@ -840,41 +840,41 @@ def TSEB_PT(
                           L,
                           iterations))
 
-    return flag, T_S, T_C, T_AC, L_nS, L_nC, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A, u_friction, L, n_iterations
+    return (flag, T_S, T_C, T_AC, L_nS, L_nC, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A, u_friction,
+            L, n_iterations)
 
 
-def DTD(
-    Tr_K_0,
-    Tr_K_1,
-    vza,
-    T_A_K_0,
-    T_A_K_1,
-    u,
-    ea,
-    p,
-    Sn_C,
-    Sn_S,
-    L_dn,
-    LAI,
-    h_C,
-    emis_C,
-    emis_S,
-    z_0M,
-    d_0,
-    z_u,
-    z_T,
-    leaf_width=0.1,
-    z0_soil=0.01,
-    alpha_PT=1.26,
-    x_LAD=1,
-    f_c=1.0,
-    f_g=1.0,
-    w_C=1.0,
-    resistance_form=[0, {}],
-    calcG_params=[
-        [1],
-        0.35],
-    calc_Ri=True):
+def DTD(Tr_K_0,
+        Tr_K_1,
+        vza,
+        T_A_K_0,
+        T_A_K_1,
+        u,
+        ea,
+        p,
+        Sn_C,
+        Sn_S,
+        L_dn,
+        LAI,
+        h_C,
+        emis_C,
+        emis_S,
+        z_0M,
+        d_0,
+        z_u,
+        z_T,
+        leaf_width=0.1,
+        z0_soil=0.01,
+        alpha_PT=1.26,
+        x_LAD=1,
+        f_c=1.0,
+        f_g=1.0,
+        w_C=1.0,
+        resistance_form=[0, {}],
+        calcG_params=[
+            [1],
+            0.35],
+        calc_Ri=True):
     ''' Calculate daytime Dual Time Difference TSEB fluxes
 
     Parameters
@@ -1061,11 +1061,11 @@ def DTD(
     # Calculate the general parameters
     rho = met.calc_rho(p, ea, T_A_K_1)  # Air density
     c_p = met.calc_c_p(p, ea)  # Heat capacity of air
-    z_0H = res.calc_z_0H(z_0M, kB=kB) # Roughness length for heat transport
+    z_0H = res.calc_z_0H(z_0M, kB=kB)  # Roughness length for heat transport
 
     # Calculate LAI dependent parameters for dataset where LAI > 0
     # Clumping factor at nadir
-    omega0 = CI.calc_omega0_Kustas(LAI, f_c, x_LAD=x_LAD, isLAIeff=True)  
+    omega0 = CI.calc_omega0_Kustas(LAI, f_c, x_LAD=x_LAD, isLAIeff=True)
     F = np.asarray(LAI / f_c)  # Real LAI
     # Fraction of vegetation observed by the sensor
     f_theta = calc_F_theta_campbell(vza, F, w_C=w_C, Omega0=omega0, x_LAD=x_LAD)
@@ -1086,25 +1086,25 @@ def DTD(
     # First calcualte u_S, wind speed at the soil surface
     u_friction = MO.calc_u_star(u, z_u, L_from_Ri, d_0, z_0M)
     u_friction = np.asarray(np.maximum(u_friction_min, u_friction))
-    
+
     # First assume that canopy temperature equals the minumum of Air or
     # radiometric T
     T_C = np.asarray(np.minimum(Tr_K_1, T_A_K_1))
     flag, T_S = calc_T_S(Tr_K_1, T_C, f_theta)
 
     # Calculate aerodynamic resistances
-    R_A_params = {"z_T": z_T, "u_friction": u_friction,  
+    R_A_params = {"z_T": z_T, "u_friction": u_friction,
                   "L": L_from_Ri, "d_0": d_0, "z_0H": z_0H}
     params = {k: res_params[k] for k in res_params.keys()}
     R_x_params = {"u_friction": u_friction, "h_C": h_C, "d_0": d_0,
-                  "z_0M": z_0M, "L": L_from_Ri, "F": F, "LAI": LAI, 
+                  "z_0M": z_0M, "L": L_from_Ri, "F": F, "LAI": LAI,
                   "leaf_width": leaf_width, "res_params": params}
     # based on equation from Guzinski et. al., 2015
     deltaT = (Tr_K_1 - Tr_K_0) - (T_A_K_1 - T_A_K_0)
     R_S_params = {"u_friction": u_friction, "h_C": h_C, "d_0": d_0,
-                  "z_0M": z_0M, "L": L_from_Ri, "F": F,   
-                  "omega0": omega0, "LAI": LAI,   
-                  "leaf_width": leaf_width, "z0_soil": z0_soil, "z_u": z_u, 
+                  "z_0M": z_0M, "L": L_from_Ri, "F": F,
+                  "omega0": omega0, "LAI": LAI,
+                  "leaf_width": leaf_width, "z0_soil": z0_soil, "z_u": z_u,
                   "deltaT": deltaT, "res_params": params}
     res_types = {"R_A": R_A_params, "R_x": R_x_params, "R_S": R_S_params}
     R_A, R_x, R_S = calc_resistances(resistance_form, res_types)
@@ -1215,19 +1215,19 @@ def DTD(
             flag_t[i], T_S[i] = calc_T_S(Tr_K_1[i], T_C[i], f_theta[i])
             flag[flag_t == 255] = 255
             LE_S[flag_t == 255] = 0
-            
+
             # Recalculate soil resistance using new difference between soil
             # and canopy temperatures. deltaT is equivalent to T_S - T_C while
             # not being dependent on non-differential T_A.
             params = {k: res_params[k][i] for k in res_params.keys()}
             deltaT = (H_S[i]*R_S[i] - H_C[i]*R_x[i])/(rho[i]*c_p[i])
             R_S_params = {"u_friction": u_friction[i], "h_C": h_C[i], "d_0": d_0[i],
-                          "z_0M": z_0M[i], "L": L_from_Ri[i], "F": F[i], "omega0": omega0[i],  
-                          "LAI": LAI[i], "leaf_width": leaf_width[i], 
-                           "z0_soil": z0_soil[i],  "z_u": z_u[i], 
-                           "deltaT": deltaT, "res_params": params}
+                          "z_0M": z_0M[i], "L": L_from_Ri[i], "F": F[i], "omega0": omega0[i],
+                          "LAI": LAI[i], "leaf_width": leaf_width[i],
+                          "z0_soil": z0_soil[i],  "z_u": z_u[i],
+                          "deltaT": deltaT, "res_params": params}
             _, _, R_S[i] = calc_resistances(resistance_form, {"R_S": R_S_params})
-            
+
         T_C_diff = np.asarray(np.fabs(T_C - T_C_prev))
         T_C_prev = np.array(T_C)
 
@@ -1293,24 +1293,23 @@ def DTD(
         n_iterations]
 
 
-def OSEB(
-    Tr_K,
-    T_A_K,
-    u,
-    ea,
-    p,
-    Sn,
-    L_dn,
-    emis,
-    z_0M,
-    d_0,
-    z_u,
-    z_T,
-    calcG_params=[
-        [1],
-        0.35],
-    UseL=False,
-    T0_K=[]):
+def OSEB(Tr_K,
+         T_A_K,
+         u,
+         ea,
+         p,
+         Sn,
+         L_dn,
+         emis,
+         z_0M,
+         d_0,
+         z_u,
+         z_T,
+         calcG_params=[
+             [1],
+             0.35],
+         UseL=False,
+         T0_K=[]):
     '''Calulates bulk fluxes from a One Source Energy Balance model
 
     Parameters
@@ -1440,7 +1439,7 @@ def OSEB(
         # Use the approximation Ri ~ (z-d_0)./L from end of section 2.2 from
         # Norman et. al., 2000 (DTD paper)
         L_from_Ri = (z_u - d_0)/Ri
-        u_friction = MO.calc_u_star(u, z_u, L_from_Ri, d_0, z_0M)    
+        u_friction = MO.calc_u_star(u, z_u, L_from_Ri, d_0, z_0M)
     else:
         u_friction = MO.calc_u_star(u, z_u, L, d_0, z_0M)
     u_friction = np.maximum(u_friction_min, u_friction)
@@ -1468,10 +1467,10 @@ def OSEB(
 
         # Calculate aerodynamic resistances
         if differentialT:
-            R_A_params = {"z_T": z_T, "u_friction": u_friction,  
+            R_A_params = {"z_T": z_T, "u_friction": u_friction,
                           "L": L_from_Ri, "d_0": d_0, "z_0H": z_0H}
         else:
-            R_A_params = {"z_T": z_T, "u_friction": u_friction,  
+            R_A_params = {"z_T": z_T, "u_friction": u_friction,
                           "L": L, "d_0": d_0, "z_0H": z_0H}
         R_A, _, _ = calc_resistances(KUSTAS_NORMAN_1999, {"R_A": R_A_params})
 
@@ -1509,6 +1508,7 @@ def OSEB(
         np.asarray, (flag, Ln, LE, H, G, R_A, u_friction, L, n_iterations))
 
     return flag, Ln, LE, H, G, R_A, u_friction, L, n_iterations
+
 
 def calc_F_theta_campbell(theta, F, w_C=1, Omega0=1, x_LAD=1):
     '''Calculates the fraction of vegetatinon observed at an angle.
@@ -1568,9 +1568,8 @@ def calc_G(calcG_params, Rn_S, i=None):
                            0][1], calcG_params[0][2], calcG_params[0][3]])
     elif calcG_params[0][0] == G_TIME_DIFF_SIGMOID:
         G = calc_G_time_diff_sigmoid(Rn_S[i], [calcG_params[1][i], calcG_params[
-                           0][1], calcG_params[0][2], calcG_params[0][3], 
+                           0][1], calcG_params[0][2], calcG_params[0][3],
                             calcG_params[0][4], calcG_params[0][5], calcG_params[0][6]])
-
 
     return np.asarray(G)
 
@@ -1614,8 +1613,10 @@ def calc_G_time_diff(R_n, G_param=[12.0, 0.35, 3.0, 24.0]):
     G = R_n * G_ratio
     return np.asarray(G)
 
-def calc_G_time_diff_sigmoid(R_n, G_param=[12, 0, 0.35, 10., 14., 1.,1.]):
-    ''' Estimates Soil Heat Flux as function of time and net radiation using an asymmetric sigmoid function
+
+def calc_G_time_diff_sigmoid(R_n, G_param=[12, 0, 0.35, 10., 14., 1., 1.]):
+    ''' Estimates Soil Heat Flux as function of time and net radiation using an asymmetric sigmoid
+    function
 
     Parameters
     ----------
@@ -1645,8 +1646,9 @@ def calc_G_time_diff_sigmoid(R_n, G_param=[12, 0, 0.35, 10., 14., 1.,1.]):
         http://dx.doi.org/10.1175/1520-0450(2003)042<0851:DCISHF>2.0.CO;2.'''
 
     # Get parameters
-    time,G_ratio_min,G_ratio_max,phase_shift_0,phase_shift_1,shape_0,shape_1=G_param
-    G_ratio = G_ratio_min+(G_ratio_max-G_ratio_min) * 0.5*(np.tanh((time-phase_shift_0)/shape_0)-np.tanh((time-phase_shift_1)/shape_1))
+    time, G_ratio_min, G_ratio_max, phase_shift_0, phase_shift_1, shape_0, shape_1 = G_param
+    G_ratio = G_ratio_min + (G_ratio_max - G_ratio_min) * 0.5 *\
+              (np.tanh((time - phase_shift_0) / shape_0) - np.tanh((time - phase_shift_1)/shape_1))
     G = R_n * G_ratio
     return np.asarray(G)
 
@@ -1790,14 +1792,14 @@ def calc_H_DTD_parallel(
 
     References
     ----------
-    .. [Guzinski2013] Guzinski, R., Anderson, M. C., Kustas, W. P., Nieto, H., and Sandholt, I. (2013)
-        Using a thermal-based two source energy balance model with time-differencing to
+    .. [Guzinski2013] Guzinski, R., Anderson, M. C., Kustas, W. P., Nieto, H., and Sandholt, I.
+        (2013) Using a thermal-based two source energy balance model with time-differencing to
         estimate surface energy fluxes with day-night MODIS observations,
         Hydrol. Earth Syst. Sci., 17, 2809-2825,
         http://dx.doi.org/10.5194/hess-17-2809-2013.
     '''
 
-    #% Ignore night fluxes
+    # Ignore night fluxes
     H = (rho * c_p * (((T_R1 - T_R0) - (T_A1 - T_A0)) / ((1.0 - f_theta1) * (R_A1 + R_S1))) +
          H_C1 * (1.0 - ((f_theta1 * R_AC1) / ((1.0 - f_theta1) * (R_A1 + R_S1)))))
     return np.asarray(H)
@@ -1976,7 +1978,7 @@ def calc_T_C_series(Tr_K, T_A_K, R_A, R_x, R_S, f_theta, H_C, rho, c_p):
     T_D = (T_C_lin * (1 + R_S / R_A) - H_C * R_x / (rho * c_p)
            * (1.0 + R_S / R_x + R_S / R_A) - T_A_K * R_S / R_A)
     # equation A11 from Norman 1995
-    delta_T_C = ((T_R_K_4 - f_theta * T_C_lin**4 - (1.0 - f_theta) * T_D**4) / \
+    delta_T_C = ((T_R_K_4 - f_theta * T_C_lin**4 - (1.0 - f_theta) * T_D**4) /
                  (4.0 * (1.0 - f_theta) * T_D**3 * (1.0 + R_S / R_A) + 4.0 * f_theta * T_C_lin**3))
     # get canopy temperature in Kelvin
     T_C = T_C_lin + delta_T_C
@@ -2060,8 +2062,8 @@ def calc_T_CS_4SAIL(
         psi_f,
         e_v,
         e_s):
-    '''Estimates canopy and soil temperature by analytical inversion of 4SAIL (Eq. 12 in [Verhoef2007]_)
-    of two directional radiometric observations. Ignoring shadows.
+    '''Estimates canopy and soil temperature by analytical inversion of 4SAIL
+    (Eq. 12 in [Verhoef2007]_) of two directional radiometric observations. Ignoring shadows.
 
     Parameters
     ----------
@@ -2120,13 +2122,13 @@ def calc_T_CS_4SAIL(
      emiss_s_eff_n,
      gamma_sot,
      emiss_sot] = calc_4SAIL_emission_param(LAI,
-                                           hotspot,
-                                           lidf,
-                                           sza_n,
-                                           vza_n,
-                                           psi_n,
-                                           r_v,
-                                           r_s)
+                                            hotspot,
+                                            lidf,
+                                            sza_n,
+                                            vza_n,
+                                            psi_n,
+                                            r_v,
+                                            r_s)
     # Calculate the total emission of the surface at nadir observation
     L_emiss_n = Eo_n - rdot_star_n * L_sky
     # Get forward parameters for the inversion
@@ -2135,13 +2137,13 @@ def calc_T_CS_4SAIL(
      emiss_s_eff_f,
      gamma_sot,
      emiss_sot] = calc_4SAIL_emission_param(LAI,
-                                           hotspot,
-                                           lidf,
-                                           sza_f,
-                                           vza_f,
-                                           psi_f,
-                                           r_v,
-                                           r_s)
+                                            hotspot,
+                                            lidf,
+                                            sza_f,
+                                            vza_f,
+                                            psi_f,
+                                            r_v,
+                                            r_s)
     # Calculate the total emission of the surface at oblique observation
     L_emiss_f = Eo_f - rdot_star_f * L_sky
     # Invert 4SAIL to get the BB emission of vegetation and soil
@@ -2382,14 +2384,17 @@ def calc_T_S_series(Tr_K, T_A_K, R_A, R_x, R_S, f_theta, H_S, rho, c_p):
 
     # Eq. A.15 Norman 1995
     T_AC_lin = (((T_A_K / R_A) + (Tr_K / (f_theta * R_x)) -
-                 (((1.0 - f_theta) / (f_theta * R_x)) * H_S * R_S / (rho * c_p)) + H_S / (rho * c_p)) /
+                 (((1.0 - f_theta) / (f_theta * R_x)) * H_S * R_S / (rho * c_p)) +
+                 H_S / (rho * c_p)) /
                 ((1.0 / R_A) + (1.0 / R_x) + (1.0 - f_theta) / (f_theta * R_x)))
     # Eq. A.17 Norman 1995
     T_e = T_AC_lin * (1.0 + (R_x / R_A)) - H_S * R_x / \
         (rho * c_p) - T_A_K * R_x / R_A
     # Eq. A.16 Norman 1995
-    Delta_T_AC = ((Tr_K**4 - (1.0 - f_theta) * (H_S * R_S / (rho * c_p) + T_AC_lin)**4 - f_theta * T_e**4) /
-                  (4 * f_theta * T_e**3.0 * (1.0 + (R_x / R_A)) + 4.0 * (1.0 - f_theta) * (H_S * R_S / (rho * c_p) + T_AC_lin)**3))
+    Delta_T_AC = ((Tr_K**4 - (1.0 - f_theta) * (H_S * R_S / (rho * c_p) + T_AC_lin)**4 -
+                   f_theta * T_e**4) /
+                  (4 * f_theta * T_e**3.0 * (1.0 + (R_x / R_A)) +
+                   4.0 * (1.0 - f_theta) * (H_S * R_S / (rho * c_p) + T_AC_lin)**3))
     # Eq. A.18 Norman 1995
     T_AC = T_AC_lin + Delta_T_AC
     T_S = T_AC + H_S * R_S / (rho * c_p)
@@ -2408,7 +2413,8 @@ def _check_default_parameter_size(parameter, input_array):
             (parameter.shape, input_array.shape))
     else:
         return np.asarray(parameter)
-      
+
+
 def calc_resistances(res_form, res_types):
     '''Calculate the aerodynamic resistances: R_A, R_x and R_S.
 
@@ -2423,18 +2429,18 @@ def calc_resistances(res_form, res_types):
     res_types : Dictionary of dictionaries
         Dictionary specifying which of the three resistances to calculate. For
         each resistance to calculate the dictionary must contain a key-value
-        pair with the key being the name of the resistance and value being 
+        pair with the key being the name of the resistance and value being
         another dictionary with all the parameters required to calculate the
         given resistance.
         Key: R_A
         R_A Parameters: 'z_T', 'u_friction', 'L', 'd_0', 'z_0H'
         Key: R_x
-        R_x Parameters: 'u_friction', 'h_C', 'd_0', 'z_0M', 'L', 'F', 'LAI', 
+        R_x Parameters: 'u_friction', 'h_C', 'd_0', 'z_0M', 'L', 'F', 'LAI',
                         'leaf_width', 'res_params'
         Key: R_S
         R_S Parameters: 'u_friction', 'h_C', 'd_0', 'z_0M', 'L', 'omega0', 'F',
                         'leaf_width', 'z0_soil', 'z_u', 'deltaT', 'res_params'
-    
+
     Returns
     -------
     R_A: float array or None
@@ -2444,63 +2450,64 @@ def calc_resistances(res_form, res_types):
     R_S: float array or None
         Aerodynamic resistance at the  soil boundary layer (s m-1)
 
-    '''      
-    
+    '''
+
     R_A = 0
-    R_x = 0    
+    R_x = 0
     R_S = 0
-    u_C = None    
-    
-    if res_form not in [KUSTAS_NORMAN_1999, CHOUDHURY_MONTEITH_1988, 
-                        MCNAUGHTON_VANDERHURK, CHOUDHURY_MONTEITH_ALPHA_1988, 
+    u_C = None
+
+    if res_form not in [KUSTAS_NORMAN_1999, CHOUDHURY_MONTEITH_1988,
+                        MCNAUGHTON_VANDERHURK, CHOUDHURY_MONTEITH_ALPHA_1988,
                         HADHIGHI_AND_OR_2015]:
         res_form = KUSTAS_NORMAN_1999
-    
+
     # Determine which resistances to calculate and get the required parameters
     if 'R_A' in res_types.keys():
         z_T, u_friction, L, d_0, z_0H = \
-            [res_types['R_A'].get(k) for k in ['z_T', 'u_friction', 'L', 'd_0', 'z_0H']] 
+            [res_types['R_A'].get(k) for k in ['z_T', 'u_friction', 'L', 'd_0', 'z_0H']]
         calc_R_A = True
     else:
         calc_R_A = False
     if 'R_x' in res_types.keys():
         u_friction, h_C, d_0, z_0M, L, F, LAI, leaf_width, res_params = \
-            [res_types['R_x'].get(k) for k in ['u_friction', 'h_C', 'd_0', 'z_0M', 
+            [res_types['R_x'].get(k) for k in ['u_friction', 'h_C', 'd_0', 'z_0M',
                                                'L', 'F', 'LAI', 'leaf_width', 'res_params']]
         calc_R_x = True
     else:
         calc_R_x = False
     if 'R_S' in res_types.keys():
-        u_friction, h_C, d_0, z_0M, L, omega0, F, leaf_width, z0_soil, z_u, deltaT, u, rho, c_p, f_cover, w_C, res_params = \
-            [res_types['R_S'].get(k) for k in ['u_friction', 'h_C', 'd_0', 'z_0M', 
-                                               'L', 'omega0', 'F', 'leaf_width',
-                                               'z0_soil', 'z_u', 'deltaT', 
-                                               'u','rho', 'c_p', 'f_cover', 'w_C', 'res_params']]
-        
+        u_friction, h_C, d_0, z_0M, L, omega0, F, leaf_width, z0_soil, z_u, deltaT, u, rho,\
+         c_p, f_cover, w_C, res_params = \
+             [res_types['R_S'].get(k) for k in ['u_friction', 'h_C', 'd_0', 'z_0M',
+                                                'L', 'omega0', 'F', 'leaf_width',
+                                                'z0_soil', 'z_u', 'deltaT',
+                                                'u', 'rho', 'c_p', 'f_cover', 'w_C', 'res_params']]
+
         calc_R_S = True
     else:
         calc_R_S = False
-        
+
     # Calculate the aerodynamic resistance
     if calc_R_A:
         R_A = res.calc_R_A(z_T, u_friction, L, d_0, z_0H)
-        
+
     # Calculate soil and canopy resistances
     if res_form == KUSTAS_NORMAN_1999:
         if calc_R_x:
-            u_C = wnd.calc_u_C_star(u_friction, h_C, d_0, z_0M, L) 
-            # Wind speed is highly attenuated within the canopy volume          
+            u_C = wnd.calc_u_C_star(u_friction, h_C, d_0, z_0M, L)
+            # Wind speed is highly attenuated within the canopy volume
             u_d_zm = wnd.calc_u_Goudriaan(u_C, h_C, F, leaf_width, d_0+z_0M)
             # Vegetation in series with soil, i.e. well mixed, so we use
             # the landscape LAI
             R_x = res.calc_R_x_Norman(LAI, leaf_width, u_d_zm, res_params)
         if calc_R_S:
             if u_C is None:
-                u_C = wnd.calc_u_C_star(u_friction, h_C, d_0, z_0M, L) 
+                u_C = wnd.calc_u_C_star(u_friction, h_C, d_0, z_0M, L)
             # Clumped vegetation enhanced wind speed for the soil surface
             u_S = wnd.calc_u_Goudriaan(u_C, h_C, omega0 * F, leaf_width, z0_soil)
-            R_S = res.calc_R_S_Kustas(u_S, deltaT, params = res_params)
-    
+            R_S = res.calc_R_S_Kustas(u_S, deltaT, params=res_params)
+
     elif res_form == CHOUDHURY_MONTEITH_1988:
         if calc_R_x:
             u_C = wnd.calc_u_C_star(u_friction, h_C, d_0, z_0M, L)
@@ -2509,15 +2516,15 @@ def calc_resistances(res_form, res_types):
             R_x = res.calc_R_x_Choudhury(u_C, LAI, leaf_width)
         if calc_R_S:
             R_S = res.calc_R_S_Choudhury(u_friction, h_C, z_0M, d_0, z_u, z0_soil)
-    
+
     elif res_form == MCNAUGHTON_VANDERHURK:
-        if calc_R_x:        
+        if calc_R_x:
             # Vegetation in series with soil, i.e. well mixed, so we use
             # the landscape LAI
             R_x = res.calc_R_x_McNaughton(LAI, leaf_width, u_friction)
         if calc_R_S:
             R_S = res.calc_R_S_McNaughton(u_friction)
-    
+
     elif res_form == CHOUDHURY_MONTEITH_ALPHA_1988:
         if calc_R_x:
             u_C = wnd.calc_u_C_star(u_friction, h_C, d_0, z_0M, L)
@@ -2526,26 +2533,25 @@ def calc_resistances(res_form, res_types):
             # Vegetation in series with soil, i.e. well mixed, so we use
             # the landscape LAI
             R_x = res.calc_R_x_Choudhury(u_C, LAI, leaf_width, alpha_prime=alpha_prime)
-        if calc_R_S:    
+        if calc_R_S:
             # Clumped vegetation enhanced wind speed for the soil surface
-            alpha_k = wnd.calc_A_Goudriaan(h_C, omega0 * F, leaf_width)       
+            alpha_k = wnd.calc_A_Goudriaan(h_C, omega0 * F, leaf_width)
             R_S = res.calc_R_S_Choudhury(u_friction, h_C, z_0M, d_0, z_u, z0_soil, alpha_k=alpha_k)
 
     elif res_form == HADHIGHI_AND_OR_2015:
         if calc_R_x:
-            u_C = wnd.calc_u_C_star(u_friction, h_C, d_0, z_0M, L) 
+            u_C = wnd.calc_u_C_star(u_friction, h_C, d_0, z_0M, L)
             # Wind speed is highly attenuated within the canopy volume
             u_d_zm = wnd.calc_u_Goudriaan(u_C, h_C, F, leaf_width, d_0+z_0M)
             # Vegetation in series with soil, i.e. well mixed, so we use
             # the landscape LAI
             R_x = res.calc_R_x_Norman(LAI, leaf_width, u_d_zm, res_params)
-        if calc_R_S:    
-            R_S,_ = res.calc_R_S_Haghighi(u, h_C, z_u, rho, c_p, z0_soil=z0_soil, f_cover= f_cover, w_C=w_C)
-    
-    R_A = np.asarray(np.maximum(1e-3, R_A))    
+        if calc_R_S:
+            R_S, _ = res.calc_R_S_Haghighi(u, h_C, z_u, rho, c_p, z0_soil=z0_soil, f_cover=f_cover,
+                                           w_C=w_C)
+
+    R_A = np.asarray(np.maximum(1e-3, R_A))
     R_x = np.asarray(np.maximum(1e-3, R_x))
     R_S = np.asarray(np.maximum(1e-3, R_S))
-    
+
     return R_A, R_x, R_S
-    
-    
