@@ -28,8 +28,8 @@ This module includes functions for calculating the resistances for
 heat and momentum trasnport for both One- and Two-Source Energy Balance models.
 Additional functions needed in are imported from the following packages
 
-* :doc:`meteoUtils` for the estimation of meteorological variables.
-* :doc:`MOsimilarity` for the estimation of the Monin-Obukhov length and stability functions.
+* :doc:`meteo_utils` for the estimation of meteorological variables.
+* :doc:`MO_similarity` for the estimation of the Monin-Obukhov length and stability functions.
 
 PACKAGE CONTENTS
 ================
