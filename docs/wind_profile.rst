@@ -1,7 +1,7 @@
-MOsimilarity package
+wind_profile package
 ====================
 
-.. automodule:: MOsimilarity
+.. automodule:: wind_profile
     :members:
     :undoc-members:
     :show-inheritance:

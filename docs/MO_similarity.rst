@@ -1,7 +1,7 @@
-netRadiation package
+MO_similarity package
 ====================
 
-.. automodule:: netRadiation
+.. automodule:: MO_similarity
     :members:
     :undoc-members:
     :show-inheritance:
