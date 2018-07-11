@@ -126,7 +126,7 @@ where variables with the same name as input variables have the same meaning, and
 ### Quality flags
 pyTSEB might produce some *more* unreliable data that can be tracked with the quality flags:
 
-* 0: Al Fluxes produced with no reduction of PT parameter (i.e. positive soil evaporation)
+* 0: All Fluxes produced with no reduction of PT parameter (i.e. positive soil evaporation)
 * 3: negative soil evaporation, forced to zero (the PT parameter is reduced in TSEB-PT and DTD)
 * 5: No positive latent fluxes found, G recomputed to close the energy balance (G=Rn-H)
 * 255: Arithmetic error. BAD data, it should be discarded
@@ -136,6 +136,10 @@ In addition for the component temperatures TSEB (TSEB-2T):
 * 1: negative canopy latent heat flux, forced to zero
 * 2: negative canopy sensible heat flux, forced to zero
 * 4: negative soil sensible heat flux, forced to zero
+* 
+And for one-source energy balance model (OSEB) used for pixels with no vegetation:
+* 10: All positive fluxes for soil only, produced using one-source energy balance (OSEB) model.
+* 15: No positive latent fluxes found using OSEB, G recomputed to close the energy balance (G=Rn-H)
 
 ## Display the results
 Once TSEB is executed, we can also have a first glance of the results by plotting the bulk fluxes (latent heat flux, sensible heat flux, net radiation and soil heat flux).
