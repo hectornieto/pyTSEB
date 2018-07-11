@@ -1,7 +1,7 @@
-Clumping Index package
+clumping_index package
 ======================
 
-.. automodule:: ClumpingIndex
+.. automodule:: clumping_index
     :members:
     :undoc-members:
     :show-inheritance:

@@ -58,14 +58,15 @@ Contents
 
 .. toctree::
 
-	pyTSEB
+	PyTSEB
 	README_Notebooks
 	TSEB
-	netRadiation
-	ClumpingIndex
-	MOsimilarity
+	net_radiation
+	clumping_index
+	MO_similarity
 	resistances
-	meteoUtils
+	meteo_utils
+	wind_profile
 
 
 Indices and tables
