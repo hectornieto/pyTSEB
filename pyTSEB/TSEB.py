@@ -27,11 +27,12 @@ This package contains the main routines inherent of Two Source Energy Balance `T
 Additional functions needed in TSEB, such as computing of net radiation or estimating the
 resistances to heat and momentum transport are imported.
 
-* :doc:`netRadiation` for the estimation of net radiation and radiation partitioning.
-* :doc:`ClumpingIndex` for the estimatio of canopy clumping index.
-* :doc:`meteoUtils` for the estimation of meteorological variables.
+* :doc:`net_radiation` for the estimation of net radiation and radiation partitioning.
+* :doc:`clumping_index` for the estimatio of canopy clumping index.
+* :doc:`meteo_utils` for the estimation of meteorological variables.
 * :doc:`resistances` for the estimation of the resistances to heat and momentum transport.
-* :doc:`MOsimilarity` for the estimation of the Monin-Obukhov length and MOST-related variables.
+* :doc:`MO_similarity` for the estimation of the Monin-Obukhov length and MOST-related variables.
+* :doc:`wind_profile` for the estimation of wind attenuation profile
 
 PACKAGE CONTENTS
 ================

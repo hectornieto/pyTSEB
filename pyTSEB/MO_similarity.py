@@ -27,7 +27,7 @@ This package contains the main routines for estimating variables related to the
  Monin-Obukhov (MO) Similarity Theory, such as  MO length, adiabatic correctors 
 for heat and momentum transport. It requires the following package.
 
-* :doc:`meteoUtils` for the estimation of meteorological variables.
+* :doc:`meteo_utils` for the estimation of meteorological variables.
 
 PACKAGE CONTENTS
 ================

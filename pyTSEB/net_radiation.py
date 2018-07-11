@@ -26,7 +26,7 @@ DESCRIPTION
 This package contains functions for estimating the net shortwave and longwave radiation
 for soil and canopy layers. Additional packages needed are.
 
-* :doc:`meteoUtils` for the estimation of meteorological variables.
+* :doc:`meteo_utils` for the estimation of meteorological variables.
 
 PACKAGE CONTENTS
 ================
