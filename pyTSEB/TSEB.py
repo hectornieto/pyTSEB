@@ -104,6 +104,17 @@ G_RATIO = 1
 G_TIME_DIFF = 2
 G_TIME_DIFF_SIGMOID = 3
 
+# Flag constants
+F_ALL_FLUXES = 0  # All fluxes produced with no reduction of PT parameter (i.e. positive soil evaporation)
+F_ZERO_LE_C = 1  # Negative canopy latent heat flux, forced to zero
+F_ZERO_H_C = 2  # Negative canopy sensible heat flux, forced to zero
+F_ZERO_LE_S = 3  # Negative soil evaporation, forced to zero (the PT parameter is reduced in TSEB-PT and DTD)
+F_ZERO_H_S = 4  # Negative soil sensible heat flux, forced to zero
+F_ZERO_LE = 5  # No positive latent fluxes found, G recomputed to close the energy balance (G=Rn-H)
+F_ALL_FLUXES_OS = 10  # All positive fluxes for soil only, produced using one-source energy balance (OSEB) model.
+F_ZERO_LE_OS = 15  # No positive latent fluxes found using OSEB, G recomputed to close the energy balance (G=Rn-H)
+F_INVALID = 255  # Arithmetic error. BAD data, it should be discarded
+
 
 def TSEB_2T(T_C,
             T_S,
@@ -335,9 +346,9 @@ def TSEB_2T(T_C,
         print("Iteration " + str(n_iterations) +
               ", max. L diff: " + str(np.max(L_diff)))
 
-        i = np.logical_and(L_diff >= L_thres, flag != 255)
+        i = np.logical_and(L_diff >= L_thres, flag != F_INVALID)
         iterations[i] = n_iterations
-        flag[i] = 0
+        flag[i] = F_ALL_FLUXES
 
         # Calculate aerodynamic resistances
         R_A_params = {"z_T": z_T[i], "u_friction": u_friction[i], "L": L[i],
@@ -364,7 +375,7 @@ def TSEB_2T(T_C,
         # Assume no condensation in the canopy (LE_C<0)
         noC = np.logical_and(i, H_C > Rn_C)
         H_C[noC] = Rn_C[noC]
-        flag[noC] = 1
+        flag[noC] = F_ZERO_LE_C
         # Assume no thermal inversion in the canopy
         noI = np.logical_and.reduce(
             (i,
@@ -377,18 +388,18 @@ def TSEB_2T(T_C,
                  alpha_PT),
                 Rn_C > 0))
         H_C[noI] = 0
-        flag[noI] = 2
+        flag[noI] = F_ZERO_H_C
 
         # Calculate soil sensible heat flux (Norman et al 1995)
         H_S[i] = rho_a[i] * Cp[i] * (T_S[i] - T_AC[i]) / R_S[i]
         # Assume that there is no condensation in the soil (LE_S<0)
         noC = np.logical_and.reduce((i, H_S > Rn_S - G, (Rn_S - G) > 0))
         H_S[noC] = Rn_S[noC] - G[noC]
-        flag[noC] = 3
+        flag[noC] = F_ZERO_LE_S
         # Assume no thermal inversion in the soil
         noI = np.logical_and.reduce((i, H_S < 0, Rn_S - G > 0))
         H_S[noI] = 0
-        flag[noI] = 4
+        flag[noI] = F_ZERO_H_S
 
         # Evaporation Rate (Kustas and Norman 1999)
         H = np.asarray(H_S + H_C)
@@ -668,7 +679,7 @@ def TSEB_PT(Tr_K,
     # Outer loop for estimating stability.
     # Stops when difference in consecutives L is below a given threshold
     for n_iterations in range(max_iterations):
-        i = flag != 255
+        i = flag != F_INVALID
         if np.all(L_diff[i] < L_thres):
             if L_diff[i].size == 0:
                 print("Finished iterations with no valid solution")
@@ -680,27 +691,26 @@ def TSEB_PT(Tr_K,
         iterations[
             np.logical_and(
                 L_diff >= L_thres,
-                flag != 255)] = n_iterations
+                flag != F_INVALID)] = n_iterations
 
         # Inner loop to iterativelly reduce alpha_PT in case latent heat flux
         # from the soil is negative. The initial assumption is of potential
         # canopy transpiration.
-        flag[np.logical_and(L_diff >= L_thres, flag != 255)] = 0
-        LE_S[np.logical_and(L_diff >= L_thres, flag != 255)] = -1
+        flag[np.logical_and(L_diff >= L_thres, flag != F_INVALID)] = F_ALL_FLUXES
+        LE_S[np.logical_and(L_diff >= L_thres, flag != F_INVALID)] = -1
         alpha_PT_rec = np.asarray(alpha_PT + 0.1)
         while np.any(LE_S[i] < 0):
             i = np.logical_and.reduce(
-                (LE_S < 0, L_diff >= L_thres, flag != 255))
+                (LE_S < 0, L_diff >= L_thres, flag != F_INVALID))
 
             alpha_PT_rec[i] -= 0.1
 
             # There cannot be negative transpiration from the vegetation
             alpha_PT_rec[alpha_PT_rec <= 0.0] = 0.0
-            flag[np.logical_and(i, alpha_PT_rec == 0.0)] = 5
+            flag[np.logical_and(i, alpha_PT_rec == 0.0)] = F_ZERO_LE
 
-            flag[
-                np.logical_and.reduce(
-                    (i, alpha_PT_rec < alpha_PT, alpha_PT_rec > 0.0))] = 3
+            flag[np.logical_and.reduce((i, alpha_PT_rec < alpha_PT, alpha_PT_rec > 0.0))] =\
+                F_ZERO_LE_S
 
             # Calculate aerodynamic resistances
             R_A_params = {"z_T": z_T[i], "u_friction": u_friction[i], "L": L[i],
@@ -738,10 +748,10 @@ def TSEB_PT(Tr_K,
                                    i], f_theta[i], H_C[i], rho[i], c_p[i])
 
             # Calculate soil temperature
-            flag_t = np.zeros(flag.shape)
+            flag_t = np.zeros(flag.shape) + F_ALL_FLUXES
             flag_t[i], T_S[i] = calc_T_S(Tr_K[i], T_C[i], f_theta[i])
-            flag[flag_t == 255] = 255
-            LE_S[flag_t == 255] = 0
+            flag[flag_t == F_INVALID] = F_INVALID
+            LE_S[flag_t == F_INVALID] = 0
 
             # Recalculate soil resistance using new soil temperature
             params = {k: res_params[k][i] for k in res_params.keys()}
@@ -754,7 +764,7 @@ def TSEB_PT(Tr_K,
             _, _, R_S[i] = calc_resistances(resistance_form, {"R_S": R_S_params})
 
             i = np.logical_and.reduce(
-                (LE_S < 0, L_diff >= L_thres, flag != 255))
+                (LE_S < 0, L_diff >= L_thres, flag != F_INVALID))
 
             # Get air temperature at canopy interface
             T_AC[i] = ((T_A_K[i] / R_A[i] + T_S[i] / R_S[i] + T_C[i] / R_x[i])
@@ -1114,7 +1124,7 @@ def DTD(Tr_K_0,
     T_C_thres = 0.1
     T_C_diff = np.fabs(T_C - T_C_prev)
     for n_iterations in range(ITERATIONS):
-        i = flag != 255
+        i = flag != F_INVALID
         if np.all(T_C_diff[i] < T_C_thres):
             if T_C_diff[i].size == 0:
                 print("Finished iterations with no valid solution")
@@ -1122,35 +1132,29 @@ def DTD(Tr_K_0,
                 print("Finished interation with a max. T_C diff: " +
                       str(np.max(T_C_diff[i])))
             break
-        print("Iteration " +
-              str(n_iterations) +
-              ", maximum T_C difference between iterations: " +
-              str(np.max(T_C_diff[i])))
-        iterations[
-            np.logical_and(
-                T_C_diff >= T_C_thres,
-                flag != 255)] = n_iterations
+        print("Iteration " + str(n_iterations) +
+              ", maximum T_C difference between iterations: " + str(np.max(T_C_diff[i])))
+        iterations[np.logical_and(T_C_diff >= T_C_thres, flag != F_INVALID)] = n_iterations
 
         # Inner loop to iterativelly reduce alpha_PT in case latent heat flux
         # from the soil is negative. The initial assumption is of potential
         # canopy transpiration.
-        flag[np.logical_and(T_C_diff >= T_C_thres, flag != 255)] = 0
-        LE_S[np.logical_and(T_C_diff >= T_C_thres, flag != 255)] = -1
+        flag[np.logical_and(T_C_diff >= T_C_thres, flag != F_INVALID)] = F_ALL_FLUXES
+        LE_S[np.logical_and(T_C_diff >= T_C_thres, flag != F_INVALID)] = -1
         alpha_PT_rec = np.asarray(alpha_PT + 0.1)
 
         while np.any(LE_S[i] < 0):
             i = np.logical_and.reduce(
-                (LE_S < 0, T_C_diff >= T_C_thres, flag != 255))
+                (LE_S < 0, T_C_diff >= T_C_thres, flag != F_INVALID))
 
             alpha_PT_rec[i] -= 0.1
 
             # There cannot be negative transpiration from the vegetation
             alpha_PT_rec[alpha_PT_rec <= 0.0] = 0.0
-            flag[np.logical_and(i, alpha_PT_rec == 0.0)] = 5
+            flag[np.logical_and(i, alpha_PT_rec == 0.0)] = F_ZERO_LE
 
-            flag[
-                np.logical_and.reduce(
-                    (i, alpha_PT_rec < alpha_PT, alpha_PT_rec > 0.0))] = 3
+            flag[np.logical_and.reduce((i, alpha_PT_rec < alpha_PT, alpha_PT_rec > 0.0))] =\
+                F_ZERO_LE_S
 
             # Calculate net longwave radiation with current values of T_C and T_S
             Ln_C[i], Ln_S[i] = rad.calc_L_n_Kustas(
@@ -1211,10 +1215,10 @@ def DTD(Tr_K_0,
                 H_C[i],
                 rho[i],
                 c_p[i])
-            flag_t = np.zeros(flag.shape)
+            flag_t = np.zeros(flag.shape) + F_ALL_FLUXES
             flag_t[i], T_S[i] = calc_T_S(Tr_K_1[i], T_C[i], f_theta[i])
-            flag[flag_t == 255] = 255
-            LE_S[flag_t == 255] = 0
+            flag[flag_t == F_INVALID] = F_INVALID
+            LE_S[flag_t == F_INVALID] = 0
 
             # Recalculate soil resistance using new difference between soil
             # and canopy temperatures. deltaT is equivalent to T_S - T_C while
@@ -1460,7 +1464,7 @@ def OSEB(Tr_K,
     # Stops when difference in consecutive L and u_friction is below a
     # given threshold
     for n_iterations in range(max_iterations):
-        flag = np.zeros(Tr_K.shape)
+        flag = np.zeros(Tr_K.shape) + F_ALL_FLUXES_OS
         # Stop the iteration if differences are below the threshold
         if np.all(L_diff < L_thres):
             break
@@ -1485,7 +1489,7 @@ def OSEB(Tr_K,
 
         # Avoid negative ET during daytime and make sure that energy is
         # conserved
-        flag[LE < 0] = 5
+        flag[LE < 0] = F_ZERO_LE_OS
         H[LE < 0] = np.minimum(H[LE < 0], Rn[LE < 0] - G[LE < 0])
         G[LE < 0] = np.maximum(G[LE < 0], Rn[LE < 0] - H[LE < 0])
         LE[LE < 0] = 0
@@ -1922,14 +1926,14 @@ def calc_T_C(T_R, T_S, f_theta):
     (T_R, T_S, f_theta) = map(np.asarray, (T_R, T_S, f_theta))
     T_temp = np.asarray(T_R**4 - (1.0 - f_theta) * T_S**4)
     T_C = np.zeros(T_R.shape)
-    flag = np.zeros(T_R.shape)
+    flag = np.zeros(T_R.shape) + F_ALL_FLUXES
 
     # Succesfull inversion
     T_C[T_temp >= 0] = (T_temp[T_temp >= 0] / f_theta[T_temp >= 0])**0.25
 
     # Unsuccesfull inversion
     T_C[T_temp < 0] = 1e-6
-    flag[T_temp < 0] = 255
+    flag[T_temp < 0] = F_INVALID
 
     return np.asarray(flag), np.asarray(T_C)
 
@@ -2291,7 +2295,7 @@ def calc_T_S(T_R, T_C, f_theta):
     T_R, T_C, f_theta = map(np.asarray, (T_R, T_C, f_theta))
     T_temp = T_R**4 - f_theta * T_C**4
     T_S = np.zeros(T_R.shape)
-    flag = np.zeros(T_R.shape)
+    flag = np.zeros(T_R.shape) + F_ALL_FLUXES
 
     # Succesfull inversion
     T_S[T_temp >= 0] = (T_temp[T_temp >= 0] /
@@ -2299,7 +2303,7 @@ def calc_T_S(T_R, T_C, f_theta):
 
     # Unsuccesfull inversion
     T_S[np.logical_or(T_temp < 0, np.isnan(T_temp))] = 1e-6
-    flag[np.logical_or(T_temp < 0, np.isnan(T_temp))] = 255
+    flag[np.logical_or(T_temp < 0, np.isnan(T_temp))] = F_INVALID
 
     return np.asarray(flag), np.asarray(T_S)
 
@@ -2333,7 +2337,7 @@ def calc_T_S_4SAIL(T_R, T_C, rdot_star, emiss_v_eff, emiss_s_eff, L_dn=0):
     Eo = met.calc_stephan_boltzmann(T_R)
     Hs = np.asarray((Eo - rdot_star * L_dn - emiss_v_eff * Hv) / emiss_s_eff)
 
-    flag = np.zeros(T_R.shape)
+    flag = np.zeros(T_R.shape) + F_ALL_FLUXES
     T_S = np.zeros(T_R.shape)
 
     # Succesfull inversion
@@ -2341,7 +2345,7 @@ def calc_T_S_4SAIL(T_R, T_C, rdot_star, emiss_v_eff, emiss_s_eff, L_dn=0):
 
     # Unsuccesfull inversion
     T_S[Hs < 0] = 1e-6
-    flag[Hs < 0] = 255
+    flag[Hs < 0] = F_INVALID
 
     return np.asarray(flag), np.asarray(T_S)
 
