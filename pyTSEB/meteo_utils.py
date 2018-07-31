@@ -38,13 +38,16 @@ PACKAGE CONTENTS
 * :func:`calc_sun_angles` Sun Zenith and Azimuth Angles.
 * :func:`calc_vapor_pressure` Saturation water vapour pressure.
 * :func:`calc_delta_vapor_pressure` Slope of saturation water vapour pressure.
+* :func:`calc_mixing_ratio` Ration of mass of water vapour to mass of dry air.
+* :func:`calc_lapse_rate_moist` Moist-adiabatic lapse rate.
+* :func:`flux_2_evaporation` Evaporation rate.
 '''
 
 import numpy as np
 
-#==============================================================================
+# ==============================================================================
 # List of constants used in Meteorological computations
-#==============================================================================
+# ==============================================================================
 # Stephan Boltzmann constant (W m-2 K-4)
 sb = 5.670373e-8
 # heat capacity of dry air at constant pressure (J kg-1 K-1)
@@ -57,6 +60,8 @@ epsilon = 0.622
 psicr = 0.0658
 # gas constant for dry air, J/(kg*degK)
 R_d = 287.04
+# acceleration of gravity (m s-2)
+g = 9.8
 
 
 def calc_c_p(p, ea):
@@ -77,7 +82,7 @@ def calc_c_p(p, ea):
     ----------
     based on equation (6.1) from Maarten Ambaum (2010):
     Thermal Physics of the Atmosphere (pp 109).'''
-    
+
     # first calculate specific humidity, rearanged eq (5.22) from Maarten
     # Ambaum (2010), (pp 100)
     q = epsilon * ea / (p + (epsilon - 1.0) * ea)
@@ -279,7 +284,7 @@ def calc_sun_angles(lat, lon, stdlon, doy, ftime):
     w = np.asarray((solar_time - 12.0) * 15.)
     # Get solar elevation angle
     sin_thetha = np.cos(np.radians(w)) * np.cos(declination) * np.cos(np.radians(lat)) + \
-         np.sin(declination) * np.sin(np.radians(lat))
+                 np.sin(declination) * np.sin(np.radians(lat))
     sun_elev = np.arcsin(sin_thetha)
     # Get solar zenith angle
     sza = np.pi / 2.0 - sun_elev
@@ -331,28 +336,80 @@ def calc_delta_vapor_pressure(T_K):
         ((T_C + 237.3)**2)
     return np.asarray(s)
 
-def flux_2_evaporation(flux,T_K=20+273.15,time_domain=1):
-    '''Converts heat flux units (W m-2)to evaporation rates (mm time-1) to a given temporal window
+
+def calc_mixing_ratio(ea, p):
+    '''Calculate ratio of mass of water vapour to the mass of dry air (-)
+
+    Parameters
+    ----------
+    ea : float or numpy array
+        water vapor pressure at reference height (mb).
+    p : float or numpy array
+        total air pressure (dry air + water vapour) at reference height (mb).
+
+    Returns
+    -------
+    r : float or numpy array
+        mixing ratio (-)
+
+    References
+    ----------
+    http://glossary.ametsoc.org/wiki/Mixing_ratio'''
+
+    r = epsilon * ea / (p - ea)
+    return r
+
+
+def calc_lapse_rate_moist(T_A_K, ea, p):
+    '''Calculate moist-adiabatic lapse rate (K/m)
+
+    Parameters
+    ----------
+    T_A_K : float or numpy array
+        air temperature at reference height (K).
+    ea : float or numpy array
+        water vapor pressure at reference height (mb).
+    p : float or numpy array
+        total air pressure (dry air + water vapour) at reference height (mb).
+
+    Returns
+    -------
+    Gamma_w : float or numpy array
+        moist-adiabatic lapse rate (K/m)
+
+    References
+    ----------
+    http://glossary.ametsoc.org/wiki/Saturation-adiabatic_lapse_rate'''
+
+    r = calc_mixing_ratio(ea, p)
+    c_p = calc_c_p(p, ea)
+    lambda_v = 1e6 * calc_lambda(T_A_K)
+    Gamma_w = (g * (R_d * T_A_K**2 + lambda_v * r * T_A_K) /
+               (c_p * R_d * T_A_K**2 + lambda_v**2 * r * epsilon))
+    return Gamma_w
+
+
+def flux_2_evaporation(flux, T_K=20+273.15, time_domain=1):
+    '''Converts heat flux units (W m-2) to evaporation rates (mm time-1) to a given temporal window
 
     Parameters
     ----------
     flux : float or numpy array
-        heat flux value to be converted, 
+        heat flux value to be converted,
         usually refers to latent heat flux LE to be converted to ET
     T_K : float or numpy array
         environmental temperature in Kelvin. Default=20 Celsius
     time_domain : float
         Temporal window in hours. Default 1 hour (mm h-1)
-    
+
     Returns
     -------
     ET : float or numpy array
         evaporation rate at the time_domain. Default mm h-1
     '''
     # Calculate latent heat of vaporization
-    lambda_=calc_lambda(T_K)*1e6 #J kg-1
-    ET=flux/lambda_ # kg s-1
+    lambda_ = calc_lambda(T_K) * 1e6  # J kg-1
+    ET = flux / lambda_  # kg s-1
     # Convert instantaneous rate to the time_domain rate
-    ET=ET*time_domain*3600.
+    ET = ET * time_domain * 3600.
     return ET
-    

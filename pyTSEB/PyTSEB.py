@@ -216,6 +216,7 @@ class PyTSEB(object):
                     try:
                         in_data['L_dn'] = rad.calc_longwave_irradiance(in_data['ea'],
                                                                        in_data['T_A1'],
+                                                                       in_data['p'],
                                                                        in_data['z_T'])
                     except KeyError as e:
                         print("ERROR: Cannot calculate or read "+input_fields[field] +
@@ -365,7 +366,7 @@ class PyTSEB(object):
         # temperature and humidity
         if 'L_dn' not in in_data.columns:
             in_data['L_dn'] = rad.calc_longwave_irradiance(in_data['ea'], in_data['T_A1'],
-                                                           in_data['z_T'])
+                                                           in_data['p'], in_data['z_T'])
 
         # Get the Soil Heat flux if G_form includes the option of measured G
         dims = in_data['LAI'].shape
