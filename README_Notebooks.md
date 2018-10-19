@@ -101,21 +101,26 @@ Once TSEB is configured we will parse all the information in the widgets and run
 ### ProcessLocalImage.ipynb
 
 * < Main Output File > whose name is specified in the cell *Output File*, will contain the bulk estimated fluxes with the following channels:
-    1. Sensible heat flux (W m-2)
-    2. Latent heat flux (W m-2)
-    3. Net radiation (W m-2)
+    1. Net radiation (W m-2)
+    2. Sensible heat flux (W m-2)
+    3. Latent heat flux (W m-2)
     4. Soil heat flux (W m-2)
 
 * < Ancillary Output File > with the same name as the main input file but with a suffix *_ancillary* added, will contain ancillary information from TSEB  with the following channels:
-    1. Canopy sensible heat flux (W m-2)
-    2. Canopy latent heat flux (W m-2)
-    3. Evapotrasnpiration partitioning (canopy LE/total LE)
-    4. Canopy temperature (K)
-    5. Soil temperature (K)
-    6. Net shortwave radiation (W m-2)
-    7. Net longwave radiation (W m-2)
-    8. Friction velocity (m s-1)
-    9. Monin-Obukhov length (m)
+    1. Net shortwave radiation (W m-2)
+    2. Net longwave radiation (W m-2)
+    3. Canopy sensible heat flux (W m-2)
+    4. Canopy latent heat flux (W m-2)
+    5. Evapotrasnpiration partitioning (canopy LE/total LE)
+    6. Canopy temperature (K)
+    7. Soil temperature (K)
+    8. Aerodynamic resistance (s m-1)
+    9. Bulk canopy resistance to heat transport (s m-1)
+    10. Soil resistance to heat transport (s m-1)
+    11. Friction velocity (m s-1)
+    12. Monin-Obukhov lenght (m)
+    13. Friction velocity (m s-1)
+    14. Quality Flag (unitless)
 
 ### ProcessPointTimeSeries.ipynb
 An ASCII table with the following variables will be written in the output text file::
