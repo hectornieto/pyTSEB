@@ -4,7 +4,7 @@
 
 ### ProcessLocalImage.ipynb
 #### Main input image
-The main input data in this case is an image containing the radiometric temperature(s). Any [GDAL compatible raster format](http://www.gdal.org/formats_list.html) should work except those based on datasets (i.e. HDF, netCDF, etc.). The input temperature data should be in degrees Celsius. Depending on the TSEB model to use you have to be sure to include in the raster the following bands (in the given order):
+The main input data in this case is an image containing the radiometric temperature(s). Any [GDAL compatible raster format](http://www.gdal.org/formats_list.html) should work except those based on datasets (i.e. HDF, netCDF, etc.). The input temperature data should be in Kelvin. Depending on the TSEB model to use you have to be sure to include in the raster the following bands (in the given order):
 
 * Priestley-Taylor TSEB (**TSEB-PT**)
 	1. Radiometric surface temperature
@@ -41,15 +41,15 @@ The order of the columns is not relevant, and neither whether there are addition
 * Year:		Year (YYYY)
 * DOY: 		Day of the Year (0-366)
 * Time: 	Decimal local-solar time (hrs), use the stdlong parameter to set the time zone
-* Trad: 	Radiometric composite temperature (Celsius)
-* Trad_0:	Radiometric composite temperature near sunrise (Celsius). OPTIONAL, only needed for DTD model.
-* Tc:		Canopy component temperature (Celsius). OPTIONAL only needed for the TSEB-2T model
-* Ts:		Soil component temperature (Celsius). OPTIONAL only needed for the TSEB-2T model
+* Trad: 	Radiometric composite temperature (Kelvin)
+* Trad_0:	Radiometric composite temperature near sunrise (Kelvin). OPTIONAL, only needed for DTD model.
+* Tc:		Canopy component temperature (Kelvin). OPTIONAL only needed for the TSEB-2T model
+* Ts:		Soil component temperature (Kelvin). OPTIONAL only needed for the TSEB-2T model
 * VZA:		View Zenith Angle (Degrees)
 * SZA:		Solar Zenith Angle (Degrees). OPTIONAL, will be estimated otherwise
 * SAA:		Solar Azimuth Angle (Degrees). OPTIONAL, will be estimated otherwise
-* Ta:		Air temperature (Celsius)
-* Ta_0:		Air temperature near sunrise (Celsius). OPTIONAL only needed for DTD model
+* Ta:		Air temperature (Kelvin)
+* Ta_0:		Air temperature near sunrise (Kelvin). OPTIONAL only needed for DTD model
 * u:		Wind speed (m/s)
 * ea:		Vapor pressure (mb)
 * p:		Atmospheric pressure (mb). OPTIONAL, will be estimated otherwise
@@ -101,21 +101,26 @@ Once TSEB is configured we will parse all the information in the widgets and run
 ### ProcessLocalImage.ipynb
 
 * < Main Output File > whose name is specified in the cell *Output File*, will contain the bulk estimated fluxes with the following channels:
-    1. Sensible heat flux (W m-2)
-    2. Latent heat flux (W m-2)
-    3. Net radiation (W m-2)
+    1. Net radiation (W m-2)
+    2. Sensible heat flux (W m-2)
+    3. Latent heat flux (W m-2)
     4. Soil heat flux (W m-2)
 
 * < Ancillary Output File > with the same name as the main input file but with a suffix *_ancillary* added, will contain ancillary information from TSEB  with the following channels:
-    1. Canopy sensible heat flux (W m-2)
-    2. Canopy latent heat flux (W m-2)
-    3. Evapotrasnpiration partitioning (canopy LE/total LE)
-    4. Canopy temperature (K)
-    5. Soil temperature (K)
-    6. Net shortwave radiation (W m-2)
-    7. Net longwave radiation (W m-2)
-    8. Friction velocity (m s-1)
-    9. Monin-Obukhov length (m)
+    1. Net shortwave radiation (W m-2)
+    2. Net longwave radiation (W m-2)
+    3. Canopy sensible heat flux (W m-2)
+    4. Canopy latent heat flux (W m-2)
+    5. Evapotrasnpiration partitioning (canopy LE/total LE)
+    6. Canopy temperature (K)
+    7. Soil temperature (K)
+    8. Aerodynamic resistance (s m-1)
+    9. Bulk canopy resistance to heat transport (s m-1)
+    10. Soil resistance to heat transport (s m-1)
+    11. Friction velocity (m s-1)
+    12. Monin-Obukhov lenght (m)
+    13. Friction velocity (m s-1)
+    14. Quality Flag (unitless)
 
 ### ProcessPointTimeSeries.ipynb
 An ASCII table with the following variables will be written in the output text file::
@@ -126,7 +131,7 @@ where variables with the same name as input variables have the same meaning, and
 ### Quality flags
 pyTSEB might produce some *more* unreliable data that can be tracked with the quality flags:
 
-* 0: All Fluxes produced with no reduction of PT parameter (i.e. positive soil evaporation)
+* 0: Al Fluxes produced with no reduction of PT parameter (i.e. positive soil evaporation)
 * 3: negative soil evaporation, forced to zero (the PT parameter is reduced in TSEB-PT and DTD)
 * 5: No positive latent fluxes found, G recomputed to close the energy balance (G=Rn-H)
 * 255: Arithmetic error. BAD data, it should be discarded
@@ -136,10 +141,6 @@ In addition for the component temperatures TSEB (TSEB-2T):
 * 1: negative canopy latent heat flux, forced to zero
 * 2: negative canopy sensible heat flux, forced to zero
 * 4: negative soil sensible heat flux, forced to zero
-* 
-And for one-source energy balance model (OSEB) used for pixels with no vegetation:
-* 10: All positive fluxes for soil only, produced using one-source energy balance (OSEB) model.
-* 15: No positive latent fluxes found using OSEB, G recomputed to close the energy balance (G=Rn-H)
 
 ## Display the results
 Once TSEB is executed, we can also have a first glance of the results by plotting the bulk fluxes (latent heat flux, sensible heat flux, net radiation and soil heat flux).
