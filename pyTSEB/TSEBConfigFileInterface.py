@@ -16,7 +16,7 @@
 
 from re import match
 
-from pyTSEB.PyTSEB import PyTSEB, PyTSEB2T, PyDTD
+from pyTSEB.PyTSEB import PyTSEB, PyTSEB2T, PyDTD, PydisTSEB
 
 
 class TSEBConfigFileInterface():
@@ -60,7 +60,9 @@ class TSEBConfigFileInterface():
             'G_shape',
             'calc_row',
             'row_az',
-            'output_file')
+            'output_file',
+            'correct_LST',
+            'flux_LR_method')
 
         # Variables only for image runs
         self.input_image_vars = (
@@ -82,7 +84,9 @@ class TSEBConfigFileInterface():
             'ea',
             'S_dn',
             'L_dn',
-            'p')
+            'p',
+            'flux_LR',
+            'flux_LR_ancillary')
 
         # variables only for point series runs
         self.input_point_vars = (
@@ -189,6 +193,11 @@ class TSEBConfigFileInterface():
                             pass
                         elif (var == 'subset'):
                             pass
+                        elif (var == 'flux_LR'
+                              or var == 'flux_LR_ancillary'
+                              or var == 'flux_LR_method' 
+                              or var == 'correct_LST') and self.params['model'] != 'disTSEB':
+                            pass
                         else:
                             raise e
             else:
@@ -215,6 +224,8 @@ class TSEBConfigFileInterface():
                 model = PyTSEB2T(self.params)
             elif self.params['model'] == "DTD":
                 model = PyDTD(self.params)
+            elif self.params['model'] == "disTSEB":
+                model = PydisTSEB(self.params)
             else:
                 print("Unknown model: " + self.params['model'] + "!")
                 return None

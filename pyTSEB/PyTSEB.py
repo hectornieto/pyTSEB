@@ -89,6 +89,8 @@ import pyTSEB.net_radiation as rad
 import pyTSEB.resistances as res
 import pyTSEB.clumping_index as CI
 
+from pyTSEB import dis_TSEB
+
 
 # Constants for indicating whether model output field should be saved to file
 S_N = 0  # Save Not
@@ -184,6 +186,31 @@ class PyTSEB(object):
                     # Set the time in the G_form flag to compute the Santanello and
                     # Friedl G
                     self.G_form[1] = in_data['time']
+            elif field == "flux_LR" or field == "flux_LR_ancillary":
+# =============================================================================
+#                 # Read the high resolution geotransform
+#                 fid = gdal.Open(self.p[list(input_fields)[0]], gdal.GA_ReadOnly)
+#                 geo_HR = fid.GetGeoTransform()
+#                 del fid
+# 
+# =============================================================================
+                fid = gdal.Open(self.p[field], gdal.GA_ReadOnly)
+                prj = fid.GetProjection()
+                geo_LR = fid.GetGeoTransform()
+                if self.subset:
+                    in_data[field] = fid.GetRasterBand(1).ReadAsArray(self.subset[0],
+                                                                      self.subset[1],
+                                                                      self.subset[2],
+                                                                      self.subset[3])
+                    geo_LR = [geo_LR[0]+self.subset[0]*geo_LR[1], geo_LR[1], geo_LR[2],
+                           geo_LR[3]+self.subset[1]*geo_LR[5], geo_LR[4], geo_LR[5]]
+                else:
+                    in_data[field] = fid.GetRasterBand(1).ReadAsArray()
+                    in_data[field]
+
+                fid = None
+                in_data['scale'] = [geo_LR, geo, prj]
+
             else:
                 # Model specific fields which might need special treatment
                 success, val = self._set_special_model_input(field, dims)
@@ -1339,3 +1366,145 @@ class PyTSEB2T(PyTSEB):
                                                   in_data['z_u'][i],
                                                   in_data['z_T'][i],
                                                   calcG_params=model_params["calcG_params"])
+
+
+class PydisTSEB(PyTSEB):
+
+    def __init__(self, parameters):
+        super().__init__(parameters)
+
+    def _get_input_structure(self):
+        ''' Input fields' names for TSEB_2T model.  Only relevant for image processing mode.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        outputStructure: string ordered dict
+            Names (keys) and descriptions (values) of TSEB_2T input fields.
+        '''
+
+        input_fields = super()._get_input_structure()
+        input_fields["flux_LR"] = "pyTSEB Low Resolution Flux date"
+        input_fields["flux_LR_ancillary"] = "pyTSEB Low Resolution ancillary Flux data"
+        return input_fields
+
+    def _get_output_structure(self):
+        ''' Input fields' names for TSEB_2T model.  Only relevant for image processing mode.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        outputStructure: string ordered dict
+            Names (keys) and descriptions (values) of TSEB_2T input fields.
+        '''
+
+        output_structure = super()._get_output_structure()
+        output_structure["T_offset"] = S_A
+        output_structure["T_offset_orig"] = S_A
+        output_structure["counter"] = S_A
+        return output_structure
+
+
+    def _set_special_model_input(self, field, dims):
+        ''' Special processing for setting certain input fields. Only relevant for image processing
+        mode.
+
+        Parameters
+        ----------
+        field : string
+            The name of the input field for which the special processing is needed.
+        dims : int list
+            The dimensions of the output parameter array.
+
+        Returns
+        -------
+        success : boolean
+            True is the parameter was succefully set, false otherwise.
+        array : float array
+            The set parameter array.
+        '''
+
+        if field == "flux_LR":
+            success, val = self._set_param_array(field, dims, band=1)
+        elif field == "flux_LR_ancillary":
+            success, val = self._set_param_array(field, dims, band=1)
+        else:
+            success = False
+            val = None
+        return success, val
+
+    def _call_flux_model_veg(self, in_data, out_data, model_params, i):
+        ''' Call a dis_TSEB model to calculate fluxes
+
+        Parameters
+        ----------
+        in_data : dict
+            The input data for the model.
+        out_data : dict
+            Dict containing the output data from the model which will be updated. It also contains
+            previusly calculated shortwave radiation and roughness values which are used as input
+            data.
+
+        Returns
+        -------
+        None
+        '''
+        
+        print('Running dis TSEB for the whole image')
+        
+        [out_data['flag'], 
+         out_data['T_S1'], 
+         out_data['T_C1'],   
+         out_data['T_AC1'],
+         out_data['Ln_S1'],
+         out_data['Ln_C1'],
+         out_data['LE_C1'],
+         out_data['H_C1'],
+         out_data['LE_S1'],
+         out_data['H_S1'],
+         out_data['G1'],
+         out_data['R_S1'],
+         out_data['R_x1'],
+         out_data['R_A1'],
+         out_data['u_friction'],
+         out_data['L'],
+         out_data['n_iterations'],
+         out_data['T_offset'],
+         out_data['counter'],
+         out_data['T_offset_orig']] = dis_TSEB.dis_TSEB(in_data['flux_LR'],
+                                                        in_data['scale'],         
+                                                        in_data['T_R1'],
+                                                        in_data['VZA'],
+                                                        in_data['T_A1'],
+                                                        in_data['u'],
+                                                        in_data['ea'],
+                                                        in_data['p'],
+                                                        out_data['Sn_C1'],
+                                                        out_data['Sn_S1'],
+                                                        in_data['L_dn'],
+                                                        in_data['LAI'],
+                                                        in_data['h_C'],
+                                                        in_data['emis_C'],
+                                                        in_data['emis_S'],
+                                                        out_data['z_0M'],
+                                                        out_data['d_0'],
+                                                        in_data['z_u'],
+                                                        in_data['z_T'],
+                                                        UseL=in_data['flux_LR_ancillary'],                                
+                                                        f_c=in_data['f_c'],
+                                                        f_g=in_data['f_g'],
+                                                        w_C=in_data['w_C'],
+                                                        leaf_width=in_data['leaf_width'],
+                                                        z0_soil=in_data['z0_soil'],
+                                                        alpha_PT=in_data['alpha_PT'],
+                                                        x_LAD=in_data['x_LAD'],
+                                                        calcG_params=model_params["calcG_params"],
+                                                        resistance_form=model_params["resistance_form"],
+                                                        flux_LR_method=model_params["flux_LR_method"],
+                                                        correct_LST=model_params["correct_LST"])
