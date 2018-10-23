@@ -187,13 +187,7 @@ class PyTSEB(object):
                     # Friedl G
                     self.G_form[1] = in_data['time']
             elif field == "flux_LR" or field == "flux_LR_ancillary":
-# =============================================================================
-#                 # Read the high resolution geotransform
-#                 fid = gdal.Open(self.p[list(input_fields)[0]], gdal.GA_ReadOnly)
-#                 geo_HR = fid.GetGeoTransform()
-#                 del fid
-#
-# =============================================================================
+                # Low resolution data in case disaggregation is to be used.
                 fid = gdal.Open(self.p[field], gdal.GA_ReadOnly)
                 prj = fid.GetProjection()
                 geo_LR = fid.GetGeoTransform()
@@ -206,7 +200,6 @@ class PyTSEB(object):
                               geo_LR[3]+self.subset[1]*geo_LR[5], geo_LR[4], geo_LR[5]]
                 else:
                     in_data[field] = fid.GetRasterBand(1).ReadAsArray()
-                    in_data[field]
 
                 fid = None
                 in_data['scale'] = [geo_LR, geo, prj]
@@ -1374,7 +1367,7 @@ class PydisTSEB(PyTSEB):
         super().__init__(parameters)
 
     def _get_input_structure(self):
-        ''' Input fields' names for TSEB_2T model.  Only relevant for image processing mode.
+        ''' Input fields' names for disTSEB model.  Only relevant for image processing mode.
 
         Parameters
         ----------
@@ -1383,16 +1376,18 @@ class PydisTSEB(PyTSEB):
         Returns
         -------
         outputStructure: string ordered dict
-            Names (keys) and descriptions (values) of TSEB_2T input fields.
+            Names (keys) and descriptions (values) of disTSEB input fields.
         '''
 
         input_fields = super()._get_input_structure()
         input_fields["flux_LR"] = "pyTSEB Low Resolution Flux date"
         input_fields["flux_LR_ancillary"] = "pyTSEB Low Resolution ancillary Flux data"
+        input_fields["flux_LR_method"] = "Method for ensuring consistency between low- and high-"+\
+                                         " resolution fluxes"
         return input_fields
 
     def _get_output_structure(self):
-        ''' Input fields' names for TSEB_2T model.  Only relevant for image processing mode.
+        ''' Input fields' names for disTSEB model.  Only relevant for image processing mode.
 
         Parameters
         ----------
@@ -1401,7 +1396,7 @@ class PydisTSEB(PyTSEB):
         Returns
         -------
         outputStructure: string ordered dict
-            Names (keys) and descriptions (values) of TSEB_2T input fields.
+            Names (keys) and descriptions (values) of disTSEB input fields.
         '''
 
         output_structure = super()._get_output_structure()

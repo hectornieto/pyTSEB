@@ -178,49 +178,9 @@ def dis_TSEB(flux_LR,
         Pages 13-29,
         http://dx.doi.org/10.1016/S0168-1923(99)00005-2.
     '''
-    # Create a pixel map which maps every HR pixel to a corresponding LR pixel
-    dims_LR = flux_LR.shape
-    dims_HR = Tr_K.shape
 
-# =============================================================================
-#     pixel_map = np.arange(np.size(flux_LR)).reshape(dims_LR)
-#     pixel_map = scale_with_gdalwarp(pixel_map,
-#                                        scale[3],
-#                                        dims_HR,
-#                                        scale[0],
-#                                        scale[1],
-#                                        gdal.GRA_NearestNeighbour)
-#
-# =============================================================================
-    const_ratio = scale_with_gdalwarp(flux_LR, scale[2], dims_HR, scale[0], scale[1],
-                                      gdal.GRA_NearestNeighbour)
 
-    print(flux_LR.shape, const_ratio.shape)
-    #pixel_map = downscale_image(pixel_map, scale, Tr_K.shape)
-
-    #const_ratio = downscale_image(flux_LR, scale, Tr_K.shape)
-
-    # Create mask that masks high-res pixels where low-res constant ratio
-    # does not exist or is invalid
-    mask = np.ones(const_ratio.shape, dtype=bool)
-    mask[np.logical_or(np.isnan(const_ratio), Tr_K <= 0)] = False
-
-    #######################################################################
-    # For all the pixels in the high res. TSEB
-    # WHILE high-res contant ration != low-res constant ratio
-    #   mask pixels where ratios aggree
-    #   adjust Tair for other pixels
-    #   run high-res TSBE for unmaksed pixels
-    #   claculate high-res consant ratio
-    counter = 1
-    T_offset = np.zeros(const_ratio.shape)
-    Tr_K_modified = Tr_K[:]
-    T_A_K_modified = T_A_K[:]
-
-    const_ratio_diff = np.zeros(const_ratio.shape)+1000
-    const_ratio_HR = np.ones(const_ratio.shape)*np.nan
-
-    # Initialize output variables
+    # Initialize HR output variables
     [flag,
      T_S,
      T_C,
@@ -237,7 +197,7 @@ def dis_TSEB(flux_LR,
      R_A,
      u_friction,
      L,
-     n_iterations] = map(np.zeros, 17*[Tr_K.shape])
+     n_iterations] = map(np.empty, 17*[Tr_K.shape])
 
     [T_S[:],
      T_C[:],
@@ -257,21 +217,43 @@ def dis_TSEB(flux_LR,
 
     n_iterations[:] = 0
     flag[:] = NO_VALID_FLAG
+    
+    # Create mask that masks high-res pixels where low-res constant ratio
+    # does not exist or is invalid
+    dims_LR = flux_LR.shape
+    dims_HR = Tr_K.shape
+    const_ratio = scale_with_gdalwarp(flux_LR, scale[2], dims_HR, scale[0], scale[1],
+                                      gdal.GRA_NearestNeighbour)
+    mask = np.ones(const_ratio.shape, dtype=bool)
+    mask[np.logical_or(np.isnan(const_ratio), Tr_K <= 0)] = False
+
+    # Set the starting conditions for disaggregation.
+    counter = 1
+    T_offset = np.zeros(const_ratio.shape)
+    Tr_K_modified = Tr_K[:]
+    T_A_K_modified = T_A_K[:]
+
+    const_ratio_diff = np.zeros(const_ratio.shape)+1000
+    const_ratio_HR = np.ones(const_ratio.shape)*np.nan
 
     print('Forcing low resolution MO stability length as starting point in the iteration')
     if isinstance(UseL, float):
         L = np.ones(Tr_K.shape) * UseL
     else:
-        L - scale_with_gdalwarp(UseL, scale[2], dims_HR, scale[0], scale[1],
+        L = scale_with_gdalwarp(UseL, scale[2], dims_HR, scale[0], scale[1],
                                 gdal.GRA_NearestNeighbour)
-
-        #L = downscale_image(UseL, scale, Tr_K.shape)
-
     del UseL
 
     rho = TSEB.met.calc_rho(p, ea, T_A_K)  # Air density
     c_p = TSEB.met.calc_c_p(p, ea)  # Heat capacity of air
 
+    #######################################################################
+    # For all the pixels in the high res. TSEB
+    # WHILE high-res contant ration != low-res constant ratio
+    #   adjust Tair or LST for unmasked pixels
+    #   run high-res TSBE for unmaksed pixels
+    #   claculate high-res consant ratio
+    #   mask pixels where ratios aggree
     while np.any(mask) and counter < DIS_TSEB_ITERATIONS:
         if correct_LST:
             Tr_K_modified[mask] = Tr_K[mask] - T_offset[mask]
@@ -279,6 +261,7 @@ def dis_TSEB(flux_LR,
             T_A_K_modified[mask] = T_A_K[mask] + T_offset[mask]
 
         flag[mask] = VALID_FLAG
+        
         # Run high-res TSEB on all unmasked pixels
 
         # First process bare soil cases
@@ -377,9 +360,8 @@ def dis_TSEB(flux_LR,
         print('Recalculating MO stability length')
         L = TSEB.MO.calc_L(u_friction, T_A_K_modified, rho, c_p, H_HR, LE_HR)
 
-        #Rn_HR = Sn_C + Sn_S + Ln_C + Ln_S
+        # Calcualte HR constant ratio
         valid = np.logical_and(mask, flag != NO_VALID_FLAG)
-
         if flux_LR_method == 'EF':
             # Calculate high-res Evaporative Fraction
             const_ratio_HR[valid] = LE_HR[valid] / (LE_HR[valid] + H_HR[valid])
@@ -393,22 +375,10 @@ def dis_TSEB(flux_LR,
         # Calculate average constant ratio for each LR pixel from all HR
         # pixels it contains
         print('Calculating average constant ratio for each LR pixel using valid HR pixels')
-# =============================================================================
-#         unique = np.unique(pixel_map[mask])
-#         pd_dataframe = pd.DataFrame({'const_ratio': const_ratio_HR.reshape(-1),
-#                                      'pixel_map':pixel_map.reshape(-1)})
-#
-#         const_ratio_LR = np.asarray(pd_dataframe.groupby('pixel_map')['const_ratio'].mean())
-#         const_ratio_HR = downscale_image(const_ratio_LR.reshape(dims_LR),
-#                                          scale,
-#                                          Tr_K.shape)
-# =============================================================================
         const_ratio_LR = scale_with_gdalwarp(const_ratio_HR, scale[2], dims_LR, scale[1], scale[0],
                                              gdal.GRA_Average)
-
         const_ratio_HR = scale_with_gdalwarp(const_ratio_LR, scale[2], dims_HR, scale[0], scale[1],
                                              gdal.GRA_NearestNeighbour)
-
         const_ratio_HR[~mask] = np.nan
 
         # Mask the low-res pixels for which constant ratio of hig-res and
@@ -428,12 +398,8 @@ def dis_TSEB(flux_LR,
         # If high-res H is too low (diff is +ve) -> decrease air temperature to increase H
         counter += 1
         print('disTSEB iteration %s' % counter)
-        #print(np.max(const_ratio_diff[mask]))
-        #print(np.min(const_ratio_diff[mask]))
         print('Recalculating over %s high resolution pixels' % np.size(Tr_K[mask]))
-        # print('representing %s low resolution pixels'%np.size(unique))
         T_offset[mask] -= step[mask]
-        T_offset = np.clip(T_offset, -5.0, 5.0)
 
     ####################################################################
     # When constant ratios for all pixels match, smooth the resulting Ta adjustment
@@ -600,14 +566,6 @@ def moving_mean_filter_2(data, window):
     data = uniform_filter(data, size=window, mode='mirror')
 
     return data
-
-
-def downscale_image(image, scale, shape_hr):
-
-    for i, sc in enumerate(scale):
-        image = np.repeat(image, sc, axis=i)
-
-    return image[:shape_hr[0], :shape_hr[1]]
 
 
 def save_img(data, geotransform, proj, outPath, noDataValue=np.nan, fieldNames=[]):
