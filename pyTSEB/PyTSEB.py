@@ -192,7 +192,7 @@ class PyTSEB(object):
 #                 fid = gdal.Open(self.p[list(input_fields)[0]], gdal.GA_ReadOnly)
 #                 geo_HR = fid.GetGeoTransform()
 #                 del fid
-# 
+#
 # =============================================================================
                 fid = gdal.Open(self.p[field], gdal.GA_ReadOnly)
                 prj = fid.GetProjection()
@@ -203,7 +203,7 @@ class PyTSEB(object):
                                                                       self.subset[2],
                                                                       self.subset[3])
                     geo_LR = [geo_LR[0]+self.subset[0]*geo_LR[1], geo_LR[1], geo_LR[2],
-                           geo_LR[3]+self.subset[1]*geo_LR[5], geo_LR[4], geo_LR[5]]
+                              geo_LR[3]+self.subset[1]*geo_LR[5], geo_LR[4], geo_LR[5]]
                 else:
                     in_data[field] = fid.GetRasterBand(1).ReadAsArray()
                     in_data[field]
@@ -1410,7 +1410,6 @@ class PydisTSEB(PyTSEB):
         output_structure["counter"] = S_A
         return output_structure
 
-
     def _set_special_model_input(self, field, dims):
         ''' Special processing for setting certain input fields. Only relevant for image processing
         mode.
@@ -1455,12 +1454,12 @@ class PydisTSEB(PyTSEB):
         -------
         None
         '''
-        
+
         print('Running dis TSEB for the whole image')
-        
-        [out_data['flag'], 
-         out_data['T_S1'], 
-         out_data['T_C1'],   
+
+        [out_data['flag'],
+         out_data['T_S1'],
+         out_data['T_C1'],
          out_data['T_AC1'],
          out_data['Ln_S1'],
          out_data['Ln_C1'],
@@ -1478,7 +1477,7 @@ class PydisTSEB(PyTSEB):
          out_data['T_offset'],
          out_data['counter'],
          out_data['T_offset_orig']] = dis_TSEB.dis_TSEB(in_data['flux_LR'],
-                                                        in_data['scale'],         
+                                                        in_data['scale'],
                                                         in_data['T_R1'],
                                                         in_data['VZA'],
                                                         in_data['T_A1'],
@@ -1496,7 +1495,7 @@ class PydisTSEB(PyTSEB):
                                                         out_data['d_0'],
                                                         in_data['z_u'],
                                                         in_data['z_T'],
-                                                        UseL=in_data['flux_LR_ancillary'],                                
+                                                        UseL=in_data['flux_LR_ancillary'],
                                                         f_c=in_data['f_c'],
                                                         f_g=in_data['f_g'],
                                                         w_C=in_data['w_C'],

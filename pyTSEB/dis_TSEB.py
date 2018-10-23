@@ -6,21 +6,22 @@ Created on Mon Mar 26 11:10:34 2018
 @author: hector
 """
 import numpy as np
-import pandas as pd
 import gdal
-
-import pyTSEB.TSEB as TSEB
 
 from scipy.ndimage.filters import gaussian_filter
 from scipy.signal import convolve2d
 from scipy.ndimage import uniform_filter
-#==============================================================================
+
+import pyTSEB.TSEB as TSEB
+
+# ==============================================================================
 # List of constants used in dis_TSEB model and sub-routines
-#==============================================================================
+# ==============================================================================
 ITERATIONS_OUT = 50
 DIS_TSEB_ITERATIONS = 50
 NO_VALID_FLAG = 255
 VALID_FLAG = 0
+
 
 def dis_TSEB(flux_LR,
              scale,
@@ -50,13 +51,11 @@ def dis_TSEB(flux_LR,
              f_g=1.0,
              w_C=1.0,
              resistance_form=[0, {}],
-             calcG_params=[
-                          [1],
-                          0.35],
-             massman_profile=[0,[]],
+             calcG_params=[[1], 0.35],
+             massman_profile=[0, []],
              flux_LR_method='EF',
-             correct_LST = True):
-                 
+             correct_LST=True):
+
     '''Priestley-Taylor TSEB
 
     Calculates the Priestley Taylor TSEB fluxes using a single observation of
@@ -182,36 +181,30 @@ def dis_TSEB(flux_LR,
     # Create a pixel map which maps every HR pixel to a corresponding LR pixel
     dims_LR = flux_LR.shape
     dims_HR = Tr_K.shape
-   
+
 # =============================================================================
 #     pixel_map = np.arange(np.size(flux_LR)).reshape(dims_LR)
-#     pixel_map = scale_with_gdalwarp(pixel_map, 
-#                                        scale[3], 
-#                                        dims_HR, 
-#                                        scale[0], 
-#                                        scale[1], 
+#     pixel_map = scale_with_gdalwarp(pixel_map,
+#                                        scale[3],
+#                                        dims_HR,
+#                                        scale[0],
+#                                        scale[1],
 #                                        gdal.GRA_NearestNeighbour)
-#     
+#
 # =============================================================================
-    const_ratio = scale_with_gdalwarp(flux_LR, 
-                                         scale[2], 
-                                         dims_HR, 
-                                         scale[0], 
-                                         scale[1], 
-                                         gdal.GRA_NearestNeighbour)
-    
+    const_ratio = scale_with_gdalwarp(flux_LR, scale[2], dims_HR, scale[0], scale[1],
+                                      gdal.GRA_NearestNeighbour)
+
     print(flux_LR.shape, const_ratio.shape)
     #pixel_map = downscale_image(pixel_map, scale, Tr_K.shape)
-    
+
     #const_ratio = downscale_image(flux_LR, scale, Tr_K.shape)
-    
+
     # Create mask that masks high-res pixels where low-res constant ratio
     # does not exist or is invalid
     mask = np.ones(const_ratio.shape, dtype=bool)
-    mask[np.logical_or(np.isnan(const_ratio),
-                        Tr_K <= 0)] = False                   
+    mask[np.logical_or(np.isnan(const_ratio), Tr_K <= 0)] = False
 
-    
     #######################################################################
     # For all the pixels in the high res. TSEB
     # WHILE high-res contant ration != low-res constant ratio
@@ -220,83 +213,78 @@ def dis_TSEB(flux_LR,
     #   run high-res TSBE for unmaksed pixels
     #   claculate high-res consant ratio
     counter = 1
-    T_offset = np.zeros(const_ratio.shape) 
+    T_offset = np.zeros(const_ratio.shape)
     Tr_K_modified = Tr_K[:]
     T_A_K_modified = T_A_K[:]
-    
+
     const_ratio_diff = np.zeros(const_ratio.shape)+1000
     const_ratio_HR = np.ones(const_ratio.shape)*np.nan
-    
-    # Initialize output variables
-    [flag, 
-     T_S,
-     T_C, 
-     T_AC, 
-     Ln_S, 
-     Ln_C, 
-     LE_C, 
-     H_C, 
-     LE_S, 
-     H_S, 
-     G, 
-     R_S, 
-     R_x, 
-     R_A, 
-     u_friction, 
-     L, 
-     n_iterations] = map(np.zeros, 17*[Tr_K.shape])    
 
-    [T_S[:], 
-     T_C[:], 
-     T_AC[:], 
-     Ln_S[:], 
-     Ln_C[:], 
-     LE_C[:], 
-     H_C[:], 
-     LE_S[:], 
-     H_S[:], 
-     G[:], 
+    # Initialize output variables
+    [flag,
+     T_S,
+     T_C,
+     T_AC,
+     Ln_S,
+     Ln_C,
+     LE_C,
+     H_C,
+     LE_S,
+     H_S,
+     G,
+     R_S,
+     R_x,
+     R_A,
+     u_friction,
+     L,
+     n_iterations] = map(np.zeros, 17*[Tr_K.shape])
+
+    [T_S[:],
+     T_C[:],
+     T_AC[:],
+     Ln_S[:],
+     Ln_C[:],
+     LE_C[:],
+     H_C[:],
+     LE_S[:],
+     H_S[:],
+     G[:],
      R_S[:],
-     R_x[:], 
-     R_A[:], 
-     u_friction[:], 
-     L[:]] = 15*[np.nan]        
-    
+     R_x[:],
+     R_A[:],
+     u_friction[:],
+     L[:]] = 15*[np.nan]
+
     n_iterations[:] = 0
     flag[:] = NO_VALID_FLAG
-        
+
     print('Forcing low resolution MO stability length as starting point in the iteration')
     if isinstance(UseL, float):
         L = np.ones(Tr_K.shape) * UseL
     else:
-        L - scale_with_gdalwarp(UseL, 
-                                   scale[2], 
-                                   dims_HR, 
-                                   scale[0], 
-                                   scale[1], 
-                                   gdal.GRA_NearestNeighbour)
-        
+        L - scale_with_gdalwarp(UseL, scale[2], dims_HR, scale[0], scale[1],
+                                gdal.GRA_NearestNeighbour)
+
         #L = downscale_image(UseL, scale, Tr_K.shape)
-    
+
     del UseL
-        
+
     rho = TSEB.met.calc_rho(p, ea, T_A_K)  # Air density
     c_p = TSEB.met.calc_c_p(p, ea)  # Heat capacity of air
-    
 
     while np.any(mask) and counter < DIS_TSEB_ITERATIONS:
         if correct_LST:
             Tr_K_modified[mask] = Tr_K[mask] - T_offset[mask]
         else:
             T_A_K_modified[mask] = T_A_K[mask] + T_offset[mask]
-            
+
         flag[mask] = VALID_FLAG
         # Run high-res TSEB on all unmasked pixels
 
         # First process bare soil cases
         print('First process bare soil cases')
         i = np.array(np.logical_and(LAI == 0, mask))
-        
+
         [flag[i],
          Ln_S[i],
          LE_S[i],
@@ -306,93 +294,92 @@ def dis_TSEB(flux_LR,
          u_friction[i],
          L[i],
          n_iterations[i]] = TSEB.OSEB(Tr_K_modified[i],
-                                  T_A_K_modified[i],
-                                  u[i],
-                                  ea[i],
-                                  p[i],
-                                  Sn_S[i],
-                                  L_dn[i],
-                                  emis_S[i],
-                                  z_0M[i],
-                                  d_0[i],
-                                  z_u[i],
-                                  z_T[i],
-                                  calcG_params = calcG_params,
-                                  UseL = L[i])
-        
-        
+                                      T_A_K_modified[i],
+                                      u[i],
+                                      ea[i],
+                                      p[i],
+                                      Sn_S[i],
+                                      L_dn[i],
+                                      emis_S[i],
+                                      z_0M[i],
+                                      d_0[i],
+                                      z_u[i],
+                                      z_T[i],
+                                      calcG_params=calcG_params,
+                                      UseL=L[i])
+
         T_S[i] = Tr_K_modified[i]
         T_AC[i] = T_A_K_modified[i]
         # Set canopy fluxes to 0
-        Sn_C[i] = 0.0                                          
+        Sn_C[i] = 0.0
         Ln_C[i] = 0.0
         LE_C[i] = 0.0
         H_C[i] = 0.0
-        
+
         # Then process vegetated pixels
         print('Then process vegetated pixels')
         i = np.array(np.logical_and(LAI > 0, mask))
         if resistance_form[0] == 0:
-            resistance_flag = [resistance_form[0], 
-                           {k: resistance_form[1][k][i] for k in resistance_form[1]}]
-                           
+            resistance_flag = [resistance_form[0],
+                               {k: resistance_form[1][k][i] for k in resistance_form[1]}]
+
         else:
-            resistance_flag = [resistance_form[0],{}]
-    
-        [flag[i], 
+            resistance_flag = [resistance_form[0], {}]
+
+        [flag[i],
          T_S[i],
-         T_C[i], 
-         T_AC[i], 
-         Ln_S[i], 
-         Ln_C[i], 
-         LE_C[i], 
-         H_C[i], 
-         LE_S[i], 
-         H_S[i], 
-         G[i], 
-         R_S[i], 
-         R_x[i], 
-         R_A[i], 
-         u_friction[i], 
-         L[i], 
+         T_C[i],
+         T_AC[i],
+         Ln_S[i],
+         Ln_C[i],
+         LE_C[i],
+         H_C[i],
+         LE_S[i],
+         H_S[i],
+         G[i],
+         R_S[i],
+         R_x[i],
+         R_A[i],
+         u_friction[i],
+         L[i],
          n_iterations[i]] = TSEB.TSEB_PT(Tr_K_modified[i],
-                                 vza[i],
-                                 T_A_K_modified[i],
-                                 u[i],
-                                 ea[i],
-                                 p[i],
-                                 Sn_C[i],
-                                 Sn_S[i],
-                                 L_dn[i],
-                                 LAI[i],
-                                 h_C[i],
-                                 emis_C[i],
-                                 emis_S[i],
-                                 z_0M[i],
-                                 d_0[i],
-                                 z_u[i],
-                                 z_T[i],
-                                 leaf_width = leaf_width[i],
-                                 z0_soil = z0_soil[i],
-                                 alpha_PT = alpha_PT[i],
-                                 x_LAD = x_LAD[i],
-                                 f_c = f_c[i],
-                                 f_g = f_g[i],
-                                 w_C = w_C[i],
-                                 resistance_form = resistance_flag,
-                                 calcG_params = calcG_params,
-                                 UseL = L[i],
-                                 massman_profile = massman_profile)
-        
+                                         vza[i],
+                                         T_A_K_modified[i],
+                                         u[i],
+                                         ea[i],
+                                         p[i],
+                                         Sn_C[i],
+                                         Sn_S[i],
+                                         L_dn[i],
+                                         LAI[i],
+                                         h_C[i],
+                                         emis_C[i],
+                                         emis_S[i],
+                                         z_0M[i],
+                                         d_0[i],
+                                         z_u[i],
+                                         z_T[i],
+                                         leaf_width=leaf_width[i],
+                                         z0_soil=z0_soil[i],
+                                         alpha_PT=alpha_PT[i],
+                                         x_LAD=x_LAD[i],
+                                         f_c=f_c[i],
+                                         f_g=f_g[i],
+                                         w_C=w_C[i],
+                                         resistance_form=resistance_flag,
+                                         calcG_params=calcG_params,
+                                         UseL=L[i],
+                                         massman_profile=massman_profile)
+
         LE_HR = LE_C + LE_S
         H_HR = H_C + H_S
 
         print('Recalculating MO stability length')
         L = TSEB.MO.calc_L(u_friction, T_A_K_modified, rho, c_p, H_HR, LE_HR)
-        
+
         #Rn_HR = Sn_C + Sn_S + Ln_C + Ln_S
         valid = np.logical_and(mask, flag != NO_VALID_FLAG)
-        
+
         if flux_LR_method == 'EF':
             # Calculate high-res Evaporative Fraction
             const_ratio_HR[valid] = LE_HR[valid] / (LE_HR[valid] + H_HR[valid])
@@ -402,7 +389,7 @@ def dis_TSEB(flux_LR,
         elif flux_LR_method == 'H':
             # Calculate high-res Evaporative Fraction
             const_ratio_HR[valid] = H_HR[valid]
-        
+
         # Calculate average constant ratio for each LR pixel from all HR
         # pixels it contains
         print('Calculating average constant ratio for each LR pixel using valid HR pixels')
@@ -410,49 +397,40 @@ def dis_TSEB(flux_LR,
 #         unique = np.unique(pixel_map[mask])
 #         pd_dataframe = pd.DataFrame({'const_ratio': const_ratio_HR.reshape(-1),
 #                                      'pixel_map':pixel_map.reshape(-1)})
-#                                      
+#
 #         const_ratio_LR = np.asarray(pd_dataframe.groupby('pixel_map')['const_ratio'].mean())
 #         const_ratio_HR = downscale_image(const_ratio_LR.reshape(dims_LR),
-#                                          scale, 
+#                                          scale,
 #                                          Tr_K.shape)
 # =============================================================================
-        const_ratio_LR = scale_with_gdalwarp(const_ratio_HR, 
-                                                 scale[2], 
-                                                 dims_LR, 
-                                                 scale[1], 
-                                                 scale[0], 
-                                                 gdal.GRA_Average)
+        const_ratio_LR = scale_with_gdalwarp(const_ratio_HR, scale[2], dims_LR, scale[1], scale[0],
+                                             gdal.GRA_Average)
 
-        const_ratio_HR = scale_with_gdalwarp(const_ratio_LR, 
-                                                 scale[2], 
-                                                 dims_HR, 
-                                                 scale[0], 
-                                                 scale[1], 
-                                                 gdal.GRA_NearestNeighbour)
-        
-        
+        const_ratio_HR = scale_with_gdalwarp(const_ratio_LR, scale[2], dims_HR, scale[0], scale[1],
+                                             gdal.GRA_NearestNeighbour)
+
         const_ratio_HR[~mask] = np.nan
-        
-        # Mask the low-res pixels for which constant ratio of hig-res and 
+
+        # Mask the low-res pixels for which constant ratio of hig-res and
         # low-res runs agree.
         const_ratio_diff = const_ratio_HR - const_ratio
-        const_ratio_diff[np.logical_or(np.isnan(const_ratio_HR), 
+        const_ratio_diff[np.logical_or(np.isnan(const_ratio_HR),
                                        np.isnan(const_ratio))] = 0
 
         if flux_LR_method == 'EF':
-            mask = np.abs(const_ratio_diff)>0.01
+            mask = np.abs(const_ratio_diff) > 0.01
             step = np.clip(const_ratio_diff*5, -1, 1)
         elif flux_LR_method == 'LE' or flux_LR_method == 'H':
-            mask = np.abs(const_ratio_diff)>5
+            mask = np.abs(const_ratio_diff) > 5
             step = np.clip(const_ratio_diff*0.01, -1, 1)
-        # For other pixels, adjust Ta.        
+        # For other pixels, adjust Ta.
         # If high-res H is too high (diff is -ve) -> increase air temperature to reduce H
-        # If high-res H is too low (diff is +ve) -> decrease air temperature to increase H         
-        counter +=  1
-        print('disTSEB iteration %s'%counter)
+        # If high-res H is too low (diff is +ve) -> decrease air temperature to increase H
+        counter += 1
+        print('disTSEB iteration %s' % counter)
         #print(np.max(const_ratio_diff[mask]))
         #print(np.min(const_ratio_diff[mask]))
-        print('Recalculating over %s high resolution pixels'%np.size(Tr_K[mask]))
+        print('Recalculating over %s high resolution pixels' % np.size(Tr_K[mask]))
         # print('representing %s low resolution pixels'%np.size(unique))
         T_offset[mask] -= step[mask]
         T_offset = np.clip(T_offset, -5.0, 5.0)
@@ -461,21 +439,21 @@ def dis_TSEB(flux_LR,
     # When constant ratios for all pixels match, smooth the resulting Ta adjustment
     # with a moving window size of 2x2 km and perform a final run of high-res model
     mask = np.ones(const_ratio.shape, dtype=bool)
-    mask[np.isnan(const_ratio)] = False                   
-    
+    mask[np.isnan(const_ratio)] = False
+
     T_offset_orig = T_offset[:]
     T_offset = moving_gaussian_filter(T_offset, 3*float(scale[0]))
 
     # Smooth MO length
     L = moving_gaussian_filter(L, 20)
-    
-    if correct_LST:     
-        Tr_K_modified = Tr_K - T_offset    
-    else:     
-        T_A_K_modified = T_A_K + T_offset    
-    
+
+    if correct_LST:
+        Tr_K_modified = Tr_K - T_offset
+    else:
+        T_A_K_modified = T_A_K + T_offset
+
     flag[mask] = VALID_FLAG
-    
+
     # Run high-res TSEB on all unmasked pixels
     TSEB.ITERATIONS = ITERATIONS_OUT
     print('Final run of TSEB at high resolution with adjusted temperature')
@@ -492,56 +470,55 @@ def dis_TSEB(flux_LR,
      u_friction[i],
      L[i],
      n_iterations[i]] = TSEB.OSEB(Tr_K_modified[i],
-                              T_A_K_modified[i],
-                              u[i],
-                              ea[i],
-                              p[i],
-                              Sn_S[i],
-                              L_dn[i],
-                              emis_S[i],
-                              z_0M[i],
-                              d_0[i],
-                              z_u[i],
-                              z_T[i],
-                              calcG_params = calcG_params,
-                              UseL = L[i])
-    
-    
+                                  T_A_K_modified[i],
+                                  u[i],
+                                  ea[i],
+                                  p[i],
+                                  Sn_S[i],
+                                  L_dn[i],
+                                  emis_S[i],
+                                  z_0M[i],
+                                  d_0[i],
+                                  z_u[i],
+                                  z_T[i],
+                                  calcG_params=calcG_params,
+                                  UseL=L[i])
+
     T_S[i] = Tr_K_modified[i]
     T_AC[i] = T_A_K_modified[i]
     # Set canopy fluxes to 0
-    Sn_C[i] = 0.0                                          
+    Sn_C[i] = 0.0
     Ln_C[i] = 0.0
     LE_C[i] = 0.0
     H_C[i] = 0.0
-    
+
     # Then process vegetated pixels
     print('Then process vegetated pixels')
     i = np.array(np.logical_and(LAI > 0, mask))
-    
+
     if resistance_form[0] == 0:
-        resistance_flag = [resistance_form[0], 
-                       {k: resistance_form[1][k][i] for k in resistance_form[1]}]
-                       
+        resistance_flag = [resistance_form[0],
+                           {k: resistance_form[1][k][i] for k in resistance_form[1]}]
+
     else:
-        resistance_flag = [resistance_form[0],{}]
-    
-    [flag[i], 
+        resistance_flag = [resistance_form[0], {}]
+
+    [flag[i],
      T_S[i],
-     T_C[i], 
-     T_AC[i], 
-     Ln_S[i], 
-     Ln_C[i], 
-     LE_C[i], 
-     H_C[i], 
-     LE_S[i], 
-     H_S[i], 
-     G[i], 
-     R_S[i], 
-     R_x[i], 
-     R_A[i], 
-     u_friction[i], 
-     L[i], 
+     T_C[i],
+     T_AC[i],
+     Ln_S[i],
+     Ln_C[i],
+     LE_C[i],
+     H_C[i],
+     LE_S[i],
+     H_S[i],
+     G[i],
+     R_S[i],
+     R_x[i],
+     R_A[i],
+     u_friction[i],
+     L[i],
      n_iterations[i]] = TSEB.TSEB_PT(Tr_K_modified[i],
                                      vza[i],
                                      T_A_K_modified[i],
@@ -559,76 +536,79 @@ def dis_TSEB(flux_LR,
                                      d_0[i],
                                      z_u[i],
                                      z_T[i],
-                                     leaf_width = leaf_width[i],
-                                     z0_soil = z0_soil[i],
-                                     alpha_PT = alpha_PT[i],
-                                     x_LAD = x_LAD[i],
-                                     f_c = f_c[i],
-                                     f_g = f_g[i],
-                                     w_C = w_C[i],
-                                     resistance_form = resistance_flag,
-                                     calcG_params = calcG_params,
-                                     UseL = L[i],
-                                     massman_profile = massman_profile)
-    
+                                     leaf_width=leaf_width[i],
+                                     z0_soil=z0_soil[i],
+                                     alpha_PT=alpha_PT[i],
+                                     x_LAD=x_LAD[i],
+                                     f_c=f_c[i],
+                                     f_g=f_g[i],
+                                     w_C=w_C[i],
+                                     resistance_form=resistance_flag,
+                                     calcG_params=calcG_params,
+                                     UseL=L[i],
+                                     massman_profile=massman_profile)
 
-
-    return [flag, 
-            T_S, 
-            T_C, 
-            T_AC, 
+    return [flag,
+            T_S,
+            T_C,
+            T_AC,
             Ln_S,
-            Ln_C, 
-            LE_C, 
-            H_C, 
-            LE_S, 
-            H_S, 
-            G, 
-            R_S, 
-            R_x, 
-            R_A, 
-            u_friction, 
-            L, 
-            n_iterations, 
-            T_offset, 
+            Ln_C,
+            LE_C,
+            H_C,
+            LE_S,
+            H_S,
+            G,
+            R_S,
+            R_x,
+            R_A,
+            u_friction,
+            L,
+            n_iterations,
+            T_offset,
             counter,
             T_offset_orig]
 
+
 def moving_gaussian_filter(data, window):
     # 95% of contribution is from within the window
-    sigma = window / 4.0    
-    
+    sigma = window / 4.0
+
     V = data.copy()
     V[data != data] = 0
     VV = gaussian_filter(V, sigma)
-    
+
     W = 0*data.copy() + 1
     W[data != data] = 0
     WW = gaussian_filter(W, sigma)
-    
+
     return VV/WW
 
+
 def moving_mean_filter(data, window):
-    
+
     ''' window is a 2 element tuple with the moving window dimensions (rows, columns)'''
     kernel = np.ones(window)/np.prod(np.asarray(window))
-    data = convolve2d(data, kernel, mode = 'same', boundary = 'symm')
-    
+    data = convolve2d(data, kernel, mode='same', boundary='symm')
+
     return data
-    
+
+
 def moving_mean_filter_2(data, window):
 
     ''' window is a 2 element tuple with the moving window dimensions (rows, columns)'''
-    data = uniform_filter(data, size = window, mode = 'mirror')
+    data = uniform_filter(data, size=window, mode='mirror')
 
     return data
-    
+
+
 def downscale_image(image, scale, shape_hr):
-    
+
     for i, sc in enumerate(scale):
         image = np.repeat(image, sc, axis=i)
-        
-    return image[:shape_hr[0],:shape_hr[1]]
+
+    return image[:shape_hr[0], :shape_hr[1]]
+
 
 def save_img(data, geotransform, proj, outPath, noDataValue=np.nan, fieldNames=[]):
 
@@ -654,11 +634,13 @@ def save_img(data, geotransform, proj, outPath, noDataValue=np.nan, fieldNames=[
 
     return ds
 
+
 def scale_with_gdalwarp(array, prj, dims_out, gt_in, gt_out, resample_alg):
-    
+
     in_src = save_img(array, gt_in, prj, 'MEM', noDataValue=np.nan, fieldNames=[])
     # Get template projection, extent and resolution
-    extent = [gt_out[0], gt_out[3]+gt_out[5]*dims_out[0], gt_out[0]+gt_out[1]*dims_out[1], gt_out[3]]
+    extent = [gt_out[0], gt_out[3]+gt_out[5]*dims_out[0],
+              gt_out[0]+gt_out[1]*dims_out[1], gt_out[3]]
 
     # Resample with GDAL warp
     outDs = gdal.Warp('',
@@ -668,7 +650,7 @@ def scale_with_gdalwarp(array, prj, dims_out, gt_in, gt_out, resample_alg):
                       yRes=gt_out[5],
                       outputBounds=extent,
                       resampleAlg=resample_alg)
-    
+
     array_out = outDs.GetRasterBand(1).ReadAsArray()
-    
+
     return array_out

@@ -195,7 +195,7 @@ class TSEBConfigFileInterface():
                             pass
                         elif (var == 'flux_LR'
                               or var == 'flux_LR_ancillary'
-                              or var == 'flux_LR_method' 
+                              or var == 'flux_LR_method'
                               or var == 'correct_LST') and self.params['model'] != 'disTSEB':
                             pass
                         else:
