@@ -564,7 +564,7 @@ class PyTSEB(object):
 
         # Calculate roughness
         out_data['z_0M'][i] = in_data['z0_soil'][i]
-        out_data['d_0'][i] = 5 * out_data['z_0M'][i]
+        out_data['d_0'][i] = 0
 
         # Net shortwave radition for bare soil
         spectraGrdOSEB = out_data['fvis'] * \
