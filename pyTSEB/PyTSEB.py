@@ -187,13 +187,7 @@ class PyTSEB(object):
                     # Friedl G
                     self.G_form[1] = in_data['time']
             elif field == "flux_LR" or field == "flux_LR_ancillary":
-# =============================================================================
-#                 # Read the high resolution geotransform
-#                 fid = gdal.Open(self.p[list(input_fields)[0]], gdal.GA_ReadOnly)
-#                 geo_HR = fid.GetGeoTransform()
-#                 del fid
-# 
-# =============================================================================
+                # Low resolution data in case disaggregation is to be used.
                 fid = gdal.Open(self.p[field], gdal.GA_ReadOnly)
                 prj = fid.GetProjection()
                 geo_LR = fid.GetGeoTransform()
@@ -203,10 +197,9 @@ class PyTSEB(object):
                                                                       self.subset[2],
                                                                       self.subset[3])
                     geo_LR = [geo_LR[0]+self.subset[0]*geo_LR[1], geo_LR[1], geo_LR[2],
-                           geo_LR[3]+self.subset[1]*geo_LR[5], geo_LR[4], geo_LR[5]]
+                              geo_LR[3]+self.subset[1]*geo_LR[5], geo_LR[4], geo_LR[5]]
                 else:
                     in_data[field] = fid.GetRasterBand(1).ReadAsArray()
-                    in_data[field]
 
                 fid = None
                 in_data['scale'] = [geo_LR, geo, prj]
@@ -1374,7 +1367,7 @@ class PydisTSEB(PyTSEB):
         super().__init__(parameters)
 
     def _get_input_structure(self):
-        ''' Input fields' names for TSEB_2T model.  Only relevant for image processing mode.
+        ''' Input fields' names for disTSEB model.  Only relevant for image processing mode.
 
         Parameters
         ----------
@@ -1383,16 +1376,18 @@ class PydisTSEB(PyTSEB):
         Returns
         -------
         outputStructure: string ordered dict
-            Names (keys) and descriptions (values) of TSEB_2T input fields.
+            Names (keys) and descriptions (values) of disTSEB input fields.
         '''
 
         input_fields = super()._get_input_structure()
         input_fields["flux_LR"] = "pyTSEB Low Resolution Flux date"
         input_fields["flux_LR_ancillary"] = "pyTSEB Low Resolution ancillary Flux data"
+        input_fields["flux_LR_method"] = "Method for ensuring consistency between low- and high-"+\
+                                         " resolution fluxes"
         return input_fields
 
     def _get_output_structure(self):
-        ''' Input fields' names for TSEB_2T model.  Only relevant for image processing mode.
+        ''' Input fields' names for disTSEB model.  Only relevant for image processing mode.
 
         Parameters
         ----------
@@ -1401,7 +1396,7 @@ class PydisTSEB(PyTSEB):
         Returns
         -------
         outputStructure: string ordered dict
-            Names (keys) and descriptions (values) of TSEB_2T input fields.
+            Names (keys) and descriptions (values) of disTSEB input fields.
         '''
 
         output_structure = super()._get_output_structure()
@@ -1409,7 +1404,6 @@ class PydisTSEB(PyTSEB):
         output_structure["T_offset_orig"] = S_A
         output_structure["counter"] = S_A
         return output_structure
-
 
     def _set_special_model_input(self, field, dims):
         ''' Special processing for setting certain input fields. Only relevant for image processing
@@ -1455,12 +1449,12 @@ class PydisTSEB(PyTSEB):
         -------
         None
         '''
-        
+
         print('Running dis TSEB for the whole image')
-        
-        [out_data['flag'], 
-         out_data['T_S1'], 
-         out_data['T_C1'],   
+
+        [out_data['flag'],
+         out_data['T_S1'],
+         out_data['T_C1'],
          out_data['T_AC1'],
          out_data['Ln_S1'],
          out_data['Ln_C1'],
@@ -1478,7 +1472,7 @@ class PydisTSEB(PyTSEB):
          out_data['T_offset'],
          out_data['counter'],
          out_data['T_offset_orig']] = dis_TSEB.dis_TSEB(in_data['flux_LR'],
-                                                        in_data['scale'],         
+                                                        in_data['scale'],
                                                         in_data['T_R1'],
                                                         in_data['VZA'],
                                                         in_data['T_A1'],
@@ -1496,7 +1490,7 @@ class PydisTSEB(PyTSEB):
                                                         out_data['d_0'],
                                                         in_data['z_u'],
                                                         in_data['z_T'],
-                                                        UseL=in_data['flux_LR_ancillary'],                                
+                                                        UseL=in_data['flux_LR_ancillary'],
                                                         f_c=in_data['f_c'],
                                                         f_g=in_data['f_g'],
                                                         w_C=in_data['w_C'],
