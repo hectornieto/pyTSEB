@@ -139,13 +139,13 @@ class PyTSEB(object):
         try:
             field = list(input_fields)[0]
             fid = gdal.Open(self.p[field], gdal.GA_ReadOnly)
-            prj = fid.GetProjection()
+            self.prj = fid.GetProjection()
             self.geo = fid.GetGeoTransform()
             dims = (fid.RasterYSize, fid.RasterXSize)
             fid = None
             self.subset = []
             if "subset" in self.p:
-                self.subset, self.geo = self._get_subset(self.p["subset"], prj, self.geo)
+                self.subset, self.geo = self._get_subset(self.p["subset"], self.prj, self.geo)
                 dims = (self.subset[3], self.subset[2])
         except KeyError:
             print('Error reading ' + input_fields[field])
@@ -249,10 +249,10 @@ class PyTSEB(object):
         outdir = dirname(self.p['output_file'])
         if not exists(outdir):
             mkdir(outdir)
-        self.write_raster_output(self.p['output_file'], out_data, self.geo, prj, primary_fields)
+        self.write_raster_output(self.p['output_file'], out_data, primary_fields)
         outputfile = splitext(self.p['output_file'])[0] + '_ancillary' + \
                      splitext(self.p['output_file'])[1]
-        self.write_raster_output(outputfile, out_data, self.geo, prj, ancillary_fields)
+        self.write_raster_output(outputfile, out_data, ancillary_fields)
         print('Saved Files')
 
         return in_data, out_data
@@ -764,7 +764,7 @@ class PyTSEB(object):
 
         return success, array
 
-    def write_raster_output(self, outfile, output, geo, prj, fields):
+    def write_raster_output(self, outfile, output, fields):
         '''Write the specified arrays of a dictionary to a raster file.
 
         Parameters
@@ -776,10 +776,6 @@ class PyTSEB(object):
             sub-folder. Otherwise, the output will be saved as one GeoTIFF.
         output : dict
             The dictionary containing the output data arrays.
-        geo : float list
-            The GDAL geotransform array.
-        prj : string
-            The GDAL projection string.
         fields : string list
             The list of output fields from the output dictionary to save to file.
 
@@ -807,8 +803,8 @@ class PyTSEB(object):
             driver = gdal.GetDriverByName(driver)
             nbands = len(fields)
             ds = driver.Create(outfile, cols, rows, nbands, gdal.GDT_Float32, opt)
-            ds.SetGeoTransform(geo)
-            ds.SetProjection(prj)
+            ds.SetGeoTransform(self.geo)
+            ds.SetProjection(self.prj)
             for i, field in enumerate(fields):
                 band = ds.GetRasterBand(i + 1)
                 band.SetNoDataValue(np.NaN)
@@ -840,8 +836,8 @@ class PyTSEB(object):
                 driver = gdal.GetDriverByName("GTiff")
                 out_path = join(out_dir, field + ".tif")
                 ds = driver.Create(out_path, cols, rows, 1, gdal.GDT_Float32, opt)
-                ds.SetGeoTransform(geo)
-                ds.SetProjection(prj)
+                ds.SetGeoTransform(self.geo)
+                ds.SetProjection(self.prj)
                 band = ds.GetRasterBand(1)
                 band.SetNoDataValue(np.NaN)
                 band.WriteArray(output[field])
