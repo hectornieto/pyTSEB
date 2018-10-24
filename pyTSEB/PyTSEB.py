@@ -75,10 +75,10 @@ see the guidelines for input and configuration file preparation in :doc:`README_
 
 from os.path import join, splitext, dirname, basename, exists
 from os import mkdir
-import ast
 from collections import OrderedDict
+import math
 
-import gdal
+from osgeo import gdal, ogr, osr
 import numpy as np
 import pandas as pd
 from netCDF4 import Dataset
@@ -108,10 +108,6 @@ class PyTSEB(object):
         self.resistance_form = self.p['resistance_form']
         self.res_params = {}
         self.G_form = self.p['G_form']
-        if 'subset' in self.p:
-            self.subset = ast.literal_eval(self.p['subset'])
-        else:
-            self.subset = []
 
     def process_local_image(self):
         ''' Prepare input data and calculate energy fluxes for all the pixel in an image.
@@ -137,30 +133,27 @@ class PyTSEB(object):
         res_params = dict()
         input_fields = self._get_input_structure()
 
-        # Process the first field to get projection and dimension
+        # Get projection, geo transform of the input dataset, or its subset if specified.
+        # It is assumed that all the input rasters have exactly the same projection, dimensions and
+        # resolution.
         try:
             field = list(input_fields)[0]
             fid = gdal.Open(self.p[field], gdal.GA_ReadOnly)
             prj = fid.GetProjection()
             geo = fid.GetGeoTransform()
-            if self.subset:
-                in_data[field] = fid.GetRasterBand(1).ReadAsArray(self.subset[0],
-                                                                  self.subset[1],
-                                                                  self.subset[2],
-                                                                  self.subset[3])
-                geo = [geo[0]+self.subset[0]*geo[1], geo[1], geo[2],
-                       geo[3]+self.subset[1]*geo[5], geo[4], geo[5]]
-            else:
-                in_data[field] = fid.GetRasterBand(1).ReadAsArray()
-            dims = np.shape(in_data[field])
+            dims = (fid.RasterYSize, fid.RasterXSize)
             fid = None
-        except Exception as e:
+            self.subset = []
+            if "subset" in self.p:
+                self.subset, geo = self._get_subset(self.p["subset"], prj, geo)
+                dims = (self.subset[3], self.subset[2])
+        except KeyError:
             print('Error reading ' + input_fields[field])
             fid = None
             return
 
-        # Process other input fields
-        for field in list(input_fields)[1:]:
+        # Process all input fields
+        for field in list(input_fields):
             # Some fields might need special treatment
             if field in ["lat", "lon", "stdlon", "DOY", "time"]:
                 success, temp_data[field] = self._set_param_array(field, dims)
@@ -1046,6 +1039,52 @@ class PyTSEB(object):
                             'LAI',
                             'h_C')
         return required_columns
+
+    def _get_subset(self, roi_shape, raster_proj_wkt, raster_geo_transform):
+
+        # Find extent of ROI in roiShape projection
+        roi = ogr.Open(roi_shape)
+        roi_layer = roi.GetLayer()
+        roi_extent = roi_layer.GetExtent()
+
+        # Convert the extent to raster projection
+        roi_proj = roi_layer.GetSpatialRef()
+        raster_proj = osr.SpatialReference()
+        raster_proj.ImportFromWkt(raster_proj_wkt)
+        transform = osr.CoordinateTransformation(roi_proj, raster_proj)
+        point_UL = ogr.CreateGeometryFromWkt("POINT (" +
+                                             str(min(roi_extent[0], roi_extent[1])) + " " +
+                                             str(max(roi_extent[2], roi_extent[3])) + ")")
+        point_UL.Transform(transform)
+        point_UL = point_UL.GetPoint()
+        point_LR = ogr.CreateGeometryFromWkt("POINT (" +
+                                             str(max(roi_extent[0], roi_extent[1])) + " " +
+                                             str(min(roi_extent[2], roi_extent[3])) + ")")
+        point_LR.Transform(transform)
+        point_LR = point_LR.GetPoint()
+
+        # Get pixel location of this extent
+        ulX = raster_geo_transform[0]
+        ulY = raster_geo_transform[3]
+        pixel_size = raster_geo_transform[1]
+        pixel_UL = [max(int(math.floor((ulY - point_UL[1]) / pixel_size)), 0),
+                    max(int(math.floor((point_UL[0] - ulX) / pixel_size)), 0)]
+        pixel_LR = [int(round((ulY - point_LR[1]) / pixel_size)),
+                    int(round((point_LR[0] - ulX) / pixel_size))]
+
+        # Get projected extent
+        point_proj_UL = (ulX + pixel_UL[1]*pixel_size, ulY - pixel_UL[0]*pixel_size)
+        point_proj_LR = (ulX + pixel_LR[1]*pixel_size, ulY - pixel_LR[0]*pixel_size)
+
+        # Convert to xoff, yoff, xcount, ycount as required by GDAL ReadAsArray()
+        subset_pix = [pixel_UL[1], pixel_UL[0],
+                      pixel_LR[1] - pixel_UL[1], pixel_LR[0] - pixel_UL[0]]
+
+        # Get the geo transform of the subset
+        subset_geo_transform = [point_proj_UL[0], pixel_size, raster_geo_transform[2],
+                                point_proj_UL[1], raster_geo_transform[4], -pixel_size]
+
+        return subset_pix, subset_geo_transform
 
 
 class PyDTD(PyTSEB):
