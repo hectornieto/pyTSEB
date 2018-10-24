@@ -140,12 +140,12 @@ class PyTSEB(object):
             field = list(input_fields)[0]
             fid = gdal.Open(self.p[field], gdal.GA_ReadOnly)
             prj = fid.GetProjection()
-            geo = fid.GetGeoTransform()
+            self.geo = fid.GetGeoTransform()
             dims = (fid.RasterYSize, fid.RasterXSize)
             fid = None
             self.subset = []
             if "subset" in self.p:
-                self.subset, geo = self._get_subset(self.p["subset"], prj, geo)
+                self.subset, self.geo = self._get_subset(self.p["subset"], prj, self.geo)
                 dims = (self.subset[3], self.subset[2])
         except KeyError:
             print('Error reading ' + input_fields[field])
@@ -179,29 +179,11 @@ class PyTSEB(object):
                     # Set the time in the G_form flag to compute the Santanello and
                     # Friedl G
                     self.G_form[1] = in_data['time']
-            elif field == "flux_LR" or field == "flux_LR_ancillary":
-                # Low resolution data in case disaggregation is to be used.
-                fid = gdal.Open(self.p[field], gdal.GA_ReadOnly)
-                prj = fid.GetProjection()
-                geo_LR = fid.GetGeoTransform()
-                if self.subset:
-                    in_data[field] = fid.GetRasterBand(1).ReadAsArray(self.subset[0],
-                                                                      self.subset[1],
-                                                                      self.subset[2],
-                                                                      self.subset[3])
-                    geo_LR = [geo_LR[0]+self.subset[0]*geo_LR[1], geo_LR[1], geo_LR[2],
-                              geo_LR[3]+self.subset[1]*geo_LR[5], geo_LR[4], geo_LR[5]]
-                else:
-                    in_data[field] = fid.GetRasterBand(1).ReadAsArray()
-
-                fid = None
-                in_data['scale'] = [geo_LR, geo, prj]
-
             else:
                 # Model specific fields which might need special treatment
-                success, val = self._set_special_model_input(field, dims)
-                if val is not None:
-                    in_data[field] = val
+                success, inputs = self._set_special_model_input(field, dims)
+                if success:
+                    in_data.update(inputs)
                 else:
                     success, in_data[field] = self._set_param_array(field, dims)
 
@@ -267,10 +249,10 @@ class PyTSEB(object):
         outdir = dirname(self.p['output_file'])
         if not exists(outdir):
             mkdir(outdir)
-        self.write_raster_output(self.p['output_file'], out_data, geo, prj, primary_fields)
+        self.write_raster_output(self.p['output_file'], out_data, self.geo, prj, primary_fields)
         outputfile = splitext(self.p['output_file'])[0] + '_ancillary' + \
                      splitext(self.p['output_file'])[1]
-        self.write_raster_output(outputfile, out_data, geo, prj, ancillary_fields)
+        self.write_raster_output(outputfile, out_data, self.geo, prj, ancillary_fields)
         print('Saved Files')
 
         return in_data, out_data
@@ -1008,8 +990,8 @@ class PyTSEB(object):
         -------
         success : boolean
             True is the parameter was succefully set, false otherwise.
-        array : float array
-            The set parameter array.
+        inputs : dict
+            Dictionary with keys holding input field name and value holding the input value.
         '''
         return False, None
 
@@ -1277,12 +1259,14 @@ class PyTSEB2T(PyTSEB):
 
         if field == "T_C":
             success, val = self._set_param_array("T_R1", dims)
+            inputs = {field: val}
         elif field == "T_S":
             success, val = self._set_param_array("T_R1", dims, band=2)
+            inputs = {field: val}
         else:
             success = False
-            val = None
-        return success, val
+            inputs = None
+        return success, inputs
 
     def _get_required_data_columns(self):
         ''' Input columns' names required in an input asci table for TSEB_PT model. Only relevant
@@ -1462,15 +1446,27 @@ class PydisTSEB(PyTSEB):
         array : float array
             The set parameter array.
         '''
-
-        if field == "flux_LR":
-            success, val = self._set_param_array(field, dims, band=1)
-        elif field == "flux_LR_ancillary":
-            success, val = self._set_param_array(field, dims, band=1)
+        if field in ["flux_LR", "flux_LR_ancillary"]:
+            # Low resolution data in case disaggregation is to be used.
+            inputs = {}
+            fid = gdal.Open(self.p[field], gdal.GA_ReadOnly)
+            prj = fid.GetProjection()
+            geo_LR = fid.GetGeoTransform()
+            subset = []
+            if "subset" in self.p:
+                subset, geo_LR = self._get_subset(self.p["subset"], prj, geo_LR)
+                inputs[field] = fid.GetRasterBand(1).ReadAsArray(subset[0],
+                                                                 subset[1],
+                                                                 subset[2],
+                                                                 subset[3])
+            else:
+                inputs[field] = fid.GetRasterBand(1).ReadAsArray()
+            inputs['scale'] = [geo_LR, self.geo, prj]
+            success = True
         else:
             success = False
-            val = None
-        return success, val
+            inputs = None
+        return success, inputs
 
     def _call_flux_model_veg(self, in_data, out_data, model_params, i):
         ''' Call a dis_TSEB model to calculate fluxes
