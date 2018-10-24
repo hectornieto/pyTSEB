@@ -217,12 +217,17 @@ def dis_TSEB(flux_LR,
 
     n_iterations[:] = 0
     flag[:] = NO_VALID_FLAG
-    
+
+    gt_LR = scale[0]
+    prj_LR = scale[1]
+    gt_HR = scale[2]
+    prj_HR = scale[3]
+
     # Create mask that masks high-res pixels where low-res constant ratio
     # does not exist or is invalid
     dims_LR = flux_LR.shape
     dims_HR = Tr_K.shape
-    const_ratio = scale_with_gdalwarp(flux_LR, scale[2], dims_HR, scale[0], scale[1],
+    const_ratio = scale_with_gdalwarp(flux_LR, prj_LR, prj_HR, dims_HR, gt_LR, gt_HR,
                                       gdal.GRA_NearestNeighbour)
     mask = np.ones(const_ratio.shape, dtype=bool)
     mask[np.logical_or(np.isnan(const_ratio), Tr_K <= 0)] = False
@@ -240,7 +245,7 @@ def dis_TSEB(flux_LR,
     if isinstance(UseL, float):
         L = np.ones(Tr_K.shape) * UseL
     else:
-        L = scale_with_gdalwarp(UseL, scale[2], dims_HR, scale[0], scale[1],
+        L = scale_with_gdalwarp(UseL, prj_LR, prj_HR, dims_HR, gt_LR, gt_HR,
                                 gdal.GRA_NearestNeighbour)
     del UseL
 
@@ -261,7 +266,7 @@ def dis_TSEB(flux_LR,
             T_A_K_modified[mask] = T_A_K[mask] + T_offset[mask]
 
         flag[mask] = VALID_FLAG
-        
+
         # Run high-res TSEB on all unmasked pixels
 
         # First process bare soil cases
@@ -375,9 +380,9 @@ def dis_TSEB(flux_LR,
         # Calculate average constant ratio for each LR pixel from all HR
         # pixels it contains
         print('Calculating average constant ratio for each LR pixel using valid HR pixels')
-        const_ratio_LR = scale_with_gdalwarp(const_ratio_HR, scale[2], dims_LR, scale[1], scale[0],
+        const_ratio_LR = scale_with_gdalwarp(const_ratio_HR, prj_HR, prj_LR, dims_LR, gt_HR, gt_LR,
                                              gdal.GRA_Average)
-        const_ratio_HR = scale_with_gdalwarp(const_ratio_LR, scale[2], dims_HR, scale[0], scale[1],
+        const_ratio_HR = scale_with_gdalwarp(const_ratio_LR, prj_LR, prj_HR, dims_HR, gt_LR, gt_HR,
                                              gdal.GRA_NearestNeighbour)
         const_ratio_HR[~mask] = np.nan
 
@@ -593,9 +598,9 @@ def save_img(data, geotransform, proj, outPath, noDataValue=np.nan, fieldNames=[
     return ds
 
 
-def scale_with_gdalwarp(array, prj, dims_out, gt_in, gt_out, resample_alg):
+def scale_with_gdalwarp(array, prj_in, prj_out, dims_out, gt_in, gt_out, resample_alg):
 
-    in_src = save_img(array, gt_in, prj, 'MEM', noDataValue=np.nan, fieldNames=[])
+    in_src = save_img(array, gt_in, prj_in, 'MEM', noDataValue=np.nan, fieldNames=[])
     # Get template projection, extent and resolution
     extent = [gt_out[0], gt_out[3]+gt_out[5]*dims_out[0],
               gt_out[0]+gt_out[1]*dims_out[1], gt_out[3]]
@@ -603,11 +608,12 @@ def scale_with_gdalwarp(array, prj, dims_out, gt_in, gt_out, resample_alg):
     # Resample with GDAL warp
     outDs = gdal.Warp('',
                       in_src,
-                      format="MEM",
+                      dstSRS=prj_out,
                       xRes=gt_out[1],
                       yRes=gt_out[5],
                       outputBounds=extent,
-                      resampleAlg=resample_alg)
+                      resampleAlg=resample_alg,
+                      format="MEM")
 
     array_out = outDs.GetRasterBand(1).ReadAsArray()
 

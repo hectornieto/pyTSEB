@@ -1446,18 +1446,18 @@ class PydisTSEB(PyTSEB):
             # Low resolution data in case disaggregation is to be used.
             inputs = {}
             fid = gdal.Open(self.p[field], gdal.GA_ReadOnly)
-            prj = fid.GetProjection()
+            prj_LR = fid.GetProjection()
             geo_LR = fid.GetGeoTransform()
             subset = []
             if "subset" in self.p:
-                subset, geo_LR = self._get_subset(self.p["subset"], prj, geo_LR)
+                subset, geo_LR = self._get_subset(self.p["subset"], prj_LR, geo_LR)
                 inputs[field] = fid.GetRasterBand(1).ReadAsArray(subset[0],
                                                                  subset[1],
                                                                  subset[2],
                                                                  subset[3])
             else:
                 inputs[field] = fid.GetRasterBand(1).ReadAsArray()
-            inputs['scale'] = [geo_LR, self.geo, prj]
+            inputs['scale'] = [geo_LR, prj_LR, self.geo, self.prj]
             success = True
         else:
             success = False
