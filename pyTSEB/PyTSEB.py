@@ -788,19 +788,18 @@ class PyTSEB(object):
         # otherwise assume that the output should be a GeoTIFF
         ext = splitext(outfile)[1]
         if ext.lower() == ".nc":
-            driver = "netCDF"
+            driver_name = "netCDF"
             opt = ["FORMAT=NC2"]
         elif ext.lower() == ".vrt":
-            driver = "VRT"
+            driver_name = "VRT"
             opt = []
         else:
-            driver = "GTiff"
+            driver_name = "GTiff"
             opt = []
-
-        if driver in ["GTiff", "netCDF"]:
+        if driver_name in ["GTiff", "netCDF"]:
             # Save the data using GDAL
             rows, cols = np.shape(output['H1'])
-            driver = gdal.GetDriverByName(driver)
+            driver = gdal.GetDriverByName(driver_name)
             nbands = len(fields)
             ds = driver.Create(outfile, cols, rows, nbands, gdal.GDT_Float32, opt)
             ds.SetGeoTransform(self.geo)
@@ -812,11 +811,10 @@ class PyTSEB(object):
                 band.FlushCache()
             ds.FlushCache()
             ds = None
-
             # In case of netCDF format use netCDF4 module to assign proper names
             # to variables (GDAL can't do this). Also it seems that GDAL has
             # problems assigning projection to all the bands so fix that.
-            if driver == "netCDF":
+            if driver_name == "netCDF":
                 ds = Dataset(outfile, 'a')
                 grid_mapping = ds["Band1"].grid_mapping
                 for i, field in enumerate(fields):
