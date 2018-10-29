@@ -154,33 +154,39 @@ class TSEBConfigFileInterface():
                 else:
                     self.params[var_name] = float(config_data[var_name])
 
-            self.params['model'] = config_data['model']
-            self.params['resistance_form'] = int(config_data['resistance_form'])
-            for var_name in ['KN_b', 'KN_c', 'KN_C_dash']:
-                if is_image:
+            for var_name in self.input_model_formulation_vars:
+                if var_name in ["model", "output_file"]:
                     self.params[var_name] = str(config_data[var_name]).strip('"')
+                elif var_name == "resistance_form":
+                    self.params[var_name] = int(config_data[var_name])
+                elif var_name == "calc_row":
+                    if 'calc_row' not in config_data or int(config_data['calc_row']) == 0:
+                        self.params['calc_row'] = [0, 0]
+                    else:
+                        self.params['calc_row'] = [1, float(config_data['row_az'])]
+                elif var_name == "G_form":
+                    if int(config_data['G_form']) == 0:
+                        self.params['G_form'] = [[0], float(config_data['G_constant'])]
+                    elif int(config_data['G_form']) == 1:
+                        self.params['G_form'] = [[1], float(config_data['G_ratio'])]
+                    elif int(config_data['G_form']) == 2:
+                        self.params['G_form'] = [[2,
+                                                  float(config_data['G_amp']),
+                                                  float(config_data['G_phase']),
+                                                  float(config_data['G_shape'])],
+                                                 12.0]
+                elif var_name == "flux_LR_method" and self.params["model"] == "disTSEB":
+                    self.params[var_name] = str(config_data[var_name]).strip('"')
+                elif var_name == "correct_LST" and self.params["model"] == "disTSEB":
+                    self.params[var_name] = int(config_data[var_name])
+                elif var_name in ["row_az", "G_constant", "G_ratio", "G_amp", "G_phase",
+                                  "G_shape"]:
+                    pass
                 else:
-                    self.params[var_name] = float(config_data[var_name])
-
-            if 'calc_row' not in config_data or int(config_data['calc_row']) == 0:
-                self.params['calc_row'] = [0, 0]
-            else:
-                self.params['calc_row'] = [
-                    1,
-                    float(config_data['row_az'])]
-
-            if int(config_data['G_form']) == 0:
-                self.params['G_form'] = [[0], float(config_data['G_constant'])]
-            elif int(config_data['G_form']) == 1:
-                self.params['G_form'] = [[1], float(config_data['G_ratio'])]
-            elif int(config_data['G_form']) == 2:
-                self.params['G_form'] = [[2,
-                                         float(config_data['G_amp']),
-                                         float(config_data['G_phase']),
-                                         float(config_data['G_shape'])],
-                                         12.0]
-
-            self.params['output_file'] = config_data['output_file']
+                    if is_image:
+                        self.params[var_name] = str(config_data[var_name]).strip('"')
+                    else:
+                        self.params[var_name] = float(config_data[var_name])
 
             if is_image:
                 # Get the input parameters which are specific for running in image
@@ -193,10 +199,8 @@ class TSEBConfigFileInterface():
                             pass
                         elif (var == 'subset'):
                             pass
-                        elif (var == 'flux_LR'
-                              or var == 'flux_LR_ancillary'
-                              or var == 'flux_LR_method'
-                              or var == 'correct_LST') and self.params['model'] != 'disTSEB':
+                        elif (var == 'flux_LR' or var == 'flux_LR_ancillary') and\
+                             self.params['model'] != 'disTSEB':
                             pass
                         else:
                             raise e

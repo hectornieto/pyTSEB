@@ -886,7 +886,7 @@ class PyTSEB(object):
             ('T_AC1', S_N),  # air temperature at the canopy interface at time t1 (deg C)
             # resistances
             ('R_A1', S_A),  # resistance to heat transport in the surface layer (s/m) at time t1
-            ('R_x1', S_A), # resistance to heat transport in the canopy surface layer (s/m) at time t1
+            ('R_x1', S_A),  # resistance to heat transport in the canopy surface layer (s/m) at time t1
             ('R_S1', S_A),  # resistance to heat transport from the soil surface (s/m) at time t1 fluxes
             # miscaleneous
             ('albedo1', S_N),    # surface albedo (Rs_out/Rs_in)
@@ -1381,7 +1381,12 @@ class PyTSEB2T(PyTSEB):
 class PydisTSEB(PyTSEB):
 
     def __init__(self, parameters):
+
         super().__init__(parameters)
+        # Method for ensuring consistency between low- and high-resolution fluxes
+        self.flux_LR_method = self.p["flux_LR_method"]
+        # Correct LST (if True) or air temperature (if false) during disaggregation.
+        self.correct_LST = self.p["correct_LST"]
 
     def _get_input_structure(self):
         ''' Input fields' names for disTSEB model.  Only relevant for image processing mode.
@@ -1399,8 +1404,7 @@ class PydisTSEB(PyTSEB):
         input_fields = super()._get_input_structure()
         input_fields["flux_LR"] = "pyTSEB Low Resolution Flux date"
         input_fields["flux_LR_ancillary"] = "pyTSEB Low Resolution ancillary Flux data"
-        input_fields["flux_LR_method"] = "Method for ensuring consistency between low- and high-"+\
-                                         " resolution fluxes"
+
         return input_fields
 
     def _get_output_structure(self):
@@ -1529,5 +1533,5 @@ class PydisTSEB(PyTSEB):
                                                         x_LAD=in_data['x_LAD'],
                                                         calcG_params=model_params["calcG_params"],
                                                         resistance_form=model_params["resistance_form"],
-                                                        flux_LR_method=model_params["flux_LR_method"],
-                                                        correct_LST=model_params["correct_LST"])
+                                                        flux_LR_method=self.flux_LR_method,
+                                                        correct_LST=self.correct_LST)
