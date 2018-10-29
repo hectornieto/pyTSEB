@@ -499,7 +499,8 @@ class PyTSEB(object):
 
         print("Processing...")
 
-        model_params = {}
+        model_params = {"calcG_params": [self.G_form[0], self.G_form[1]],
+                        "resistance_form": [self.resistance_form, self.res_params]}
 
         if mask is None:
             mask = np.ones(in_data['LAI'].shape)
@@ -541,7 +542,6 @@ class PyTSEB(object):
             (out_data['S_dn_dir'][i] + out_data['S_dn_dif'][i])
 
         # Other fluxes for bare soil
-        model_params["calcG_params"] = [self.G_form[0], self.G_form[1][i]]
         self._call_flux_model_soil(in_data, out_data, model_params, i)
 
         # Set canopy fluxes to 0
@@ -595,11 +595,6 @@ class PyTSEB(object):
                                                       in_data['rho_nir_S'][i],
                                                       x_LAD=in_data['x_LAD'][i],
                                                       LAI_eff=LAI_eff[i])
-
-        # Model settings
-        model_params["calcG_params"] = [self.G_form[0], self.G_form[1][i]]
-        model_params["resistance_form"] = [self.resistance_form,
-                                           {k: self.res_params[k][i] for k in self.res_params}]
 
         # Other fluxes for vegetation
         self._call_flux_model_veg(in_data, out_data, model_params, i)
@@ -663,8 +658,11 @@ class PyTSEB(object):
                               z0_soil=in_data['z0_soil'][i],
                               alpha_PT=in_data['alpha_PT'][i],
                               x_LAD=in_data['x_LAD'][i],
-                              calcG_params=model_params["calcG_params"],
-                              resistance_form=model_params["resistance_form"])
+                              calcG_params=[model_params["calcG_params"][0],
+                                            model_params["calcG_params"][1][i]],
+                              resistance_form=[model_params["resistance_form"][0],
+                                               {k: model_params["resistance_form"][1][k][i]
+                                                   for k in model_params["resistance_form"][1]}])
 
     def _call_flux_model_soil(self, in_data, out_data, model_params, i):
         ''' Call a OSEB model to calculate soil fluxes for data points containing no vegetation.
@@ -703,7 +701,8 @@ class PyTSEB(object):
                                                   out_data['d_0'][i],
                                                   in_data['z_u'][i],
                                                   in_data['z_T'][i],
-                                                  calcG_params=model_params["calcG_params"])
+                                                  calcG_params=[model_params["calcG_params"][0],
+                                                                model_params["calcG_params"][1][i]])
 
     def _set_param_array(self, parameter, dims, band=1):
         '''Set model input parameter as an array.
@@ -1164,8 +1163,11 @@ class PyDTD(PyTSEB):
                           z0_soil=in_data['z0_soil'][i],
                           alpha_PT=in_data['alpha_PT'][i],
                           x_LAD=in_data['x_LAD'][i],
-                          calcG_params=model_params["calcG_params"],
-                          resistance_form=model_params["resistance_form"])
+                          calcG_params=[model_params["calcG_params"][0],
+                                        model_params["calcG_params"][1][i]],
+                          resistance_form=[model_params["resistance_form"][0],
+                                           {k: model_params["resistance_form"][1][k][i]
+                                               for k in model_params["resistance_form"][1]}])
 
     def _call_flux_model_soil(self, in_data, out_data, model_params, i):
         ''' Call a OSEB model to calculate soil fluxes for data points containing no vegetation.
@@ -1204,7 +1206,8 @@ class PyDTD(PyTSEB):
                                                   out_data['d_0'][i],
                                                   in_data['z_u'][i],
                                                   in_data['z_T'][i],
-                                                  calcG_params=model_params["calcG_params"],
+                                                  calcG_params=[model_params["calcG_params"][0],
+                                                                model_params["calcG_params"][1][i]],
                                                   T0_K=(in_data['T_R0'][i], in_data['T_A0'][i]))
 
 
@@ -1335,8 +1338,11 @@ class PyTSEB2T(PyTSEB):
                               z0_soil=in_data['z0_soil'][i],
                               alpha_PT=in_data['alpha_PT'][i],
                               x_LAD=in_data['x_LAD'][i],
-                              calcG_params=model_params["calcG_params"],
-                              resistance_form=model_params["resistance_form"])
+                              calcG_params=[model_params["calcG_params"][0],
+                                            model_params["calcG_params"][1][i]],
+                              resistance_form=[model_params["resistance_form"][0],
+                                               {k: model_params["resistance_form"][1][k][i]
+                                                   for k in model_params["resistance_form"][1]}])
 
     def _call_flux_model_soil(self, in_data, out_data, model_params, i):
         ''' Call a OSEB model to calculate soil fluxes for data points containing no vegetation.
@@ -1375,7 +1381,8 @@ class PyTSEB2T(PyTSEB):
                                                   out_data['d_0'][i],
                                                   in_data['z_u'][i],
                                                   in_data['z_T'][i],
-                                                  calcG_params=model_params["calcG_params"])
+                                                  calcG_params=[model_params["calcG_params"][0],
+                                                                model_params["calcG_params"][1][i]])
 
 
 class PydisTSEB(PyTSEB):
