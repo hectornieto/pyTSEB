@@ -1464,7 +1464,11 @@ class PydisTSEB(PyTSEB):
         else:
             success = False
             inputs = None
+
         return success, inputs
+
+    def _call_flux_model_soil(self, in_data, out_data, model_params, i):
+        return
 
     def _call_flux_model_veg(self, in_data, out_data, model_params, i):
         ''' Call a dis_TSEB model to calculate fluxes
