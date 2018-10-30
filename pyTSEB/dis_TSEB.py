@@ -233,10 +233,12 @@ def dis_TSEB(flux_LR,
     mask[np.logical_or(np.isnan(const_ratio), Tr_K <= 0)] = False
 
     # Set the starting conditions for disaggregation.
-    counter = 1
+    counter = np.ones(const_ratio.shape)
+    counter[~mask] = np.nan
     T_offset = np.zeros(const_ratio.shape)
-    Tr_K_modified = Tr_K[:]
-    T_A_K_modified = T_A_K[:]
+    T_offset[~mask] = np.nan
+    Tr_K_modified = Tr_K.copy()
+    T_A_K_modified = T_A_K.copy()
 
     const_ratio_diff = np.zeros(const_ratio.shape)+1000
     const_ratio_HR = np.ones(const_ratio.shape)*np.nan
@@ -259,15 +261,18 @@ def dis_TSEB(flux_LR,
     #   run high-res TSBE for unmaksed pixels
     #   claculate high-res consant ratio
     #   mask pixels where ratios aggree
-    while np.any(mask) and counter < DIS_TSEB_ITERATIONS:
-        if correct_LST:
-            Tr_K_modified[mask] = Tr_K[mask] - T_offset[mask]
-        else:
-            T_A_K_modified[mask] = T_A_K[mask] + T_offset[mask]
+    while np.any(mask) and np.nanmax(counter) < DIS_TSEB_ITERATIONS:
 
-        flag[mask] = VALID_FLAG
+        # Adjust LST or air temperature as required
+        if correct_LST:
+            Tr_K_modified[mask] = _adjust_temperature(Tr_K[mask], T_offset[mask], correct_LST,
+                                                      flux_LR_method)
+        else:
+            T_A_K_modified[mask] = _adjust_temperature(T_A_K[mask], T_offset[mask], correct_LST,
+                                                       flux_LR_method)
 
         # Run high-res TSEB on all unmasked pixels
+        flag[mask] = VALID_FLAG
 
         # First process bare soil cases
         print('First process bare soil cases')
@@ -293,7 +298,7 @@ def dis_TSEB(flux_LR,
                                       d_0[i],
                                       z_u[i],
                                       z_T[i],
-                                      calcG_params=calcG_params,
+                                      calcG_params=[calcG_params[0], calcG_params[1][i]],
                                       UseL=L[i])
 
         T_S[i] = Tr_K_modified[i]
@@ -355,9 +360,8 @@ def dis_TSEB(flux_LR,
                                          f_g=f_g[i],
                                          w_C=w_C[i],
                                          resistance_form=resistance_flag,
-                                         calcG_params=calcG_params,
-                                         UseL=L[i],
-                                         massman_profile=massman_profile)
+                                         calcG_params=[calcG_params[0], calcG_params[1][i]],
+                                         UseL=L[i])
 
         LE_HR = LE_C + LE_S
         H_HR = H_C + H_S
@@ -392,19 +396,18 @@ def dis_TSEB(flux_LR,
         const_ratio_diff[np.logical_or(np.isnan(const_ratio_HR),
                                        np.isnan(const_ratio))] = 0
 
+        # Calculate temperature offset and ready-pixels mask
         if flux_LR_method == 'EF':
             mask = np.abs(const_ratio_diff) > 0.01
             step = np.clip(const_ratio_diff*5, -1, 1)
         elif flux_LR_method == 'LE' or flux_LR_method == 'H':
             mask = np.abs(const_ratio_diff) > 5
             step = np.clip(const_ratio_diff*0.01, -1, 1)
-        # For other pixels, adjust Ta.
-        # If high-res H is too high (diff is -ve) -> increase air temperature to reduce H
-        # If high-res H is too low (diff is +ve) -> decrease air temperature to increase H
-        counter += 1
-        print('disTSEB iteration %s' % counter)
+        counter[mask] += 1
+        T_offset[mask] += step[mask]
+
+        print('disTSEB iteration %s' % np.nanmax(counter))
         print('Recalculating over %s high resolution pixels' % np.size(Tr_K[mask]))
-        T_offset[mask] -= step[mask]
 
     ####################################################################
     # When constant ratios for all pixels match, smooth the resulting Ta adjustment
@@ -412,16 +415,20 @@ def dis_TSEB(flux_LR,
     mask = np.ones(const_ratio.shape, dtype=bool)
     mask[np.isnan(const_ratio)] = False
 
-    T_offset_orig = T_offset[:]
-    T_offset = moving_gaussian_filter(T_offset, 3*float(scale[0]))
+    T_offset_orig = T_offset.copy()
+    T_offset = moving_gaussian_filter(T_offset, int(2000/float(gt_HR[1])))
 
     # Smooth MO length
-    L = moving_gaussian_filter(L, 20)
+    L = moving_gaussian_filter(L, int(2000/float(gt_HR[1])))
 
     if correct_LST:
-        Tr_K_modified = Tr_K - T_offset
+        Tr_K_modified = Tr_K.copy()
+        Tr_K_modified[mask] = _adjust_temperature(Tr_K[mask], T_offset[mask], correct_LST,
+                                                  flux_LR_method)
     else:
-        T_A_K_modified = T_A_K + T_offset
+        T_A_K_modified = T_A_K.copy()
+        T_A_K_modified[mask] = _adjust_temperature(T_A_K[mask], T_offset[mask], correct_LST,
+                                                   flux_LR_method)
 
     flag[mask] = VALID_FLAG
 
@@ -452,7 +459,7 @@ def dis_TSEB(flux_LR,
                                   d_0[i],
                                   z_u[i],
                                   z_T[i],
-                                  calcG_params=calcG_params,
+                                  calcG_params=[calcG_params[0], calcG_params[1][i]],
                                   UseL=L[i])
 
     T_S[i] = Tr_K_modified[i]
@@ -515,9 +522,8 @@ def dis_TSEB(flux_LR,
                                      f_g=f_g[i],
                                      w_C=w_C[i],
                                      resistance_form=resistance_flag,
-                                     calcG_params=calcG_params,
-                                     UseL=L[i],
-                                     massman_profile=massman_profile)
+                                     calcG_params=[calcG_params[0], calcG_params[1][i]],
+                                     UseL=L[i])
 
     return [flag,
             T_S,
@@ -539,6 +545,22 @@ def dis_TSEB(flux_LR,
             T_offset,
             counter,
             T_offset_orig]
+
+
+def _adjust_temperature(temperature, offset, correct_LST, method):
+    # If high-res H is too high (offset is +ve) -> decrease LST to reduce H
+    if correct_LST and method == "H":
+        modified = temperature - offset
+    # If high-res H is too high (offset is +ve) -> increase air temperature to reduce H
+    elif not correct_LST and method == "H":
+        modified = temperature + offset
+    # If high-res LE is too high (offset is +ve) -> increase LST to reduce LE
+    elif correct_LST and method in ["LE", "EF"]:
+        modified = temperature + offset
+    # If high-res LE is too high (offset is +ve) -> decrease air temperature to reduce LE
+    else:
+        modified = temperature - offset
+    return modified
 
 
 def moving_gaussian_filter(data, window):
