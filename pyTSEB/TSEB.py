@@ -1742,10 +1742,10 @@ def calc_H_C_PT(delta_R_ni, f_g, T_A_K, P, c_p, alpha):
     # slope of the saturation pressure curve (kPa./deg C)
     s = met.calc_delta_vapor_pressure(T_A_K)
     s = s * 10  # to mb
-    # latent heat of vaporisation (MJ./kg)
+    # latent heat of vaporisation (J./kg)
     Lambda = met.calc_lambda(T_A_K)
     # psychrometric constant (mb C-1)
-    gama = met.calc_psicr(P, Lambda)
+    gama = met.calc_psicr(c_p, P, Lambda)
     s_gama = s / (s + gama)
     H_C = delta_R_ni * (1.0 - alpha * f_g * s_gama)
     return np.asarray(H_C)

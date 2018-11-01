@@ -659,7 +659,7 @@ def calc_stomatal_conductance_TSEB(
     rho = met.calc_rho(p, e_a, T_A)
     Cp = met.calc_c_p(p, e_a)
     Lambda = met.calc_lambda(T_A)
-    psicr = met.calc_psicr(p, Lambda)
+    psicr = met.calc_psicr(Cp, p, Lambda)
     e_ac = e_a + LE * R_A * psicr / (rho * Cp)
     # Calculate the saturation vapour pressure in the leaf in mb
     e_star = met.calc_vapor_pressure(T_C)

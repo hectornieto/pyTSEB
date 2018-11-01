@@ -91,7 +91,7 @@ def calc_L(ustar, T_A_K, rho, c_p, H, LE):
     ustar, T_A_K, rho, c_p, H, LE = map(
         np.asarray, (ustar, T_A_K, rho, c_p, H, LE))
     # first convert latent heat into rate of surface evaporation (kg m-2 s-1)
-    Lambda = met.calc_lambda(T_A_K) * 1e6  # in J kg-1
+    Lambda = met.calc_lambda(T_A_K)  # in J kg-1
     E = LE / Lambda
 
     # Virtual sensible heat flux
