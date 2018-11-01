@@ -154,7 +154,7 @@ def penman_monteith(T_A_K,
     Cp = TSEB.met.calc_c_p(p, ea)                        # Heat capacity of air
     delta=10.*TSEB.met.calc_delta_vapor_pressure(T_A_K)  # slope of saturation water vapour pressure in mb K-1
     lambda_=TSEB.met.calc_lambda(T_A_K)                     # latent heat of vaporization MJ kg-1
-    psicr=TSEB.met.calc_psicr(p, lambda_)                     # Psicrometric constant (mb K-1)
+    psicr=TSEB.met.calc_psicr(Cp, p, lambda_)                     # Psicrometric constant (mb K-1)
     es=TSEB.met.calc_vapor_pressure(T_A_K)             # saturation water vapour pressure in mb
     
     rho_cp=rho_a*Cp
@@ -451,7 +451,7 @@ def shuttleworth_wallace(T_A_K,
     Cp = TSEB.met.calc_c_p(p, ea)                        # Heat capacity of air
     delta=10.*TSEB.met.calc_delta_vapor_pressure(T_A_K)  # slope of saturation water vapour pressure in mb K-1
     lambda_=TSEB.met.calc_lambda(T_A_K)                     # latent heat of vaporization MJ kg-1
-    psicr=TSEB.met.calc_psicr(p, lambda_)                     # Psicrometric constant (mb K-1)
+    psicr=TSEB.met.calc_psicr(Cp, p, lambda_)                     # Psicrometric constant (mb K-1)
     es=TSEB.met.calc_vapor_pressure(T_A_K)             # saturation water vapour pressure in mb
     
     # Calculate LAI dependent parameters for dataset where LAI > 0

@@ -102,13 +102,13 @@ def calc_lambda(T_A_K):
     Returns
     -------
     Lambda : float
-        Latent heat of vaporisation (MJ kg-1).
+        Latent heat of vaporisation (J kg-1).
 
     References
     ----------
     based on Eq. 3-1 Allen FAO98 '''
 
-    Lambda = 2.501 - (2.361e-3 * (T_A_K - 273.15))
+    Lambda = 1e6 * (2.501 - (2.361e-3 * (T_A_K - 273.15)))
     return np.asarray(Lambda)
 
 
@@ -129,22 +129,24 @@ def calc_pressure(z):
     return np.asarray(p)
 
 
-def calc_psicr(p, Lambda):
+def calc_psicr(c_p, p, Lambda):
     ''' Calculates the psicrometric constant.
 
     Parameters
     ----------
+    c_p : float
+        heat capacity of (moist) air at constant pressure (J kg-1 K-1).
     p : float
         atmopheric pressure (mb).
     Lambda : float
-        latent heat of vaporzation (MJ kg-1).
+        latent heat of vaporzation (J kg-1).
 
     Returns
     -------
     psicr : float
         Psicrometric constant (mb C-1).'''
 
-    psicr = 0.00163 * p / (Lambda)
+    psicr = c_p * p / (epsilon * Lambda)
     return np.asarray(psicr)
 
 
@@ -383,7 +385,7 @@ def calc_lapse_rate_moist(T_A_K, ea, p):
 
     r = calc_mixing_ratio(ea, p)
     c_p = calc_c_p(p, ea)
-    lambda_v = 1e6 * calc_lambda(T_A_K)
+    lambda_v = calc_lambda(T_A_K)
     Gamma_w = (g * (R_d * T_A_K**2 + lambda_v * r * T_A_K) /
                (c_p * R_d * T_A_K**2 + lambda_v**2 * r * epsilon))
     return Gamma_w
@@ -408,7 +410,7 @@ def flux_2_evaporation(flux, T_K=20+273.15, time_domain=1):
         evaporation rate at the time_domain. Default mm h-1
     '''
     # Calculate latent heat of vaporization
-    lambda_ = calc_lambda(T_K) * 1e6  # J kg-1
+    lambda_ = calc_lambda(T_K) # J kg-1
     ET = flux / lambda_  # kg s-1
     # Convert instantaneous rate to the time_domain rate
     ET = ET * time_domain * 3600.
