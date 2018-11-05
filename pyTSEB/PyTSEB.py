@@ -1460,6 +1460,9 @@ class PydisTSEB(PyTSEB):
             # Low resolution data in case disaggregation is to be used.
             inputs = {}
             fid = gdal.Open(self.p[field], gdal.GA_ReadOnly)
+            if fid is None:
+                print("ERROR: Low resolution data for disaggregation is not avaiable.")
+                return False, None
             prj_LR = fid.GetProjection()
             geo_LR = fid.GetGeoTransform()
             subset = []
