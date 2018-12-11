@@ -272,8 +272,8 @@ def calc_L_n_Kustas(T_C, T_S, L_dn, LAI, emisVeg, emisGrd, x_LAD=1):
     L_C = emisVeg * met.calc_stephan_boltzmann(T_C)
     L_S = emisGrd * met.calc_stephan_boltzmann(T_S)
     # calculate net longwave radiation divergence of the soil
-    L_nS = taudl * L_dn + (1.0 - taudl) * L_C - L_S
-    L_nC = (1.0 - taudl) * (L_dn + L_S - 2.0 * L_C)
+    L_nS = emisGrd * taudl * L_dn + emisGrd * (1.0 - taudl) * L_C - L_S
+    L_nC = (1.0 - taudl) * (emisVeg * (L_dn + L_S) - 2.0 * L_C)
     return np.asarray(L_nC), np.asarray(L_nS)
 
 
