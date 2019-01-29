@@ -86,7 +86,7 @@ L_thres = 0.00001
 # mimimun allowed friction velocity
 u_friction_min = 0.01
 # Maximum number of interations
-ITERATIONS = 100
+ITERATIONS = 20
 # kB coefficient
 kB = 0.0
 # Stephan Boltzmann constant (W m-2 K-4)
