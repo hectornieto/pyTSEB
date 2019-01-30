@@ -79,10 +79,8 @@ import pyTSEB.wind_profile as wnd
 # ==============================================================================
 # List of constants used in TSEB model and sub-routines
 # ==============================================================================
-# Change threshold in  Monin-Obukhov lengh to stop the iterations
-L_thres = 0.00001
-# Change threshold in  friction velocity to stop the iterations
-u_thres = 0.00001
+# Threshold for relative change in Monin-Obukhov lengh to stop the iterations
+L_thres = 0.001
 # mimimun allowed friction velocity
 u_friction_min = 0.01
 # Maximum number of interations
