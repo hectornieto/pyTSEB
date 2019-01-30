@@ -66,6 +66,9 @@ Ancillary functions
 * :func:`calc_T_S_series`. Soil temperature from soil sensible heat flux and resistance in series.
 '''
 
+from collections import deque
+import time
+
 import numpy as np
 from pyPro4Sail.FourSAIL import FourSAIL
 
@@ -677,6 +680,8 @@ def TSEB_PT(Tr_K,
 
     # Outer loop for estimating stability.
     # Stops when difference in consecutives L is below a given threshold
+    start_time = time.time()
+    loop_time = time.time()
     for n_iterations in range(max_iterations):
         i = flag != F_INVALID
         if np.all(L_diff[i] < L_thres):
@@ -685,12 +690,13 @@ def TSEB_PT(Tr_K,
             else:
                 print("Finished interations with a max. L diff: " + str(np.max(L_diff[i])))
             break
-        print("Iteration " + str(n_iterations) +
-              ", max. L diff: " + str(np.max(L_diff[i])))
-        iterations[
-            np.logical_and(
-                L_diff >= L_thres,
-                flag != F_INVALID)] = n_iterations
+        current_time = time.time()
+        loop_duration = current_time - loop_time
+        loop_time = current_time
+        total_duration = loop_time - start_time
+        print("Iteration: %d, non-converged pixels: %d, max L diff: %f, total time: %f, loop time: %f" %
+              (n_iterations, np.sum(~L_converged[i]), L_diff_max, total_duration, loop_duration))
+        iterations[np.logical_and(~L_converged, flag != F_INVALID)] = n_iterations
 
         # Inner loop to iterativelly reduce alpha_PT in case latent heat flux
         # from the soil is negative. The initial assumption is of potential
