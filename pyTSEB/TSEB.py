@@ -66,6 +66,8 @@ Ancillary functions
 * :func:`calc_T_S_series`. Soil temperature from soil sensible heat flux and resistance in series.
 '''
 
+from collections import deque
+
 import numpy as np
 from pyPro4Sail.FourSAIL import FourSAIL
 
@@ -81,12 +83,10 @@ import pyTSEB.wind_profile as wnd
 # ==============================================================================
 # Change threshold in  Monin-Obukhov lengh to stop the iterations
 L_thres = 0.00001
-# Change threshold in  friction velocity to stop the iterations
-u_thres = 0.00001
 # mimimun allowed friction velocity
 u_friction_min = 0.01
 # Maximum number of interations
-ITERATIONS = 100
+ITERATIONS = 20
 # kB coefficient
 kB = 0.0
 # Stephan Boltzmann constant (W m-2 K-4)
@@ -643,8 +643,8 @@ def TSEB_PT(Tr_K,
     res_params = resistance_form[1]
     resistance_form = resistance_form[0]
     # Create the output variables
-    [flag, T_S, T_C, T_AC, Ln_S, Ln_C, LE_C, H_C, LE_S, H_S, G, R_S, R_x,
-        R_A, iterations] = [np.zeros(Tr_K.shape)+np.NaN for i in range(15)]
+    [flag, T_S, T_C, T_AC, Ln_S, Ln_C, H, LE, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A, delta_Rn,
+     Rn_S, iterations] = [np.zeros(Tr_K.shape)+np.NaN for i in range(19)]
 
     # iteration of the Monin-Obukhov length
     if isinstance(UseL, bool):
@@ -669,8 +669,9 @@ def TSEB_PT(Tr_K,
     # iteration of the Monin-Obukhov length
     u_friction = MO.calc_u_star(u, z_u, L, d_0, z_0M)
     u_friction = np.asarray(np.maximum(u_friction_min, u_friction))
-    L_old = np.ones(Tr_K.shape)
-    L_diff = np.asarray(np.ones(Tr_K.shape) * float('inf'))
+    L_queue = deque([np.array(L)], 6)
+    L_converged = np.asarray(np.zeros(Tr_K.shape)).astype(bool)
+    L_diff_max = np.inf
 
     # First assume that canopy temperature equals the minumum of Air or
     # radiometric T
@@ -681,28 +682,24 @@ def TSEB_PT(Tr_K,
     # Stops when difference in consecutives L is below a given threshold
     for n_iterations in range(max_iterations):
         i = flag != F_INVALID
-        if np.all(L_diff[i] < L_thres):
-            if L_diff[i].size == 0:
+        if np.all(L_converged[i]):
+            if L_converged[i].size == 0:
                 print("Finished iterations with no valid solution")
             else:
-                print("Finished interations with a max. L diff: " + str(np.max(L_diff[i])))
+                print("Finished interations with a max. L diff: " + str(L_diff_max))
             break
-        print("Iteration " + str(n_iterations) +
-              ", max. L diff: " + str(np.max(L_diff[i])))
-        iterations[
-            np.logical_and(
-                L_diff >= L_thres,
-                flag != F_INVALID)] = n_iterations
+        print("Iteration: %d, non-converged pixels: %d, max L diff: %f" %
+              (n_iterations, np.sum(~L_converged[i]), L_diff_max))
+        iterations[np.logical_and(~L_converged, flag != F_INVALID)] = n_iterations
 
         # Inner loop to iterativelly reduce alpha_PT in case latent heat flux
         # from the soil is negative. The initial assumption is of potential
         # canopy transpiration.
-        flag[np.logical_and(L_diff >= L_thres, flag != F_INVALID)] = F_ALL_FLUXES
-        LE_S[np.logical_and(L_diff >= L_thres, flag != F_INVALID)] = -1
+        flag[np.logical_and(~L_converged, flag != F_INVALID)] = F_ALL_FLUXES
+        LE_S[np.logical_and(~L_converged, flag != F_INVALID)] = -1
         alpha_PT_rec = np.asarray(alpha_PT + 0.1)
         while np.any(LE_S[i] < 0):
-            i = np.logical_and.reduce(
-                (LE_S < 0, L_diff >= L_thres, flag != F_INVALID))
+            i = np.logical_and.reduce((LE_S < 0, ~L_converged, flag != F_INVALID))
 
             alpha_PT_rec[i] -= 0.1
 
@@ -733,8 +730,8 @@ def TSEB_PT(Tr_K,
             # Calculate net longwave radiation with current values of T_C and T_S
             Ln_C[i], Ln_S[i] = rad.calc_L_n_Kustas(
                 T_C[i], T_S[i], L_dn[i], LAI[i], emis_C[i], emis_S[i])
-            delta_Rn = Sn_C + Ln_C
-            Rn_S = Sn_S + Ln_S
+            delta_Rn[i] = Sn_C[i] + Ln_C[i]
+            Rn_S[i] = Sn_S[i] + Ln_S[i]
 
             # Calculate the canopy and soil temperatures using the Priestley
             # Taylor appoach
@@ -764,8 +761,7 @@ def TSEB_PT(Tr_K,
                           "c_p": c_p[i], "f_cover": f_c[i], "w_C": w_C[i], "res_params": params}
             _, _, R_S[i] = calc_resistances(resistance_form, {"R_S": R_S_params})
 
-            i = np.logical_and.reduce(
-                (LE_S < 0, L_diff >= L_thres, flag != F_INVALID))
+            i = np.logical_and.reduce((LE_S < 0, ~L_converged, flag != F_INVALID))
 
             # Get air temperature at canopy interface
             T_AC[i] = ((T_A_K[i] / R_A[i] + T_S[i] / R_S[i] + T_C[i] / R_x[i])
@@ -792,8 +788,8 @@ def TSEB_PT(Tr_K,
             LE_S[noT] = 0
 
             # Calculate total fluxes
-            H = np.asarray(H_C + H_S)
-            LE = np.asarray(LE_C + LE_S)
+            H[i] = np.asarray(H_C[i] + H_S[i])
+            LE[i] = np.asarray(LE_C[i] + LE_S[i])
             # Now L can be recalculated and the difference between iterations
             # derived
             if isinstance(UseL, bool):
@@ -808,13 +804,27 @@ def TSEB_PT(Tr_K,
                 # correctios
                 u_friction[i] = MO.calc_u_star(
                     u[i], z_u[i], L[i], d_0[i], z_0M[i])
-                u_friction = np.asarray(np.maximum(u_friction_min, u_friction))
+                u_friction[i] = np.asarray(np.maximum(u_friction_min, u_friction[i]))
 
         if isinstance(UseL, bool):
-            L_diff = np.asarray(np.fabs(L - L_old) / np.fabs(L_old))
-            L_diff[np.isnan(L_diff)] = float('inf')
-            L_old = np.array(L)
-            L_old[L_old == 0] = 1e-36
+            # We check convergence against the value of L from previous iteration but as well
+            # against values from 2 or 3 iterations back. This is to catch situations (not
+            # infrequent) where L oscillates between 2 or 3 steady state values.
+            L_new = np.array(L)
+            L_new[L_new == 0] = 1e-36
+            L_queue.appendleft(L_new)
+            i = np.logical_and(~L_converged, flag != F_INVALID)
+            L_converged[i] = _L_diff(L_queue[0][i], L_queue[1][i]) < L_thres
+            L_diff_max = np.max(_L_diff(L_queue[0][i], L_queue[1][i]))
+            if len(L_queue) >= 4:
+                i = np.logical_and(~L_converged, flag != F_INVALID)
+                L_converged[i] = np.logical_and(_L_diff(L_queue[0][i], L_queue[2][i]) < L_thres,
+                                                _L_diff(L_queue[1][i], L_queue[3][i]) < L_thres)
+            if len(L_queue) == 6:
+                i = np.logical_and(~L_converged, flag != F_INVALID)
+                L_converged[i] = np.logical_and.reduce((_L_diff(L_queue[0][i], L_queue[3][i]) < L_thres,
+                                                        _L_diff(L_queue[1][i], L_queue[4][i]) < L_thres,
+                                                        _L_diff(L_queue[2][i], L_queue[5][i]) < L_thres))
 
     (flag,
      T_S,
@@ -854,6 +864,11 @@ def TSEB_PT(Tr_K,
     return (flag, T_S, T_C, T_AC, L_nS, L_nC, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A, u_friction,
             L, n_iterations)
 
+
+def _L_diff(L, L_old):
+    L_diff = np.asarray(np.fabs(L - L_old) / np.fabs(L_old))
+    L_diff[np.isnan(L_diff)] = float('inf')
+    return L_diff
 
 def DTD(Tr_K_0,
         Tr_K_1,
