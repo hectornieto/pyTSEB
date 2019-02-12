@@ -63,13 +63,10 @@ Parsing directly a configuration file
 -------------------------------------
 You can also parse direcly into TSEB a configuration file previouly created.
 
->>> # Import Configuration File TSEB interface
->>> from TSEB_ConfigFile_Interface import TSEB_ConfigFile_Interface
->>> tseb = TSEB_ConfigFile_Interface()
->>> # Read the data from the configuration file into a python dictionary
->>> configData = tseb.parseInputConfig(configFile, isImage=True)
->>> tseb.GetDataTSEB(configData, isImage=True)
->>> # Parse the data from the dictionary to TSEB
+>>> from TSEB_ConfigFile_Interface import TSEB_ConfigFile_Interface # Import Configuration File TSEB interface
+>>> tseb=TSEB_ConfigFile_Interface()
+>>> configData=tseb.parseInputConfig(configFile,isImage=True) # Read the data from the configuration file into a python dictionary
+>>> tseb.GetDataTSEB(configData,isImage=True) # Parse the data from the dictionary to TSEB
 >>> tseb.RunTSEB(isImage=True)
 
 see the guidelines for input and configuration file preparation in :doc:`README_Notebooks`.
@@ -166,15 +163,15 @@ class PyTSEB(object):
             if field in ["lat", "lon", "stdlon", "DOY", "time"]:
                 success, temp_data[field] = self._set_param_array(field, dims)
             elif field == "input_mask":
-                if self.p['input_mask'] == '0':
-                    # Create mask from landcover array
-                    mask = np.ones(dims)
-                    mask[np.logical_or.reduce((in_data['landcover'] == res.WATER,
-                                               in_data['landcover'] == res.URBAN,
-                                               in_data['landcover'] == res.SNOW))] = 0
-                    success = True
-                else:
-                    success, mask = self._set_param_array(field, dims)
+                    if self.p['input_mask'] == '0':
+                        # Create mask from landcover array
+                        mask = np.ones(dims)
+                        mask[np.logical_or.reduce((in_data['landcover'] == res.WATER,
+                                                   in_data['landcover'] == res.URBAN,
+                                                   in_data['landcover'] == res.SNOW))] = 0
+                        success = True
+                    else:
+                        success, mask = self._set_param_array(field, dims)
             elif field in ['KN_b', 'KN_c', 'KN_c_dash']:
                 success, res_params[field] = self._set_param_array(field, dims)
             elif field == "G":
@@ -258,16 +255,15 @@ class PyTSEB(object):
         if not exists(outdir):
             mkdir(outdir)
         self.write_raster_output(self.p['output_file'], out_data, primary_fields)
-        out_base, out_ext = splitext(self.p['output_file'])
-        outputfile = f'{out_base}_ancillary{out_ext}'
-
+        outputfile = splitext(self.p['output_file'])[0] + '_ancillary' + \
+                     splitext(self.p['output_file'])[1]
         self.write_raster_output(outputfile, out_data, ancillary_fields)
         print('Saved Files')
 
         return in_data, out_data
 
     def process_point_series_array(self):
-        """ Prepare input data and calculate energy fluxes for all the dates in point time-series.
+        ''' Prepare input data and calculate energy fluxes for all the dates in point time-series.
 
         Parameters
         ----------
@@ -279,7 +275,7 @@ class PyTSEB(object):
             All the input data coming into the model.
         out_data : dict
             All the output data coming out of the model.
-        """
+        '''
 
         def compose_date(
                 years,
@@ -292,10 +288,7 @@ class PyTSEB(object):
                 milliseconds=None,
                 microseconds=None,
                 nanoseconds=None):
-            """ Taken from
-            http://stackoverflow.com/questions/34258892/converting-year-and-day-of-year-into-datetime-index-in-pandas
-            """
-
+            ''' Taken from http://stackoverflow.com/questions/34258892/converting-year-and-day-of-year-into-datetime-index-in-pandas'''
             years = np.asarray(years) - 1970
             months = np.asarray(months) - 1
             days = np.asarray(days) - 1
