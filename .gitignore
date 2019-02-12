@@ -76,3 +76,5 @@ Input/*.tif.*
 #Ipython Notebook
 .ipynb_checkpoints
 
+# VS Code
+.vscode/
