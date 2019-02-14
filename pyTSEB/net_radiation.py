@@ -123,7 +123,7 @@ def calc_difuse_ratio(S_dn, sza, press=1013.25, SOLAR_CONSTANT=1320):
         difnir), np.asarray(fvis), np.asarray(fnir)
 
 
-def calc_emiss_atm(ea, T_A_K):
+def calc_emiss_atm(ea, t_a_k):
     '''Atmospheric emissivity
 
     Estimates the effective atmospheric emissivity for clear sky.
@@ -132,7 +132,7 @@ def calc_emiss_atm(ea, T_A_K):
     ----------
     ea : float
         atmospheric vapour pressure (mb).
-    T_A_K : float
+    t_a_k : float
         air temperature (Kelvin).
 
     Returns
@@ -146,11 +146,12 @@ def calc_emiss_atm(ea, T_A_K):
         from clear skies, Water Resour. Res., 11(5), 742-744,
         htpp://dx.doi.org/10.1029/WR011i005p00742.'''
 
-    emiss_air = 1.24 * (ea / T_A_K)**(1. / 7.)  # Eq. 11 in [Brutsaert1975]_
+    emiss_air = 1.24 * (ea / t_a_k)**(1. / 7.)  # Eq. 11 in [Brutsaert1975]_
+
     return np.asarray(emiss_air)
 
 
-def calc_longwave_irradiance(ea, T_A_K, p=1013.25, z_T=2.0):
+def calc_longwave_irradiance(ea, t_a_k, p=1013.25, z_T=2.0):
     '''Longwave irradiance
 
     Estimates longwave atmospheric irradiance from clear sky.
@@ -159,7 +160,7 @@ def calc_longwave_irradiance(ea, T_A_K, p=1013.25, z_T=2.0):
     ----------
     ea : float
         atmospheric vapour pressure (mb).
-    T_A_K : float
+    t_a_k : float
         air temperature (K).
     p : float
         air pressure (mb)
@@ -172,14 +173,15 @@ def calc_longwave_irradiance(ea, T_A_K, p=1013.25, z_T=2.0):
         Longwave atmospheric irradiance (W m-2)
     '''
 
-    lapse_rate = met.calc_lapse_rate_moist(T_A_K, ea, p)
-    T_A_surface = T_A_K - z_T * lapse_rate
-    emisAtm = calc_emiss_atm(ea, T_A_surface)
-    L_dn = emisAtm * met.calc_stephan_boltzmann(T_A_surface)
+    lapse_rate = met.calc_lapse_rate_moist(t_a_k, ea, p)
+    t_a_surface = t_a_k - z_T * lapse_rate
+    emisAtm = calc_emiss_atm(ea, t_a_surface)
+    L_dn = emisAtm * met.calc_stephan_boltzmann(t_a_surface)
+
     return np.asarray(L_dn)
 
 
-def calc_K_be_Campbell(theta, x_LAD=1):
+def calc_K_be_Campbell(theta, x_LAD=1, radians=False):
     ''' Beam extinction coefficient
 
     Calculates the beam extinction coefficient based on [Campbell1998]_ ellipsoidal
@@ -188,10 +190,13 @@ def calc_K_be_Campbell(theta, x_LAD=1):
     Parameters
     ----------
     theta : float
-        incidence zenith angle (degrees).
+        incidence zenith angle.
     x_LAD : float, optional
         Chi parameter for the ellipsoidal Leaf Angle Distribution function,
         use x_LAD=1 for a spherical LAD.
+    radians : bool, optional
+        Should be True if theta is in radians.
+        Default is False.
 
     Returns
     -------
@@ -208,9 +213,12 @@ def calc_K_be_Campbell(theta, x_LAD=1):
         https://archive.org/details/AnIntroductionToEnvironmentalBiophysics.
     '''
 
-    theta = np.radians(theta)
-    K_be = np.sqrt(x_LAD**2 + np.tan(theta)**2) / \
-        (x_LAD + 1.774 * (x_LAD + 1.182)**-0.733)
+    if not radians:
+        theta = np.radians(theta)
+
+    K_be = (np.sqrt(x_LAD**2 + np.tan(theta)**2)
+            / (x_LAD + 1.774 * (x_LAD + 1.182)**-0.733))
+
     return np.asarray(K_be)
 
 
@@ -262,14 +270,17 @@ def calc_L_n_Kustas(T_C, T_S, L_dn, LAI, emisVeg, emisGrd, x_LAD=1):
         taud = taud + taub * np.cos(np.radians(angle)) * \
             np.sin(np.radians(angle)) * np.radians(5)
     taud = 2.0 * taud
+
     # D I F F U S E   C O M P O N E N T S
     # Diffuse light canopy reflection coefficients  for a deep canopy
     akd = -np.log(taud) / LAI
     ameanl = np.asarray(emisVeg)
     taudl = np.exp(-np.sqrt(ameanl) * akd * LAI)  # Eq 15.6
+
     # calculate long wave emissions from canopy, soil and sky
     L_C = emisVeg * met.calc_stephan_boltzmann(T_C)
     L_S = emisGrd * met.calc_stephan_boltzmann(T_S)
+
     # calculate net longwave radiation divergence of the soil
     L_nS = emisGrd * taudl * L_dn + emisGrd * (1.0 - taudl) * L_C - L_S
     L_nC = (1.0 - taudl) * (emisVeg * (L_dn + L_S) - 2.0 * L_C)
