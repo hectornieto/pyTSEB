@@ -175,10 +175,12 @@ class TSEBConfigFileInterface():
                                                   float(config_data['G_phase']),
                                                   float(config_data['G_shape'])],
                                                  12.0]
-                elif var_name == "flux_LR_method" and self.params["model"] == "disTSEB":
-                    self.params[var_name] = str(config_data[var_name]).strip('"')
-                elif var_name == "correct_LST" and self.params["model"] == "disTSEB":
-                    self.params[var_name] = int(config_data[var_name])
+                elif var_name == "flux_LR_method":
+                    if self.params["model"] == "disTSEB":
+                        self.params[var_name] = str(config_data[var_name]).strip('"')
+                elif var_name == "correct_LST":
+                    if self.params["model"] == "disTSEB":
+                        self.params[var_name] = int(config_data[var_name])
                 elif var_name in ["row_az", "G_constant", "G_ratio", "G_amp", "G_phase",
                                   "G_shape"]:
                     pass
