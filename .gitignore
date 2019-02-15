@@ -67,8 +67,10 @@ target/
 
 # Auxiliary image files
 *.tif.*
-Output/*.tif.*
 Input/*.tif.*
+
+# Ignore output files
+Output/
 
 # Jupyter Notebooks Checkpoints
 .ipynb_checkpoints/
