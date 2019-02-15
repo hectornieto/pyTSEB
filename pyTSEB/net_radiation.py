@@ -43,6 +43,21 @@ import numpy as np
 import pyTSEB.meteo_utils as met
 
 
+TAUD_STEP_SIZE_DEG = 5
+
+
+def _calc_taud(x_lad, lai):
+
+    taud = 0
+    for angle in range(0, 90, TAUD_STEP_SIZE_DEG):
+        angle = np.radians(angle)
+        akd = calc_K_be_Campbell(angle, x_lad, radians=True)
+        taub = np.exp(-akd * lai)
+        taud += taub * np.cos(angle) * np.sin(angle) * np.radians(TAUD_STEP_SIZE_DEG)
+
+    return 2.0 * taud
+
+
 def calc_difuse_ratio(S_dn, sza, press=1013.25, SOLAR_CONSTANT=1320):
     """Fraction of difuse shortwave radiation.
 
@@ -181,7 +196,7 @@ def calc_longwave_irradiance(ea, t_a_k, p=1013.25, z_T=2.0):
     return np.asarray(L_dn)
 
 
-def calc_K_be_Campbell(theta, x_LAD=1, radians=False):
+def calc_K_be_Campbell(theta, x_lad=1, radians=False):
     ''' Beam extinction coefficient
 
     Calculates the beam extinction coefficient based on [Campbell1998]_ ellipsoidal
@@ -191,9 +206,9 @@ def calc_K_be_Campbell(theta, x_LAD=1, radians=False):
     ----------
     theta : float
         incidence zenith angle.
-    x_LAD : float, optional
+    x_lad : float, optional
         Chi parameter for the ellipsoidal Leaf Angle Distribution function,
-        use x_LAD=1 for a spherical LAD.
+        use x_lad=1 for a spherical LAD.
     radians : bool, optional
         Should be True if theta is in radians.
         Default is False.
@@ -202,9 +217,9 @@ def calc_K_be_Campbell(theta, x_LAD=1, radians=False):
     -------
     K_be : float
         beam extinction coefficient.
-    x_LAD: float, optional
+    x_lad: float, optional
         x parameter for the ellipsoidal Leaf Angle Distribution function,
-        use x_LAD=1 for a spherical LAD.
+        use x_lad=1 for a spherical LAD.
 
     References
     ----------
@@ -216,13 +231,13 @@ def calc_K_be_Campbell(theta, x_LAD=1, radians=False):
     if not radians:
         theta = np.radians(theta)
 
-    K_be = (np.sqrt(x_LAD**2 + np.tan(theta)**2)
-            / (x_LAD + 1.774 * (x_LAD + 1.182)**-0.733))
+    K_be = (np.sqrt(x_lad**2 + np.tan(theta)**2)
+            / (x_lad + 1.774 * (x_lad + 1.182)**-0.733))
 
-    return np.asarray(K_be)
+    return K_be
 
 
-def calc_L_n_Kustas(T_C, T_S, L_dn, LAI, emisVeg, emisGrd, x_LAD=1):
+def calc_L_n_Kustas(T_C, T_S, L_dn, lai, emisVeg, emisGrd, x_lad=1):
     ''' Net longwave radiation for soil and canopy layers
 
     Estimates the net longwave radiation for soil and canopy layers unisg based on equation 2a
@@ -237,15 +252,15 @@ def calc_L_n_Kustas(T_C, T_S, L_dn, LAI, emisVeg, emisGrd, x_LAD=1):
         Soil temperature (K).
     L_dn : float
         Downwelling atmospheric longwave radiation (w m-2).
-    LAI : float
+    lai : float
         Effective Leaf (Plant) Area Index.
     emisVeg : float
         Broadband emissivity of vegetation cover.
     emisGrd : float
         Broadband emissivity of soil.
-    x_LAD: float, optional
+    x_lad: float, optional
         x parameter for the ellipsoidal Leaf Angle Distribution function,
-        use x_LAD=1 for a spherical LAD.
+        use x_lad=1 for a spherical LAD.
 
     Returns
     -------
@@ -263,19 +278,13 @@ def calc_L_n_Kustas(T_C, T_S, L_dn, LAI, emisVeg, emisGrd, x_LAD=1):
     '''
 
     # Integrate to get the diffuse transmitance
-    taud = 0
-    for angle in range(0, 90, 5):
-        akd = calc_K_be_Campbell(angle, x_LAD)  # Eq. 15.4
-        taub = np.exp(-akd * LAI)
-        taud = taud + taub * np.cos(np.radians(angle)) * \
-            np.sin(np.radians(angle)) * np.radians(5)
-    taud = 2.0 * taud
+    taud = _calc_taud(x_lad, lai)
 
     # D I F F U S E   C O M P O N E N T S
     # Diffuse light canopy reflection coefficients  for a deep canopy
-    akd = -np.log(taud) / LAI
+    akd = -np.log(taud) / lai
     ameanl = np.asarray(emisVeg)
-    taudl = np.exp(-np.sqrt(ameanl) * akd * LAI)  # Eq 15.6
+    taudl = np.exp(-np.sqrt(ameanl) * akd * lai)  # Eq 15.6
 
     # calculate long wave emissions from canopy, soil and sky
     L_C = emisVeg * met.calc_stephan_boltzmann(T_C)
@@ -362,9 +371,9 @@ def calc_potential_irradiance_weiss(
     return Rdirvis, Rdifvis, Rdirnir, Rdifnir
 
 
-def calc_Sn_Campbell(LAI, sza, S_dn_dir, S_dn_dif, fvis, fnir, rho_leaf_vis,
+def calc_Sn_Campbell(lai, sza, S_dn_dir, S_dn_dif, fvis, fnir, rho_leaf_vis,
                      tau_leaf_vis, rho_leaf_nir, tau_leaf_nir, rsoilv, rsoiln,
-                     x_LAD=1, LAI_eff=None):
+                     x_lad=1.0, LAI_eff=None):
     """ Net shortwave radiation
 
     Estimate net shorwave radiation for soil and canopy below a canopy using the [Campbell1998]_
@@ -372,7 +381,7 @@ def calc_Sn_Campbell(LAI, sza, S_dn_dir, S_dn_dif, fvis, fnir, rho_leaf_vis,
 
     Parameters
     ----------
-    LAI : float
+    lai : float
         Effective Leaf (Plant) Area Index.
     sza : float
         Sun Zenith Angle (degrees).
@@ -396,7 +405,7 @@ def calc_Sn_Campbell(LAI, sza, S_dn_dir, S_dn_dif, fvis, fnir, rho_leaf_vis,
         Broadband soil bihemispherical reflectance in the visible region (400-700nm).
     rsoiln : float
         Broadband soil bihemispherical reflectance in the NIR region (700-2500nm).
-    x_LAD : float,  optional
+    x_lad : float,  optional
         x parameter for the ellipsoildal Leaf Angle Distribution function of
         Campbell 1988 [default=1, spherical LIDF].
     LAI_eff : float or None, optional
@@ -429,29 +438,23 @@ def calc_Sn_Campbell(LAI, sza, S_dn_dir, S_dn_dif, fvis, fnir, rho_leaf_vis,
     # Calculate canopy beam extinction coefficient
     # Modification to include other LADs
     if LAI_eff is None:
-        LAI_eff = np.asarray(LAI)
+        LAI_eff = np.asarray(lai)
     else:
         LAI_eff = np.asarray(LAI_eff)
 
     # D I F F U S E   C O M P O N E N T S
     # Integrate to get the diffuse transmitance
-    taud = 0
-    for angle in range(0, 90, 5):
-        akd = calc_K_be_Campbell(angle, x_LAD)  # Eq. 15.4
-        taub = np.exp(-akd * LAI)
-        taud = (taud + taub * np.cos(np.radians(angle))
-                * np.sin(np.radians(angle)) * np.radians(5))
-    taud = 2.0 * taud
+    taud = _calc_taud(x_lad, lai)
 
     # Diffuse light canopy reflection coefficients  for a deep canopy
-    akd = -np.log(taud) / LAI
+    akd = -np.log(taud) / lai
     rcpyn = (1.0 - ameann_sqrt) / (1.0 + ameann_sqrt)  # Eq 15.7
     rcpyv = (1.0 - ameanv_sqrt) / (1.0 + ameanv_sqrt)
     rdcpyn = 2.0 * akd * rcpyn / (akd + 1.0)  # Eq 15.8
     rdcpyv = 2.0 * akd * rcpyv / (akd + 1.0)
 
     # Diffuse canopy transmission and albedo coeff for a generic canopy (visible)
-    expfac = ameanv_sqrt * akd * LAI
+    expfac = ameanv_sqrt * akd * lai
     neg_exp, d_neg_exp = np.exp(-expfac), np.exp(-2.0 * expfac)
     xnum = (rdcpyv * rdcpyv - 1.0) * neg_exp
     xden = (rdcpyv * rsoilv - 1.0) + rdcpyv * (rdcpyv - rsoilv) * d_neg_exp
@@ -460,7 +463,7 @@ def calc_Sn_Campbell(LAI, sza, S_dn_dir, S_dn_dif, fvis, fnir, rho_leaf_vis,
     albdv = (rdcpyv + fact) / (1.0 + rdcpyv * fact)  # Eq 15.9
 
     # Diffuse canopy transmission and albedo coeff for a generic canopy (NIR)
-    expfac = ameann_sqrt * akd * LAI
+    expfac = ameann_sqrt * akd * lai
     neg_exp, d_neg_exp = np.exp(-expfac), np.exp(-2.0 * expfac)
     xnum = (rdcpyn * rdcpyn - 1.0) * neg_exp
     xden = (rdcpyn * rsoiln - 1.0) + rdcpyn * (rdcpyn - rsoiln) * d_neg_exp
@@ -470,7 +473,7 @@ def calc_Sn_Campbell(LAI, sza, S_dn_dir, S_dn_dif, fvis, fnir, rho_leaf_vis,
 
     # B E A M   C O M P O N E N T S
     # Direct beam extinction coeff (spher. LAD)
-    akb = calc_K_be_Campbell(sza, x_LAD)  # Eq. 15.4
+    akb = calc_K_be_Campbell(sza, x_lad)  # Eq. 15.4
 
     # Direct beam canopy reflection coefficients for a deep canopy
     rcpyn = (1.0 - ameann_sqrt) / (1.0 + ameann_sqrt)  # Eq 15.7
@@ -509,8 +512,8 @@ def calc_Sn_Campbell(LAI, sza, S_dn_dir, S_dn_dif, fvis, fnir, rho_leaf_vis,
     return np.asarray(Sn_C), np.asarray(Sn_S)
 
 
-def calc_tau_below_Campbell(LAI, sza, fvis, fnir, rho_leaf_vis, tau_leaf_vis,
-                            rho_leaf_nir, tau_leaf_nir, rsoilv, rsoiln, x_LAD=1,
+def calc_tau_below_Campbell(lai, sza, fvis, fnir, rho_leaf_vis, tau_leaf_vis,
+                            rho_leaf_nir, tau_leaf_nir, rsoilv, rsoiln, x_lad=1,
                             LAI_eff=None):
     ''' Radiation transmission through a canopy.
 
@@ -519,7 +522,7 @@ def calc_tau_below_Campbell(LAI, sza, fvis, fnir, rho_leaf_vis, tau_leaf_vis,
 
     Parameters
     ----------
-    LAI : float
+    lai : float
         Effecive Leaf (Plant) Area Index.
     sza : float
         Sun Zenith Angle (degrees).
@@ -539,7 +542,7 @@ def calc_tau_below_Campbell(LAI, sza, fvis, fnir, rho_leaf_vis, tau_leaf_vis,
         Broadband soil bihemispherical reflectance in the visible region (400-700nm).
     rsoiln : float
         Broadband soil bihemispherical reflectance in the NIR region (700-2500nm).
-    x_LAD : float, optional
+    x_lad : float, optional
         x parameter for the ellipsoildal Leaf Angle Distribution function of
         Campbell 1988 [default=1, spherical LIDF].
     LAI_eff : float or None, optional
@@ -563,52 +566,54 @@ def calc_tau_below_Campbell(LAI, sza, fvis, fnir, rho_leaf_vis, tau_leaf_vis,
     # calculate aborprtivity
     ameanv = 1.0 - rho_leaf_vis - tau_leaf_vis
     ameann = 1.0 - rho_leaf_nir - tau_leaf_nir
+
     # Calculate canopy beam extinction coefficient
     # Modification to include other LADs
-    if isinstance(LAI_eff, type(None)):
-        LAI_eff = np.asarray(LAI)
+    if LAI_eff is None:
+        LAI_eff = np.asarray(lai)
     else:
         LAI_eff = np.asarray(LAI_eff)
+
     # Integrate to get the diffuse transmitance
-    taud = 0
-    for angle in range(0, 90, 5):
-        akd = calc_K_be_Campbell(angle, x_LAD)  # Eq. 15.4
-        taub = np.exp(-akd * LAI)
-        taud = taud + taub * np.cos(np.radians(angle)) * \
-            np.sin(np.radians(angle)) * np.radians(5)
-    taud = 2.0 * taud
+    taud = _calc_taud(x_lad, lai)
+
     # D I F F U S E   C O M P O N E N T S
     # Diffuse light canopy reflection coefficients  for a deep canopy [Campbell1998]_
-    # akd=-0.0683*log(LAI)+0.804                  # Fit to Fig 15.4 for x=1
+    # akd=-0.0683*log(lai)+0.804                  # Fit to Fig 15.4 for x=1
     # [Campbell1998]_
-    akd = -np.log(taud) / LAI
+    akd = -np.log(taud) / lai
     rcpyn = (1.0 - np.sqrt(ameann)) / \
         (1.0 + np.sqrt(ameann))  # Eq 15.7 [Campbell1998]_
     rcpyv = (1.0 - np.sqrt(ameanv)) / (1.0 + np.sqrt(ameanv))
     rdcpyn = 2.0 * akd * rcpyn / (akd + 1.0)  # Eq 15.8 [Campbell1998]_
     rdcpyv = 2.0 * akd * rcpyv / (akd + 1.0)
+
     # Diffuse canopy transmission coeff (visible)
-    expfac = np.sqrt(ameanv) * akd * LAI
+    expfac = np.sqrt(ameanv) * akd * lai
     xnum = (rdcpyv * rdcpyv - 1.0) * np.exp(-expfac)
     xden = (rdcpyv * rsoilv - 1.0) + rdcpyv * \
         (rdcpyv - rsoilv) * np.exp(-2.0 * expfac)
     taudv = xnum / xden  # Eq 15.11 [Campbell1998]_
+
     # Diffuse canopy transmission coeff (NIR)
-    expfac = np.sqrt(ameann) * akd * LAI
+    expfac = np.sqrt(ameann) * akd * lai
     xnum = (rdcpyn * rdcpyn - 1.0) * np.exp(-expfac)
     xden = (rdcpyn * rsoiln - 1.0) + rdcpyn * \
         (rdcpyn - rsoiln) * np.exp(-2.0 * expfac)
     taudn = xnum / xden  # Eq 15.11 [Campbell1998]_
+
     # Diffuse radiation surface albedo for a generic canopy
     # B E A M   C O M P O N E N T S
     # Direct beam extinction coeff (spher. LAD)
-    akb = calc_K_be_Campbell(sza, x_LAD)  # Eq. 15.4
+    akb = calc_K_be_Campbell(sza, x_lad)  # Eq. 15.4
+
     # Direct beam canopy reflection coefficients for a deep canopy
     rcpyn = (1.0 - np.sqrt(ameann)) / \
         (1.0 + np.sqrt(ameann))  # Eq 15.7 [Campbell1998]_
     rcpyv = (1.0 - np.sqrt(ameanv)) / (1.0 + np.sqrt(ameanv))
     rbcpyn = 2.0 * akb * rcpyn / (akb + 1.0)  # Eq 15.8[Campbell1998]_
     rbcpyv = 2.0 * akb * rcpyv / (akb + 1.0)
+
     # Weighted average albedo
     # Direct beam+scattered canopy transmission coeff (visible)
     expfac = np.sqrt(ameanv) * akb * LAI_eff
@@ -616,6 +621,7 @@ def calc_tau_below_Campbell(LAI, sza, fvis, fnir, rho_leaf_vis, tau_leaf_vis,
     xden = (rbcpyv * rsoilv - 1.0) + rbcpyv * \
         (rbcpyv - rsoilv) * np.exp(-2.0 * expfac)
     taubtv = xnum / xden  # Eq 15.11 [Campbell1998]_
+
     # Direct beam+scattered canopy transmission coeff (NIR)
     expfac = np.sqrt(ameann) * akb * LAI_eff
     xnum = (rbcpyn * rbcpyn - 1.0) * np.exp(-expfac)
@@ -624,4 +630,5 @@ def calc_tau_below_Campbell(LAI, sza, fvis, fnir, rho_leaf_vis, tau_leaf_vis,
     taubtn = xnum / xden  # Eq 15.11 [Campbell1998]_
     tau_dir = fvis * taubtv + fnir * taubtn
     tau_dif = fvis * taudv + fnir * taudn
+
     return np.asarray(tau_dir), np.asarray(tau_dif)
