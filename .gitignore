@@ -71,6 +71,7 @@ Input/*.tif.*
 
 # Ignore output files
 Output/
+!Output/ExampleTableOutput.txt
 
 # Jupyter Notebooks Checkpoints
 .ipynb_checkpoints/
