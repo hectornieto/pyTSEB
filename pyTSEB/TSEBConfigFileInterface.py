@@ -62,7 +62,8 @@ class TSEBConfigFileInterface():
             'row_az',
             'output_file',
             'correct_LST',
-            'flux_LR_method')
+            'flux_LR_method',
+            'water_stress')
 
         # Variables only for image runs
         self.input_image_vars = (
@@ -86,7 +87,8 @@ class TSEBConfigFileInterface():
             'L_dn',
             'p',
             'flux_LR',
-            'flux_LR_ancillary')
+            'flux_LR_ancillary',
+            'S_dn_24')
 
         # variables only for point series runs
         self.input_point_vars = (
@@ -175,10 +177,10 @@ class TSEBConfigFileInterface():
                                                   float(config_data['G_phase']),
                                                   float(config_data['G_shape'])],
                                                  12.0]
-                elif var_name == "flux_LR_method" and self.params["model"] == "disTSEB":
-                    self.params[var_name] = str(config_data[var_name]).strip('"')
-                elif var_name == "correct_LST" and self.params["model"] == "disTSEB":
-                    self.params[var_name] = int(config_data[var_name])
+                # disTSEB specific parameters can be ignored by other models.
+                elif var_name in ["flux_LR_method", "correct_LST"]:
+                    if self.params["model"] == "disTSEB":
+                        self.params[var_name] = str(config_data[var_name]).strip('"')
                 elif var_name in ["row_az", "G_constant", "G_ratio", "G_amp", "G_phase",
                                   "G_shape"]:
                     pass
