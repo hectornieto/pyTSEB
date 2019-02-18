@@ -64,9 +64,9 @@ import numpy as np
 import pyTSEB.MO_similarity as MO
 import pyTSEB.meteo_utils as met
 
-#==============================================================================
+# ==============================================================================
 # List of constants used in TSEB model and sub-routines
-#==============================================================================
+# ==============================================================================
 # Landcover classes and values come from IGBP Land Cover Type Classification
 WATER = 0
 CONIFER_E = 1
@@ -119,10 +119,11 @@ def calc_d_0(h_C):
         zero-plane displacement height (m).'''
 
     d_0 = h_C * 0.65
+
     return np.asarray(d_0)
 
 
-def calc_roughness(LAI, h_C, w_C=1, landcover=CROP,f_c=None):
+def calc_roughness(LAI, h_C, w_C=1, landcover=CROP, f_c=None):
     ''' Surface roughness and zero displacement height for different vegetated surfaces.
 
     Calculates the roughness using different approaches depending we are dealing with
@@ -158,17 +159,21 @@ def calc_roughness(LAI, h_C, w_C=1, landcover=CROP,f_c=None):
 
     # Convert input scalars to numpy arrays
     LAI, h_C, w_C, landcover = map(np.asarray, (LAI, h_C, w_C, landcover))
+
     # Initialize fractional cover and horizontal area index
-    lambda_=np.zeros(LAI.shape)
-    if type(f_c) == type(None):
+    lambda_ = np.zeros(LAI.shape)
+    if f_c is None:
         f_c = np.zeros(LAI.shape)
+
         # Needleleaf canopies
         mask = np.logical_or(landcover == CONIFER_E, landcover == CONIFER_D)
         f_c[mask] = 1. - np.exp(-0.5 * LAI[mask])
+
         # Broadleaved canopies
         mask = np.logical_or.reduce((landcover == BROADLEAVED_E, landcover == BROADLEAVED_D,
-                             landcover == FOREST_MIXED, landcover == SAVANNA_WOODY))
+                                     landcover == FOREST_MIXED, landcover == SAVANNA_WOODY))
         f_c[mask] = 1. - np.exp(-LAI[mask])
+
         # Shrublands
         mask = np.logical_or(landcover == SHRUB_O, landcover == SHRUB_C)
         f_c[mask] = 1. - np.exp(-0.5 * LAI[mask])
@@ -176,10 +181,12 @@ def calc_roughness(LAI, h_C, w_C=1, landcover=CROP,f_c=None):
     # Needleleaf canopies
     mask = np.logical_or(landcover == CONIFER_E, landcover == CONIFER_D)
     lambda_[mask] = (2. / pi) * f_c[mask] * w_C[mask]
+
     # Broadleaved canopies
     mask = np.logical_or.reduce((landcover == BROADLEAVED_E, landcover == BROADLEAVED_D,
-                         landcover == FOREST_MIXED, landcover == SAVANNA_WOODY))
+                                 landcover == FOREST_MIXED, landcover == SAVANNA_WOODY))
     lambda_[mask] = f_c[mask] * w_C[mask]
+
     # Shrublands
     mask = np.logical_or(landcover == SHRUB_O, landcover == SHRUB_C)
     lambda_[mask] = f_c[mask] * w_C[mask]
@@ -190,12 +197,15 @@ def calc_roughness(LAI, h_C, w_C=1, landcover=CROP,f_c=None):
     # Calculation of correction factors from  Lindroth
     fz = np.asarray(0.3299 * LAI**1.5 + 2.1713)
     fd = np.asarray(1. - 0.3991 * np.exp(-0.1779 * LAI))
+
     # LAI <= 0
     fz[LAI <= 0] = 1.0
     fd[LAI <= 0] = 1.0
+
     # LAI >= 0.8775:
     fz[LAI >= 0.8775] = 1.6771 * np.exp(-0.1717 * LAI[LAI >= 0.8775]) + 1.
     fd[LAI >= 0.8775] = 1. - 0.3991 * np.exp(-0.1779 * LAI[LAI >= 0.8775])
+
     # Application of the correction factors to roughness and displacement
     # height
     z0M_factor = np.asarray(z0M_factor * fz)
@@ -203,18 +213,22 @@ def calc_roughness(LAI, h_C, w_C=1, landcover=CROP,f_c=None):
 
     # For crops and grass we use a fixed ratio of canopy height
     mask = np.logical_or.reduce((landcover == CROP, landcover == GRASS,
-                         landcover == SAVANNA, landcover == CROP_MOSAIC))
+                                 landcover == SAVANNA, landcover == CROP_MOSAIC))
     z0M_factor[mask] = 1. / 8.
     d_factor[mask] = 0.65
+
     # Calculation of rouhgness length
     z_0M = np.asarray(z0M_factor * h_C)
+
     # Calculation of zero plane displacement height
     d = np.asarray(d_factor * h_C)
+
     # For barren surfaces (bare soil, water, etc.)
     mask = np.logical_or.reduce((landcover == WATER, landcover == URBAN,
-                         landcover == SNOW, landcover == BARREN))
+                                 landcover == SNOW, landcover == BARREN))
     z_0M[mask] = 0.01
     d[mask] = 0
+
     return np.asarray(z_0M), np.asarray(d)
 
 
@@ -260,8 +274,8 @@ def calc_R_A(z_T, ustar, L, d_0, z_0H):
     Psi_H = MO.calc_Psi_H((z_T - d_0) / L)
     Psi_H0 = MO.calc_Psi_H(z_0H / L)
 
-    #i = np.logical_and(z_star>0, z_T<=z_star)
-    #Psi_H_star[i] = MO.calc_Psi_H_star(z_T[i], L[i], d_0[i], z_0H[i], z_star[i])
+    # i = np.logical_and(z_star>0, z_T<=z_star)
+    # Psi_H_star[i] = MO.calc_Psi_H_star(z_T[i], L[i], d_0[i], z_0H[i], z_star[i])
 
     i = ustar != 0
     R_A = np.asarray(np.ones(ustar.shape) * float('inf'))
@@ -307,12 +321,15 @@ def calc_R_S_Choudhury(u_star, h_C, z_0M, d_0, zm, z0_soil=0.01, alpha_k=2.0):
 
     # Soil resistance eqs. 24 & 25 [Choudhury1988]_
     K_h = k * u_star * (h_C - d_0)
-    R_S = (h_C * np.exp(alpha_k) / (alpha_k * K_h)) * \
-        (np.exp(-alpha_k * z0_soil / h_C) - np.exp(-alpha_k * (d_0 + z_0M) / h_C))
+    R_S = ((h_C * np.exp(alpha_k) / (alpha_k * K_h))
+           * (np.exp(-alpha_k * z0_soil / h_C) - np.exp(-alpha_k * (d_0 + z_0M) / h_C)))
+
     return np.asarray(R_S)
 
-def calc_R_S_Haghighi(u, h_C, zm, rho, c_p, z0_soil=0.01, f_cover=0, w_C=1, theta=0.4,theta_res=0.1, phi=2.0, ps=0.001, n=0.5):
-    ''' Aerodynamic resistance at the  soil boundary layer.
+
+def calc_R_S_Haghighi(u, h_C, zm, rho, c_p, z0_soil=0.01, f_cover=0, w_C=1,
+                      theta=0.4, theta_res=0.1, phi=2.0, ps=0.001, n=0.5):
+    """ Aerodynamic resistance at the  soil boundary layer.
 
     Estimates the aerodynamic resistance at the  soil boundary layer based on the
     K-Theory model of [Choudhury1988]_.
@@ -361,51 +378,57 @@ def calc_R_S_Haghighi(u, h_C, zm, rho, c_p, z0_soil=0.01, f_cover=0, w_C=1, thet
 % d         | (cylindrical) vegetation diameter [m]      =0 for bare soil
 % -------------------------------------------------------------------------
 
-    '''
+    """
+
     # Define constanst
-    D    = 0.282e-4   # [m2 s-1]    water vapor diffusion coefficient in air
-    nu   = 15.11e-6   # [m2 s-1]    kinmeatic visocosity of air
-    Ka   = 0.024    # [W m-1 K-1] thermal conductivity of air
-    lambda_E    = 2450e3   # [J/kg]      Latent heat of vaporization
-    
+    D = 0.282e-4   # [m2 s-1]    water vapor diffusion coefficient in air
+    nu = 15.11e-6   # [m2 s-1]    kinmeatic visocosity of air
+    Ka = 0.024    # [W m-1 K-1] thermal conductivity of air
+    lambda_E = 2450e3   # [J/kg]      Latent heat of vaporization
+
     # [Haghighi and Or, 2015, JHydrol]
-    a_r   = 3.
-    a_s   = 5.
-    k     = 0.1
-    k_v   = 0.41
+    a_r = 3.
+    a_s = 5.
+    k = 0.1
+    k_v = 0.41
     gamma = 150.
-    f_alpha = 22. # [Haghighi and Or, 2013, WRR]
+    f_alpha = 22.  # [Haghighi and Or, 2013, WRR]
 
-    u, h_C, zm, z0_soil, f_cover, w_C, theta,theta_res, phi, ps, n = map(np.asarray, (u, h_C, zm, z0_soil, f_cover, w_C, theta,theta_res, phi, ps, n))
+    u, h_C, zm, z0_soil, f_cover, w_C, theta, theta_res, phi, ps, n = map(
+        np.asarray, (u, h_C, zm, z0_soil, f_cover, w_C, theta, theta_res, phi, ps, n))
 
-    f_theta = (1./np.sqrt(np.pi*(theta-theta_res)))*(np.sqrt(np.pi/(4*(theta-theta_res)))-1)
+    f_theta = ((1. / np.sqrt(np.pi * (theta - theta_res)))
+               * (np.sqrt(np.pi / (4 * (theta - theta_res))) - 1))
 
-    THETA = (theta-theta_res)/(phi-theta_res)
-    K_sat = (0.0077*n**7.35)/(24.*3600.)  #[m s-1]
-    m     = 1.-1./n
-    K_eff = 4*K_sat*np.sqrt(THETA)*(1-(1-THETA**(1/m))**m)**2     #[Haghighi et al., 2013, WRR]
+    THETA = (theta - theta_res) / (phi - theta_res)
+    K_sat = (0.0077 * n**7.35) / (24. * 3600.)  # [m s-1]
+    m = 1. - 1. / n
+    K_eff = (4 * K_sat * np.sqrt(THETA)
+             * (1 - (1 - THETA**(1 / m))**m)**2)  # [Haghighi et al., 2013, WRR]
 
-    width=h_C*w_C
-    A_veg  = (np.pi/4)*width**2
-    lambda_ = width*h_C*f_cover/A_veg
-    
-    h_C[f_cover==0]=0
-    lambda_[f_cover==0]=0
+    width = h_C * w_C
+    A_veg = (np.pi / 4) * width**2
+    lambda_ = width * h_C * f_cover / A_veg
 
-    z_0sc = z0_soil*(1+f_cover*((zm-h_C)/zm-1))
-    f_r     = np.exp(-a_r*lambda_/(1.-f_cover)**k)
-    f_s     = np.exp(-a_s*lambda_/(1.-f_cover)**k)
-    C_sgc   = k_v**2*(np.log((zm-h_C)/z_0sc))**-2
-    C_sg    = k_v**2*(np.log(zm/z0_soil))**-2
-    f_c     = 1.+f_cover*(C_sgc/C_sg-1.)
-    C_rg    = gamma*C_sg
-    u_star  = u*np.sqrt(f_r*lambda_*(1-f_cover)*C_rg+(f_s*(1-f_cover)+f_c*f_cover)*C_sg)
-    delta   = f_alpha*nu/u_star
-    R_S_LE = rho* c_p*((delta+(ps/3)*f_theta)/D + 1.73e-5/K_eff)/lambda_E     # see Haghighi et al. [2013, WRR]
-    R_S_H  = rho* c_p*delta/Ka;
+    h_C[f_cover == 0] = 0
+    lambda_[f_cover == 0] = 0
 
-    return np.asarray(R_S_H),np.asarray(R_S_LE)
-    
+    z_0sc = z0_soil * (1 + f_cover * ((zm - h_C) / zm - 1))
+    f_r = np.exp(-a_r * lambda_ / (1. - f_cover)**k)
+    f_s = np.exp(-a_s * lambda_ / (1. - f_cover)**k)
+    C_sgc = k_v**2 * (np.log((zm - h_C) / z_0sc))**(-2)
+    C_sg = k_v**2 * (np.log(zm / z0_soil))**(-2)
+    f_c = 1. + f_cover * (C_sgc / C_sg - 1.)
+    C_rg = gamma * C_sg
+    u_star = (u * np.sqrt(f_r * lambda_ * (1 - f_cover) * C_rg
+              + (f_s * (1 - f_cover) + f_c * f_cover) * C_sg))
+    delta = f_alpha * nu / u_star
+    R_S_LE = (rho * c_p * ((delta + (ps / 3) * f_theta) / D + 1.73e-5 / K_eff)
+              / lambda_E)     # see Haghighi et al. [2013, WRR]
+    R_S_H = rho * c_p * delta / Ka
+
+    return np.asarray(R_S_H), np.asarray(R_S_LE)
+
 
 def calc_R_S_McNaughton(u_friction):
     ''' Aerodynamic resistance at the  soil boundary layer.
@@ -436,8 +459,8 @@ def calc_R_S_McNaughton(u_friction):
     return np.asarray(R_S)
 
 
-def calc_R_S_Kustas(u_S, deltaT, params = {}):
-    ''' Aerodynamic resistance at the  soil boundary layer.
+def calc_R_S_Kustas(u_S, deltaT, params=None):
+    """ Aerodynamic resistance at the  soil boundary layer.
 
     Estimates the aerodynamic resistance at the  soil boundary layer based on the
     original equations in TSEB [Kustas1999]_.
@@ -460,21 +483,24 @@ def calc_R_S_Kustas(u_S, deltaT, params = {}):
         flux predictions using a simple two-source model with radiometric temperatures for
         partial canopy cover, Agricultural and Forest Meteorology, Volume 94, Issue 1,
         Pages 13-29, http://dx.doi.org/10.1016/S0168-1923(99)00005-2.
-    '''
+    """
+
+    if params is None:
+        params = {}
 
     # Set model parameters
-    if "KN_b" in params:    
+    if "KN_b" in params:
         b = params["KN_b"]
     else:
-        b = KN_b    
+        b = KN_b
     if "KN_c" in params:
         c = params['KN_c']
     else:
         c = KN_c
-    
+
     # Convert input scalars to numpy arrays
     u_S, deltaT = map(np.asarray, (u_S, deltaT))
-    
+
     deltaT = np.asarray(np.maximum(deltaT, 0.0))
     R_S = 1.0 / (c * deltaT**(1.0 / 3.0) + b * u_S)
     return np.asarray(R_S)
@@ -511,8 +537,8 @@ def calc_R_x_Choudhury(u_C, F, leaf_width, alpha_prime=3.0):
     '''
 
     # Eqs. 29 & 30 [Choudhury1988]_
-    R_x = 1.0 / (F * (2.0 * CM_a / alpha_prime) * np.sqrt(u_C / \
-                 leaf_width) * (1.0 - np.exp(-alpha_prime / 2.0)))
+    R_x = (1.0 / (F * (2.0 * CM_a / alpha_prime)
+           * np.sqrt(u_C / leaf_width) * (1.0 - np.exp(-alpha_prime / 2.0))))
     # R_x=(alpha_u*(sqrt(leaf_width/U_C)))/(2.0*alpha_0*LAI*(1.-exp(-alpha_u/2.0)))
     return np.asarray(R_x)
 
@@ -548,12 +574,12 @@ def calc_R_x_McNaughton(F, leaf_width, u_star):
     C_dash = 130.0
     C_dash_F = C_dash / F
     # Eq. 30 in [McNaugthon1995]
-    R_x = C_dash_F * (leaf_width * u_star)**0.5 + 0.36 / u_star  
+    R_x = C_dash_F * (leaf_width * u_star)**0.5 + 0.36 / u_star
     return np.asarray(R_x)
 
 
-def calc_R_x_Norman(LAI, leaf_width, u_d_zm, params = {}):
-    ''' Estimates aerodynamic resistance at the canopy boundary layer.
+def calc_R_x_Norman(LAI, leaf_width, u_d_zm, params=None):
+    """ Estimates aerodynamic resistance at the canopy boundary layer.
 
     Estimates the aerodynamic resistance at the  soil boundary layer based on the
     original equations in TSEB [Norman1995]_.
@@ -578,31 +604,23 @@ def calc_R_x_Norman(LAI, leaf_width, u_d_zm, params = {}):
         soil and vegetation energy fluxes in observations of directional radiometric
         surface temperature, Agricultural and Forest Meteorology, Volume 77, Issues 3-4,
         Pages 263-293, http://dx.doi.org/10.1016/0168-1923(95)02265-Y.
-    '''
+    """
+
+    if params is None:
+        params = {}
 
     # Set model parameters
     if "KN_C_dash" in params:
         C_dash = params["KN_C_dash"]
     else:
         C_dash = KN_C_dash
- 
+
     R_x = (C_dash / LAI) * (leaf_width / u_d_zm)**0.5
     return np.asarray(R_x)
 
 
-def calc_stomatal_conductance_TSEB(
-        LE_C,
-        LE,
-        R_A,
-        R_x,
-        e_a,
-        T_A,
-        T_C,
-        F,
-        p=1013.0,
-        leaf_type=1,
-        f_g=1,
-        f_dry=1):
+def calc_stomatal_conductance_TSEB(LE_C, LE, R_A, R_x, e_a, T_A, T_C, F,
+                                   p=1013.0, leaf_type=1, f_g=1, f_dry=1):
     ''' TSEB Stomatal conductace
 
     Estimates the effective Stomatal conductace by inverting the
@@ -655,27 +673,32 @@ def calc_stomatal_conductance_TSEB(
     LE_C, LE, R_A, R_x, e_a, T_A, T_C, F, p, leaf_type, f_g, f_dry = map(
         np.asarray, (LE_C, LE, R_A, R_x, e_a, T_A, T_C, F, p, leaf_type, f_g, f_dry))
     G_s = np.zeros(np.shape(LE_C))
+
     # Invert the bulk SW to obtain eb (vapor pressure at the canopy interface)
     rho = met.calc_rho(p, e_a, T_A)
     Cp = met.calc_c_p(p, e_a)
     Lambda = met.calc_lambda(T_A)
     psicr = met.calc_psicr(Cp, p, Lambda)
     e_ac = e_a + LE * R_A * psicr / (rho * Cp)
+
     # Calculate the saturation vapour pressure in the leaf in mb
     e_star = met.calc_vapor_pressure(T_C)
+
     # Calculate the boundary layer canopy resisitance to water vapour (Anderson et al. 2000)
     # Invert the SW LE_S equation to calculate the bulk stomatal resistance
     R_c = np.asarray((rho * Cp * (e_star - e_ac) / (LE_C * psicr)) - R_x)
     K_c = np.asarray(f_dry * f_g * leaf_type)
+
     # Get the mean stomatal resistance (here LAI comes in as stomatal resistances
     # are in parallel: 1/Rc=sum(1/R_st)=LAI/Rst
     # ans the mean leaf conductance is the reciprocal of R_st (m s-1)
     G_s[R_c > 0] = 1.0 / R_c[R_c > 0] * K_c[R_c > 0] * F[R_c > 0]
+
     return np.asarray(G_s)
 
 
 def calc_coef_m2mmol(T_C, p=101.325):
-    '''Calculates the conversion factor from stomatal conductance from m s-1
+    """Calculates the conversion factor from stomatal conductance from m s-1
     to mmol m-2 s-1.
 
     Parameters
@@ -696,7 +719,7 @@ def calc_coef_m2mmol(T_C, p=101.325):
         Morgan, J., & Smith, D. P. (2015). Predicting canopy temperatures and infrared heater energy
         requirements for warming field plots. Agronomy Journal, 107(1), 129-141
         http://dx.doi.org/10.2134/agronj14.0109.
-    '''
+    """
 
     K_gs = p / (R_u * T_C)  # to mol m-2 s-1
     K_gs = K_gs * 1e3  # to mmol m-2 s-1
@@ -704,7 +727,7 @@ def calc_coef_m2mmol(T_C, p=101.325):
 
 
 def calc_z_0H(z_0M, kB=0):
-    '''Estimate the aerodynamic routhness length for heat trasport.
+    """Estimate the aerodynamic routhness length for heat trasport.
 
     Parameters
     ----------
@@ -724,14 +747,14 @@ def calc_z_0H(z_0M, kB=0):
         soil and vegetation energy fluxes in observations of directional radiometric
         surface temperature, Agricultural and Forest Meteorology, Volume 77, Issues 3-4,
         Pages 263-293, http://dx.doi.org/10.1016/0168-1923(95)02265-Y.
-    '''
+    """
 
     z_0H = z_0M / np.exp(kB)
     return np.asarray(z_0H)
 
 
 def calc_z_0M(h_C):
-    ''' Aerodynamic roughness lenght.
+    """ Aerodynamic roughness lenght.
 
     Estimates the aerodynamic roughness length for momentum trasport
     as a ratio of canopy height.
@@ -744,14 +767,15 @@ def calc_z_0M(h_C):
     Returns
     -------
     z_0M : float
-        aerodynamic roughness length for momentum transport (m).'''
+        aerodynamic roughness length for momentum transport (m).
+    """
 
     z_0M = h_C * 0.125
     return np.asarray(z_0M)
 
 
 def raupach(lambda_):
-    '''Roughness and displacement height factors for discontinuous canopies
+    """Roughness and displacement height factors for discontinuous canopies
 
     Estimated based on the frontal canopy leaf area, based on Raupack 1994 model,
     after [Schaudt2000]_
@@ -774,8 +798,7 @@ def raupach(lambda_):
         and zero-plane displacement height from satellite data, prototyped with BOREAS data,
         Agricultural and Forest Meteorology, Volume 104, Issue 2, 8 August 2000, Pages 143-155,
         http://dx.doi.org/10.1016/S0168-1923(00)00153-2.
-
-    '''
+    """
 
     # Convert input scalar to numpy array
     lambda_ = np.asarray(lambda_)
@@ -785,11 +808,10 @@ def raupach(lambda_):
     # Calculation of the Raupach (1994) formulae
     # if lambda_ > 0.152:
     i = lambda_ > 0.152
-    z0M_factor[i] = (0.0537 / (lambda_[i]**0.510)) * \
-                    (1. - np.exp(-10.9 * lambda_[i]**0.874)) + 0.00368
+    z0M_factor[i] = ((0.0537 / (lambda_[i]**0.510))
+                     * (1. - np.exp(-10.9 * lambda_[i]**0.874)) + 0.00368)
     # else:
-    z0M_factor[~i] = 5.86 * \
-        np.exp(-10.9 * lambda_[~i]**1.12) * lambda_[~i]**1.33 + 0.000860
+    z0M_factor[~i] = 5.86 * np.exp(-10.9 * lambda_[~i]**1.12) * lambda_[~i]**1.33 + 0.000860
     # if lambda_ > 0:
     i = lambda_ > 0
     d_factor[i] = 1. - \

@@ -24,7 +24,7 @@ Modified on Sep 13 2016
 DESCRIPTION
 ===========
 This package contains the main routines for estimating variables related to the
- Monin-Obukhov (MO) Similarity Theory, such as  MO length, adiabatic correctors 
+ Monin-Obukhov (MO) Similarity Theory, such as  MO length, adiabatic correctors
 for heat and momentum transport. It requires the following package.
 
 * :doc:`meteo_utils` for the estimation of meteorological variables.
@@ -50,9 +50,9 @@ import numpy as np
 
 import pyTSEB.meteo_utils as met
 
-#==============================================================================
+# ==============================================================================
 # List of constants used in MO similarity
-#==============================================================================
+# ==============================================================================
 # von Karman's constant
 k = 0.4
 # acceleration of gravity (m s-2)
@@ -126,13 +126,15 @@ def calc_Psi_H(zoL):
     # Convert input scalars to numpy array
     zoL = np.asarray(zoL)
     Psi_H = np.zeros(zoL.shape)
+
     # for stable and netural (zoL = 0 -> Psi_H = 0) conditions
     i = zoL >= 0.0
     a = 6.1
     b = 2.5
     Psi_H[i] = -a * np.log(zoL[i] + (1.0 + zoL[i]**b)**(1. / b))
+
     # for unstable conditions
-    i = zoL < 0.0    
+    i = zoL < 0.0
     y = -zoL[i]
     c = 0.33
     d = 0.057
@@ -165,9 +167,9 @@ def calc_Psi_M(zoL):
 
     Psi_M = np.zeros(zoL.shape)
     # for stable and netural (zoL = 0 -> Psi_M = 0) conditions
-    i = zoL >= 0.0    
+    i = zoL >= 0.0
     a = 6.1
-    b = 2.5    
+    b = 2.5
     Psi_M[i] = -a * np.log(zoL[i] + (1.0 + zoL[i]**b)**(1.0 / b))
     # for unstable conditions
     i = zoL < 0
@@ -176,11 +178,11 @@ def calc_Psi_M(zoL):
     b = 0.41
     x = np.asarray((y / a)**0.333333)
     Psi_0 = -np.log(a) + 3**0.5 * b * a**0.333333 * np.pi / 6.0
-    y = np.minimum(y, b**-3) 
-    Psi_M[i] = (np.log(a + y) - 3.0 * b * y**0.333333 +
-                (b * a**0.333333) / 2.0 * np.log((1.0 + x)**2 / (1.0 - x + x**2)) +
-                3.0**0.5 * b * a**0.333333 * np.arctan((2.0 * x - 1.0) / 3**0.5) +
-                Psi_0)
+    y = np.minimum(y, b**-3)
+    Psi_M[i] = (np.log(a + y) - 3.0 * b * y**0.333333
+                + (b * a**0.333333) / 2.0 * np.log((1.0 + x)**2 / (1.0 - x + x**2))
+                + 3.0**0.5 * b * a**0.333333 * np.arctan((2.0 * x - 1.0) / 3**0.5)
+                + Psi_0)
     return np.asarray(Psi_M)
 
 
@@ -221,9 +223,10 @@ def calc_richardson(u, z_u, d_0, T_R0, T_R1, T_A0, T_A1):
     '''
 
     # See eq (2) from Louis 1979
-    Ri = -(gravity * (z_u - d_0) / T_A1) * \
-          (((T_R1 - T_R0) - (T_A1 - T_A0)) / u**2) # equation (12) [Norman2000]
+    Ri = (-(gravity * (z_u - d_0) / T_A1)
+          * (((T_R1 - T_R0) - (T_A1 - T_A0)) / u**2))  # equation (12) [Norman2000]
     return np.asarray(Ri)
+
 
 def calc_u_star(u, z_u, L, d_0, z_0M):
     '''Friction velocity.
@@ -249,7 +252,7 @@ def calc_u_star(u, z_u, L, d_0, z_0M):
 
     # Covert input scalars to numpy arrays
     u, z_u, L, d_0, z_0M = map(np.asarray, (u, z_u, L, d_0, z_0M))
-    
+
     # calculate correction factors in other conditions
     L[L == 0.0] = 1e-36
     Psi_M = calc_Psi_M((z_u - d_0) / L)

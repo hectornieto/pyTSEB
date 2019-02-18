@@ -116,8 +116,7 @@ def calc_difuse_ratio(S_dn, sza, press=1013.25, SOLAR_CONSTANT=1320):
     # Partition S_dn into VIS and NIR
     fvis = potvis / (potvis + potnir)  # Eq. 7
     fnir = potnir / (potvis + potnir)  # Eq. 8
-    fvis = np.maximum(0, fvis)
-    fvis = np.minimum(1, fvis)
+    fvis = np.clip(fvis, 0.0, 1.0)
     fnir = 1.0 - fvis
 
     # Estimate direct beam and diffuse fractions in VIS and NIR wavebands
@@ -346,8 +345,8 @@ def calc_potential_irradiance_weiss(
     # opticalDepth=np.log(10.)*A
     # T=np.exp(-opticalDepth/coszen)
     # Asssume that most absortion of WV is at the NIR
-    Rdirvis[i] = (Sco_vis * np.exp(-.185 * (press[i] / 1313.25) * airmas[i]) -
-                  w[i]) * coszen[i]  # Modified Eq1 assuming water vapor absorption
+    Rdirvis[i] = (Sco_vis * np.exp(-.185 * (press[i] / 1313.25) * airmas[i])
+                  - w[i]) * coszen[i]  # Modified Eq1 assuming water vapor absorption
     # Rdirvis=(Sco_vis*exp(-.185*(press/1313.25)*airmas))*coszen
     # #Eq. 1
     Rdirvis = np.maximum(0, Rdirvis)
@@ -363,6 +362,7 @@ def calc_potential_irradiance_weiss(
     Rdirnir[i] = (Sco_nir * np.exp(-0.06 * (press[i] / 1313.25)
                                    * airmas[i]) - w) * coszen[i]  # Eq. 4
     Rdirnir = np.maximum(0, Rdirnir)
+
     # Potential diffuse radiation
     Rdifnir[i] = 0.6 * (Sco_nir * coszen[i] - Rdirvis[i] - w)  # Eq. 5
     Rdifnir = np.maximum(0, Rdifnir)
