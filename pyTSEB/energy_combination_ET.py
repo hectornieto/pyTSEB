@@ -12,7 +12,7 @@ import numpy as np
 # List of constants used in TSEB model and sub-routines
 #==============================================================================
 # Change threshold in  Monin-Obukhov lengh to stop the iterations
-L_thres = 0.00001
+L_thres = 0.001
 # mimimun allowed friction velocity
 u_friction_min = 0.01
 # Maximum number of interations
