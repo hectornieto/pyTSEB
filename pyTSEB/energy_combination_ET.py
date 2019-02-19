@@ -4,21 +4,16 @@ Created on Thu Nov  9 11:58:34 2017
 
 @author: hnieto
 """
+from collections import deque
+import time
 
 from pyTSEB import TSEB 
 import numpy as np
 
-#==============================================================================
-# List of constants used in TSEB model and sub-routines
-#==============================================================================
-# Change threshold in  Monin-Obukhov lengh to stop the iterations
-L_thres = 0.001
-# mimimun allowed friction velocity
-u_friction_min = 0.01
-# Maximum number of interations
-ITERATIONS = 15
 # kB coefficient
 kB = 2.3
+
+ITERATIONS = 100
 
 def penman_monteith(T_A_K, 
                     u, 
@@ -175,7 +170,7 @@ def penman_monteith(T_A_K,
         L = np.asarray(np.ones(T_A_K.shape) * UseL)
         max_iterations = 1  # No iteration
     u_friction = TSEB.MO.calc_u_star(u, z_u, L, d_0, z_0M)
-    u_friction = np.asarray(np.maximum(u_friction_min, u_friction))
+    u_friction = np.asarray(np.maximum(TSEB.u_friction_min, u_friction))
 
     L_old = np.ones(T_A_K.shape)
     L_diff = np.asarray(np.ones(T_A_K.shape) * np.inf)
@@ -192,13 +187,13 @@ def penman_monteith(T_A_K,
     
     for n_iterations in range(max_iterations):
    
-        if np.all(L_diff < L_thres):
+        if np.all(L_diff < TSEB.L_thres):
             #print("Finished interation with a max. L diff: " + str(np.max(L_diff)))
             break
         
         #print("Iteration " + str(n_iterations) + , max. L diff: " + str(np.max(L_diff)))
 
-        i = np.logical_and(L_diff >= L_thres, flag != 255)
+        i = np.logical_and(L_diff >= TSEB.L_thres, flag != 255)
         iterations[i] = n_iterations
         flag[i] = 0  
 
@@ -227,7 +222,7 @@ def penman_monteith(T_A_K,
             # Calculate again the friction velocity with the new stability
             # correctios
             u_friction[i] = TSEB.MO.calc_u_star(u[i], z_u[i], L[i], d_0[i], z_0M[i])
-            u_friction = np.asarray(np.maximum(u_friction_min, u_friction))
+            u_friction = np.asarray(np.maximum(TSEB.u_friction_min, u_friction))
 
     flag, Ln, LE, H, G, R_A, u_friction, L, n_iterations = map(
         np.asarray, (flag, Ln, LE, H, G, R_A, u_friction, L, n_iterations))
@@ -443,7 +438,7 @@ def shuttleworth_wallace(T_A_K,
     
     # Create the output variables
     [flag, vpd_0, Ln_C, Ln_S, LE, H, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A, 
-     iterations] = [np.zeros(T_A_K.shape)+np.NaN for i in range(15)]
+     Rn, Rn_C, Rn_S, C_s, C_c, PM_C, PM_S, iterations] = [np.zeros(T_A_K.shape)+np.NaN for i in range(22)]
     
     
     # Calculate the general parameters
@@ -478,9 +473,10 @@ def shuttleworth_wallace(T_A_K,
         L = np.asarray(np.ones(T_A_K.shape) * UseL)
         max_iterations = 1  # No iteration
     u_friction = TSEB.MO.calc_u_star(u, z_u, L, d_0, z_0M)
-    u_friction = np.asarray(np.maximum(u_friction_min, u_friction))
-    L_old = np.ones(T_A_K.shape)
-    L_diff = np.asarray(np.ones(T_A_K.shape) * float('inf'))
+    u_friction = np.asarray(np.maximum(TSEB.u_friction_min, u_friction))
+    L_queue = deque([np.array(L)], 6)
+    L_converged = np.asarray(np.zeros(T_A_K.shape)).astype(bool)
+    L_diff_max = np.inf
  
     z_0H = TSEB.res.calc_z_0H(z_0M, kB=0)  # Roughness length for heat transport
    
@@ -491,16 +487,25 @@ def shuttleworth_wallace(T_A_K,
     Ln_S=Ln*np.exp(-0.95 * LAI)
     Ln_C=Ln-Ln_S
 
+    # Outer loop for estimating stability.
+    # Stops when difference in consecutives L is below a given threshold
+    start_time = time.time()
+    loop_time = time.time()
     for n_iterations in range(max_iterations):
-   
-        if np.all(L_diff < L_thres):
-            #print("Finished interation with a max. L diff: " + str(np.max(L_diff)))
+        i =  ~L_converged
+        if np.all(L_converged):
+            if L_converged.size == 0:
+                print("Finished iterations with no valid solution")
+            else:
+                print("Finished interations with a max. L diff: " + str(L_diff_max))
             break
+        current_time = time.time()
+        loop_duration = current_time - loop_time
+        loop_time = current_time
+        total_duration = loop_time - start_time
+        print("Iteration: %d, non-converged pixels: %d, max L diff: %f, total time: %f, loop time: %f" %
+              (n_iterations, np.sum(i), L_diff_max, total_duration, loop_duration))
         
-        #print("Iteration " + str(n_iterations) +", max. L diff: " + str(np.max(L_diff)))
-
-        #i = np.logical_and(L_diff >= L_thres, flag != 255)
-        i = L_diff >= L_thres
         iterations[i] = n_iterations
         flag[i] = 0  
 
@@ -523,7 +528,7 @@ def shuttleworth_wallace(T_A_K,
         res_types = {"R_A": R_A_params, "R_x": R_x_params, "R_S": R_S_params}
         R_A[i], R_x[i], R_S[i] = TSEB.calc_resistances(resistance_form, res_types)
 
-        _, _, _, C_s, C_c = calc_effective_resistances_SW(R_A[i], 
+        _, _, _, C_s[i], C_c[i] = calc_effective_resistances_SW(R_A[i], 
                                                R_x[i], 
                                                R_S[i], 
                                                R_c[i],
@@ -533,21 +538,21 @@ def shuttleworth_wallace(T_A_K,
         # Calculate net longwave radiation with current values of T_C and T_S
         Ln_C[i], Ln_S[i] = TSEB.rad.calc_L_n_Kustas(
             T_C[i], T_S[i], L_dn[i], LAI[i], emis_C[i], emis_S[i])
-        Rn_C = Sn_C + Ln_C
-        Rn_S = Sn_S + Ln_S
-        Rn = Rn_C+Rn_S
+        Rn_C[i] = Sn_C[i] + Ln_C[i]
+        Rn_S[i] = Sn_S[i] + Ln_S[i]
+        Rn[i] = Rn_C[i] + Rn_S[i]
         # Compute Soil Heat Flux Ratio
         G[i] = TSEB.calc_G([calcG_params[0], calcG_array], Rn_S, i)
         
         # Eq. 12 in [Shuttleworth1988]_
-        PM_C = (delta[i]*(Rn[i]-G[i])+(rho_cp[i]*vpd[i]-delta[i]*R_x[i]*(Rn_S[i]-G[i]))/(R_A[i]+R_x[i]))/\
+        PM_C[i] = (delta[i]*(Rn[i]-G[i])+(rho_cp[i]*vpd[i]-delta[i]*R_x[i]*(Rn_S[i]-G[i]))/(R_A[i]+R_x[i]))/\
             (delta[i]+psicr[i]*(1.+R_c[i]/(R_A[i]+R_x[i])))
         # Eq. 13 in [Shuttleworth1988]_
-        PM_S = (delta[i]*(Rn[i]-G[i])+(rho_cp[i]*vpd[i]-delta[i]*R_S[i]*Rn_C[i])/(R_A[i]+R_S[i]))/\
+        PM_S[i] = (delta[i]*(Rn[i]-G[i])+(rho_cp[i]*vpd[i]-delta[i]*R_S[i]*Rn_C[i])/(R_A[i]+R_S[i]))/\
             (delta[i]+psicr[i]*(1.+R_ss[i]/(R_A[i]+R_S[i])))
         # Eq. 11 in [Shuttleworth1988]_
-        LE[i] = C_c*PM_C+C_s*PM_S
-        H[i] = Rn[i]-G[i]-LE[i]
+        LE[i] = C_c[i] * PM_C[i] + C_s[i] * PM_S[i]
+        H[i] = Rn[i] -G[i] -LE[i]
         
         # Compute canopy and soil  fluxes
         #Vapor pressure deficit at canopy source height (mb) # Eq. 8 in [Shuttleworth1988]_
@@ -564,10 +569,10 @@ def shuttleworth_wallace(T_A_K,
         T_C[i]=calc_T(H_C[i], T_A_K[i], R_A[i]+R_x[i], rho_a[i], Cp[i])
         T_S[i]=calc_T(H_S[i], T_A_K[i], R_A[i]+R_S[i], rho_a[i], Cp[i])
         no_valid_T = np.logical_and(i, T_C < 0)
-        flag[no_valid_T] = 255
+        flag[no_valid_T] = TSEB.F_INVALID
         T_C[no_valid_T] = T_A_K[no_valid_T]
         no_valid_T = np.logical_and(i, T_S < 0)
-        flag[no_valid_T] = 255
+        flag[no_valid_T] = TSEB.F_INVALID
         T_S[no_valid_T] = T_A_K[no_valid_T]
         # Now L can be recalculated and the difference between iterations
         # derived
@@ -579,16 +584,27 @@ def shuttleworth_wallace(T_A_K,
                     Cp[i],
                     H[i],
                     LE[i])
-            L_diff = np.asarray(np.fabs(L - L_old) / np.fabs(L_old))
-            L_diff[np.isnan(L_diff)] = np.inf
-            L_old = np.array(L)
-            L_old[L_old == 0] = 1e-36
 
             # Calculate again the friction velocity with the new stability
             # correctios
-            u_friction[i] = TSEB.MO.calc_u_star(u[i], z_u[i], L[i], d_0[i], z_0M[i])
-            u_friction = np.asarray(np.maximum(u_friction_min, u_friction))
-    
+            u_friction[i] = TSEB.MO.calc_u_star(
+                u[i], z_u[i], L[i], d_0[i], z_0M[i])
+            u_friction[i] = np.asarray(np.maximum(TSEB.u_friction_min, u_friction[i]))
+            # We check convergence against the value of L from previous iteration but as well
+            # against values from 2 or 3 iterations back. This is to catch situations (not
+            # infrequent) where L oscillates between 2 or 3 steady state values.
+            L_new = np.array(L)
+            L_new[L_new == 0] = 1e-36
+            L_queue.appendleft(L_new)
+            L_converged[i] = TSEB._L_diff(L_queue[0][i], L_queue[1][i]) < TSEB.L_thres
+            L_diff_max = np.max(TSEB._L_diff(L_queue[0][i], L_queue[1][i]))
+            if len(L_queue) >= 4:
+                L_converged[i] = np.logical_and(TSEB._L_diff(L_queue[0][i], L_queue[2][i]) < TSEB.L_thres,
+                                                TSEB._L_diff(L_queue[1][i], L_queue[3][i]) < TSEB.L_thres)
+            if len(L_queue) == 6:
+                L_converged[i] = np.logical_and.reduce((TSEB._L_diff(L_queue[0][i], L_queue[3][i]) < TSEB.L_thres,
+                                                        TSEB._L_diff(L_queue[1][i], L_queue[4][i]) < TSEB.L_thres,
+                                                        TSEB._L_diff(L_queue[2][i], L_queue[5][i]) < TSEB.L_thres))    
     (flag,
      T_S,
      T_C,
