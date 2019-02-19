@@ -16,7 +16,7 @@ L_thres = 0.00001
 # mimimun allowed friction velocity
 u_friction_min = 0.01
 # Maximum number of interations
-ITERATIONS = 100
+ITERATIONS = 15
 # kB coefficient
 kB = 2.3
 
