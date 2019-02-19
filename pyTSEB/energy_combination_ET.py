@@ -482,7 +482,7 @@ def shuttleworth_wallace(T_A_K,
     L_old = np.ones(T_A_K.shape)
     L_diff = np.asarray(np.ones(T_A_K.shape) * float('inf'))
  
-    z_0H = TSEB.res.calc_z_0H(z_0M, kB=kB)  # Roughness length for heat transport
+    z_0H = TSEB.res.calc_z_0H(z_0M, kB=0)  # Roughness length for heat transport
    
     # First assume that temperatures equals the Air Temperature
     T_C, T_S = np.array(T_A_K), np.array(T_A_K)
