@@ -499,7 +499,8 @@ def shuttleworth_wallace(T_A_K,
         
         #print("Iteration " + str(n_iterations) +", max. L diff: " + str(np.max(L_diff)))
 
-        i = np.logical_and(L_diff >= L_thres, flag != 255)
+        #i = np.logical_and(L_diff >= L_thres, flag != 255)
+        i = L_diff >= L_thres
         iterations[i] = n_iterations
         flag[i] = 0  
 
@@ -516,7 +517,7 @@ def shuttleworth_wallace(T_A_K,
                        "LAI": LAI[i], "leaf_width": leaf_width[i], 
                        "z0_soil": z0_soil[i], "z_u": z_u[i],  
                        "deltaT": T_S[i] - T_C[i], "massman_profile": massman_profile,
-                       'u':u[i],'rho':rho_a[i], 'c_p':Cp[i], 'f_cover':f_c[i], 
+                       'rho':rho_a[i], 'c_p':Cp[i], 'f_cover':f_c[i], 
                        'w_C':w_C[i],
                        "res_params": params}
         res_types = {"R_A": R_A_params, "R_x": R_x_params, "R_S": R_S_params}
@@ -562,9 +563,12 @@ def shuttleworth_wallace(T_A_K,
         
         T_C[i]=calc_T(H_C[i], T_A_K[i], R_A[i]+R_x[i], rho_a[i], Cp[i])
         T_S[i]=calc_T(H_S[i], T_A_K[i], R_A[i]+R_S[i], rho_a[i], Cp[i])
-        flag[np.logical_and(i,T_C<0)]=255
-        flag[np.logical_and(i,T_S<0)]=255
-        
+        no_valid_T = np.logical_and(i, T_C < 0)
+        flag[no_valid_T] = 255
+        T_C[no_valid_T] = T_A_K[no_valid_T]
+        no_valid_T = np.logical_and(i, T_S < 0)
+        flag[no_valid_T] = 255
+        T_S[no_valid_T] = T_A_K[no_valid_T]
         # Now L can be recalculated and the difference between iterations
         # derived
         if isinstance(UseL, bool):
