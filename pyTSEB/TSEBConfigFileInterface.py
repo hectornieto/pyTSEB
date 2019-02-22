@@ -177,6 +177,9 @@ class TSEBConfigFileInterface():
                                                   float(config_data['G_phase']),
                                                   float(config_data['G_shape'])],
                                                  12.0]
+                elif var_name == "water_stress":
+                    if 'calc_row' not in config_data:
+                       self.params['water_stress'] = False
                 # disTSEB specific parameters can be ignored by other models.
                 elif var_name in ["flux_LR_method", "correct_LST"]:
                     if self.params["model"] == "disTSEB":
@@ -203,6 +206,8 @@ class TSEBConfigFileInterface():
                             pass
                         elif (var == 'flux_LR' or var == 'flux_LR_ancillary') and\
                              self.params['model'] != 'disTSEB':
+                            pass
+                        elif (var == 'S_dn_24'):
                             pass
                         else:
                             raise e
