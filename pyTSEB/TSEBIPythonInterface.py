@@ -813,6 +813,8 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
             self.params['f_g'] = self.f_g
             self.params['w_C'] = self.w_c
 
+        self.params['water_stress'] = False
+
         self.ready = True
 
     def _on_model_change(self, name, value):
