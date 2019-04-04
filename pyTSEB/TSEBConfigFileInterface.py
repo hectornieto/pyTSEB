@@ -14,212 +14,235 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from re import match
+from configparser import ConfigParser, NoOptionError
+import itertools
 
 from pyTSEB.PyTSEB import PyTSEB, PyTSEB2T, PyDTD, PydisTSEB
 
 
+class ParserError(Exception):
+
+    def __init__(self, parameter, expected_type):
+        self.param = parameter
+        self.type = expected_type
+
+
+class MyConfigParser(ConfigParser):
+
+    def __init__(self, top_section, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.section = top_section
+
+    def get(self, option, *args, **kwargs):
+        return super().get(self.section, option, *args, **kwargs)
+
+    def getint(self, option, *args, **kwargs):
+        try:
+            val = super().getint(self.top_section, option, *args, **kwargs)
+        except ValueError:
+            raise ParserError(option, 'int')
+
+        return val
+
+    def getfloat(self, option, *args, **kwargs):
+        try:
+            val = super().getfloat(self.top_section, option, *args, **kwargs)
+        except ValueError:
+            raise ParserError(option, 'float')
+
+        return val
+
+    def has_option(self, option):
+        return super().has_option(self.section, option)
+
+
 class TSEBConfigFileInterface():
 
+    SITE_DESCRIPTION = [
+        'landcover',
+        'lat',
+        'lon',
+        'alt',
+        'stdlon',
+        'z_T',
+        'z_u',
+        'z0_soil'
+    ]
+
+    VEGETATION_PROPERTIES = [
+        'leaf_width',
+        'alpha_PT',
+        'x_LAD'
+    ]
+
+    SPECTRAL_PROPERTIES = [
+        'emis_C',
+        'emis_S',
+        'rho_vis_C',
+        'tau_vis_C',
+        'rho_nir_C',
+        'tau_nir_C',
+        'rho_vis_S',
+        'rho_nir_S'
+    ]
+
+    MODEL_FORMULATION = [
+        'model',
+        'resistance_form',
+        'KN_b',
+        'KN_c',
+        'KN_C_dash',
+        'G_form',
+        'G_constant',
+        'G_ratio',
+        'G_amp',
+        'G_phase',
+        'G_shape',
+        'calc_row',
+        'row_az',
+        'output_file',
+        'correct_LST',
+        'flux_LR_method'
+    ]
+
+    IMAGE_VARS = [
+        'T_R1',
+        'T_R0',
+        'VZA',
+        'LAI',
+        'f_c',
+        'f_g',
+        'h_C',
+        'w_C',
+        'input_mask',
+        'subset',
+        'time',
+        'DOY',
+        'T_A1',
+        'T_A0',
+        'u',
+        'ea',
+        'S_dn',
+        'L_dn',
+        'p',
+        'flux_LR',
+        'flux_LR_ancillary'
+    ]
+
+    POINT_VARS = [
+        'f_c',
+        'f_g',
+        'w_C'
+    ]
+
     def __init__(self):
-
-        # Variables common to both image and point series runs
-        self.input_site_description_vars = (
-            'landcover',
-            'lat',
-            'lon',
-            'alt',
-            'stdlon',
-            'z_T',
-            'z_u',
-            'z0_soil')
-        self.input_vegetation_properties_vars = (
-            'leaf_width',
-            'alpha_PT',
-            'x_LAD')
-        self.input_spectral_properties_vars = (
-            'emis_C',
-            'emis_S',
-            'rho_vis_C',
-            'tau_vis_C',
-            'rho_nir_C',
-            'tau_nir_C',
-            'rho_vis_S',
-            'rho_nir_S')
-        self.input_model_formulation_vars = (
-            'model',
-            'resistance_form',
-            'KN_b',
-            'KN_c',
-            'KN_C_dash',
-            'G_form',
-            'G_constant',
-            'G_ratio',
-            'G_amp',
-            'G_phase',
-            'G_shape',
-            'calc_row',
-            'row_az',
-            'output_file',
-            'correct_LST',
-            'flux_LR_method')
-
-        # Variables only for image runs
-        self.input_image_vars = (
-            'T_R1',
-            'T_R0',
-            'VZA',
-            'LAI',
-            'f_c',
-            'f_g',
-            'h_C',
-            'w_C',
-            'input_mask',
-            'subset',
-            'time',
-            'DOY',
-            'T_A1',
-            'T_A0',
-            'u',
-            'ea',
-            'S_dn',
-            'L_dn',
-            'p',
-            'flux_LR',
-            'flux_LR_ancillary')
-
-        # variables only for point series runs
-        self.input_point_vars = (
-            'input_file',
-            'f_c',
-            'f_g',
-            'w_C')
 
         self.params = {}
         self.ready = False
 
-    def parse_input_config(self, input_file, is_image=False):
+    @staticmethod
+    def parse_input_config(input_file, **kwargs):
         ''' Parses the information contained in a configuration file into a dictionary'''
 
-        # Prepare a list of expected input variables
-        if is_image:
-            input_vars = list(self.input_image_vars)
+        parser = MyConfigParser()
+        with open(input_file) as conf_file:
+            conf_file = itertools.chain(('[top]',), conf_file)  # dummy section to please parser
+            parser.read_file(conf_file)
+
+        return parser
+
+    @staticmethod
+    def _parse_common_config(parser):
+        """Parse all the stuff that's the same for image and point"""
+
+        conf = {}
+
+        conf['model'] = parser.get('model')
+        conf['output_file'] = parser.get('output_file')
+
+        conf['resistance_form'] = parser.getint('resistance_form', fallback=None)
+
+        conf['calc_row'] = parser.getint('calc_row', fallback=[0, 0])
+        if conf['calc_row'] != [0, 0]:
+            row_az = parser.getfloat('row_az')
+            conf['calc_row'] = [1, row_az]
+
+        g_form = parser.getint('G_form', fallback=1)
+        if g_form == 0:
+            g_constant = parser.getfloat('G_constant')
+            conf['G_form'] = [[0], g_constant]
+        elif g_form == 2:
+            g_params = [parser.getfloat(p) for p in ('G_amp', 'G_phase', 'G_shape')]
+            conf['G_form'] = [[2, *g_params], 12.0]
         else:
-            input_vars = list(self.input_point_vars)
-        input_vars.extend(self.input_site_description_vars)
-        input_vars.extend(self.input_spectral_properties_vars)
-        input_vars.extend(self.input_vegetation_properties_vars)
-        input_vars.extend(self.input_model_formulation_vars)
+            g_ratio = parser.getfloat('G_ratio')
+            conf['G_form'] = [[1], g_ratio]
 
-        # Read contents of the configuration file
-        config_data = dict()
-        try:
-            with open(input_file, 'r') as fid:
-                for line in fid:
-                    if match('\s', line):  # skip empty line
-                        continue
-                    elif match('#', line):  # skip comment line
-                        continue
-                    elif '=' in line:
-                        # Remove comments in case they exist
-                        line = line.split('#')[0].rstrip(' \r\n')
-                        field, value = line.split('=')
-                        if field in input_vars:
-                            config_data[field] = value
-        except IOError:
-            print('Error reading ' + input_file + ' file')
+        if conf['model'] == 'disTSEB':
+            conf['flux_LR_method'] = parser.get('flux_LR_method')
+            conf['correct_LST'] = parser.getint('correct_LST')
 
-        return config_data
+        return conf
 
-    def get_data(self, config_data, is_image):
+    @staticmethod
+    def _parse_image_config(parser):
+        """Parse the image specific things"""
+
+        conf = TSEBConfigFileInterface._parse_common_config(parser)
+
+        # remaining in MODEL_FORMULATION
+        conf.update({p: parser.get(p) for p in ['KN_b', 'KN_c', 'KN_C_dash']})
+
+        conf.update({p: parser.get(p) for p in TSEBConfigFileInterface.SITE_DESCRIPTION})
+        conf.update({p: parser.get(p) for p in TSEBConfigFileInterface.VEGETATION_PROPERTIES})
+        conf.update({p: parser.get(p) for p in TSEBConfigFileInterface.SPECTRAL_PROPERTIES})
+
+        img_vars = set(TSEBConfigFileInterface.IMAGE_VARS)
+        if conf['model'] != 'DTD':
+            img_vars -= set(['T_A0', 'T_R0'])
+        if conf['model'] != 'disTSEB':
+            img_vars -= set(['flux_LR', 'flux_LR_ancillary'])
+        if not parser.has_option('subset'):
+            img_vars.remove('subset')
+
+        conf.update({p: parser.get(p) for p in TSEBConfigFileInterface.IMAGE_VARS})
+
+        return conf
+
+    @staticmethod
+    def _parse_point_config(parser):
+        """Parse the point specific things"""
+
+        conf = TSEBConfigFileInterface._parse_common_config(parser)
+
+        # remaining in MODEL_FORMULATION
+        conf.update({p: parser.getfloat(p) for p in ['KN_b', 'KN_c', 'KN_C_dash']})
+
+        conf.update({p: parser.getfloat(p) for p in TSEBConfigFileInterface.SITE_DESCRIPTION})
+        conf.update({p: parser.getfloat(p) for p in TSEBConfigFileInterface.VEGETATION_PROPERTIES})
+        conf.update({p: parser.getfloat(p) for p in TSEBConfigFileInterface.SPECTRAL_PROPERTIES})
+
+        conf['input_file'] = parser.get('input_file')
+        conf.update({p: parser.get(p) for p in TSEBConfigFileInterface.POINT_VARS})
+
+        return conf
+
+    def get_data(self, parser, is_image):
         '''Parses the parameters in a configuration file directly to TSEB variables for running
            TSEB'''
+
         try:
-
-            for var_name in self.input_site_description_vars:
-                if is_image:
-                    self.params[var_name] = str(config_data[var_name]).strip('"')
-                else:
-                    self.params[var_name] = float(config_data[var_name])
-
-            for var_name in self.input_vegetation_properties_vars:
-                if is_image:
-                    self.params[var_name] = str(config_data[var_name]).strip('"')
-                else:
-                    self.params[var_name] = float(config_data[var_name])
-
-            for var_name in self.input_spectral_properties_vars:
-                if is_image:
-                    self.params[var_name] = str(config_data[var_name]).strip('"')
-                else:
-                    self.params[var_name] = float(config_data[var_name])
-
-            for var_name in self.input_model_formulation_vars:
-                if var_name in ["model", "output_file"]:
-                    self.params[var_name] = str(config_data[var_name]).strip('"')
-                elif var_name == "resistance_form":
-                    self.params[var_name] = int(config_data[var_name])
-                elif var_name == "calc_row":
-                    if 'calc_row' not in config_data or int(config_data['calc_row']) == 0:
-                        self.params['calc_row'] = [0, 0]
-                    else:
-                        self.params['calc_row'] = [1, float(config_data['row_az'])]
-                elif var_name == "G_form":
-                    if int(config_data['G_form']) == 0:
-                        self.params['G_form'] = [[0], float(config_data['G_constant'])]
-                    elif int(config_data['G_form']) == 1:
-                        self.params['G_form'] = [[1], float(config_data['G_ratio'])]
-                    elif int(config_data['G_form']) == 2:
-                        self.params['G_form'] = [[2,
-                                                  float(config_data['G_amp']),
-                                                  float(config_data['G_phase']),
-                                                  float(config_data['G_shape'])],
-                                                 12.0]
-                elif var_name == "flux_LR_method":
-                    if self.params["model"] == "disTSEB":
-                        self.params[var_name] = str(config_data[var_name]).strip('"')
-                elif var_name == "correct_LST":
-                    if self.params["model"] == "disTSEB":
-                        self.params[var_name] = int(config_data[var_name])
-                elif var_name in ["row_az", "G_constant", "G_ratio", "G_amp", "G_phase",
-                                  "G_shape"]:
-                    pass
-                else:
-                    if is_image:
-                        self.params[var_name] = str(config_data[var_name]).strip('"')
-                    else:
-                        self.params[var_name] = float(config_data[var_name])
-
             if is_image:
-                # Get the input parameters which are specific for running in image
-                # mode
-                for var in self.input_image_vars:
-                    try:
-                        self.params[var] = str(config_data[var]).strip('"')
-                    except KeyError as e:
-                        if (var == 'T_A0' or var == 'T_R0') and self.params['model'] != 'DTD':
-                            pass
-                        elif (var == 'subset'):
-                            pass
-                        elif (var == 'flux_LR' or var == 'flux_LR_ancillary') and\
-                             self.params['model'] != 'disTSEB':
-                            pass
-                        else:
-                            raise e
+                conf = self._parse_image_config(parser)
             else:
-                # Get the input parameters which are specific for running in point
-                # series mode
-                self.params['input_file'] = str(config_data['input_file']).strip('"')
-                self.params['f_c'] = float(config_data['f_c'])
-                self.params['f_g'] = float(config_data['f_g'])
-                self.params['w_C'] = float(config_data['w_C'])
-
+                conf = self._parse_point_config(parser)
             self.ready = True
+        except NoOptionError as e:
+            print(f'Error: missing parameter {e.option}')
+        except ParserError as e:
+            print(f'Error: could not parse parameter {e.param} as type {e.type}')
 
-        except KeyError as e:
-            print('Error: missing parameter '+str(e)+' in the input data.')
-        except ValueError as e:
-            print('Error: '+str(e))
+        self.params = conf
 
     def run(self, is_image):
 
