@@ -188,7 +188,7 @@ class TSEBConfigFileInterface():
     def _parse_image_config(parser):
         """Parse the image specific things"""
 
-        conf = TSEBConfigFileInterface._parse_common_config(parser)
+        conf = {}
 
         # remaining in MODEL_FORMULATION
         conf.update({p: parser.get(p) for p in ['KN_b', 'KN_c', 'KN_C_dash']})
@@ -205,7 +205,7 @@ class TSEBConfigFileInterface():
         if not parser.has_option('subset'):
             img_vars.remove('subset')
 
-        conf.update({p: parser.get(p) for p in TSEBConfigFileInterface.IMAGE_VARS})
+        conf.update({p: parser.get(p) for p in img_vars})
 
         return conf
 
@@ -213,7 +213,7 @@ class TSEBConfigFileInterface():
     def _parse_point_config(parser):
         """Parse the point specific things"""
 
-        conf = TSEBConfigFileInterface._parse_common_config(parser)
+        conf = {}
 
         # remaining in MODEL_FORMULATION
         conf.update({p: parser.getfloat(p) for p in ['KN_b', 'KN_c', 'KN_C_dash']})
@@ -231,11 +231,13 @@ class TSEBConfigFileInterface():
         '''Parses the parameters in a configuration file directly to TSEB variables for running
            TSEB'''
 
+        conf = self._parse_common_config(parser)
+
         try:
             if is_image:
-                conf = self._parse_image_config(parser)
+                conf.update(self._parse_image_config(parser))
             else:
-                conf = self._parse_point_config(parser)
+                conf.update(self._parse_point_config(parser))
             self.ready = True
         except NoOptionError as e:
             print(f'Error: missing parameter {e.option}')
