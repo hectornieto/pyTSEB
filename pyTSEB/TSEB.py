@@ -341,7 +341,7 @@ def TSEB_2T(T_C,
     omega0 = CI.calc_omega0_Kustas(LAI, f_c, x_LAD=x_LAD, isLAIeff=True)
 
     # And the net longwave radiation
-    Ln_C, Ln_S = rad.calc_L_n_Kustas(T_C, T_S, L_dn, LAI, emis_C, emis_S, x_LAD=x_LAD)
+    Ln_C, Ln_S = rad.calc_L_n_Campbell(T_C, T_S, L_dn, LAI, emis_C, emis_S, x_LAD=x_LAD)
 
     # Compute Net Radiation
     Rn_S = Sn_S + Ln_S
@@ -764,7 +764,7 @@ def TSEB_PT(Tr_K,
             )
 
             # Calculate net longwave radiation with current values of T_C and T_S
-            Ln_C[i], Ln_S[i] = rad.calc_L_n_Kustas(
+            Ln_C[i], Ln_S[i] = rad.calc_L_n_Campbell(
                 T_C[i], T_S[i], L_dn[i], LAI[i], emis_C[i], emis_S[i], x_LAD=x_LAD[i])
             delta_Rn[i] = Sn_C[i] + Ln_C[i]
             Rn_S[i] = Sn_S[i] + Ln_S[i]
@@ -1226,7 +1226,7 @@ def DTD(Tr_K_0,
                 F_ZERO_LE_S
 
             # Calculate net longwave radiation with current values of T_C and T_S
-            Ln_C[i], Ln_S[i] = rad.calc_L_n_Kustas(
+            Ln_C[i], Ln_S[i] = rad.calc_L_n_Campbell(
                 T_C[i], T_S[i], L_dn[i], LAI[i], emis_C[i], emis_S[i], x_LAD=x_LAD[i])
 
             # Calculate total net radiation of soil and canopy
