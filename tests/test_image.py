@@ -25,13 +25,13 @@ def test_image_nodiff():
         new_img = src.read()
     with rasterio.open(OLD_IMG_PATH) as src:
         old_img = src.read()
-    npt.assert_allclose(new_img, old_img)
+    npt.assert_allclose(new_img, old_img, rtol=1e-4)
 
     with rasterio.open(ANC_IMG_OUT_PATH) as src:
         new_img = src.read()
     with rasterio.open(OLD_ANC_IMG_PATH) as src:
         old_img = src.read()
-    npt.assert_allclose(new_img, old_img)
+    npt.assert_allclose(new_img, old_img, rtol=1e-4)
 
     os.remove(IMG_OUT_PATH)
     os.remove(ANC_IMG_OUT_PATH)
