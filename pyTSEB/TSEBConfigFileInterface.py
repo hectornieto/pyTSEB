@@ -30,23 +30,23 @@ class ParserError(Exception):
 class MyConfigParser(ConfigParser):
 
     def __init__(self, top_section, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, inline_comment_prefixes=('#',), **kwargs)
         self.section = top_section
 
-    def get(self, option, *args, **kwargs):
-        return super().get(self.section, option, *args, **kwargs)
+    def myget(self, option, **kwargs):
+        return super().get(self.section, option, **kwargs)
 
-    def getint(self, option, *args, **kwargs):
+    def getint(self, option, **kwargs):
         try:
-            val = super().getint(self.top_section, option, *args, **kwargs)
+            val = super().getint(self.section, option, **kwargs)
         except ValueError:
             raise ParserError(option, 'int')
 
         return val
 
-    def getfloat(self, option, *args, **kwargs):
+    def getfloat(self, option, **kwargs):
         try:
-            val = super().getfloat(self.top_section, option, *args, **kwargs)
+            val = super().getfloat(self.section, option, **kwargs)
         except ValueError:
             raise ParserError(option, 'float')
 
@@ -144,7 +144,7 @@ class TSEBConfigFileInterface():
     def parse_input_config(input_file, **kwargs):
         ''' Parses the information contained in a configuration file into a dictionary'''
 
-        parser = MyConfigParser()
+        parser = MyConfigParser('top')
         with open(input_file) as conf_file:
             conf_file = itertools.chain(('[top]',), conf_file)  # dummy section to please parser
             parser.read_file(conf_file)
@@ -157,8 +157,8 @@ class TSEBConfigFileInterface():
 
         conf = {}
 
-        conf['model'] = parser.get('model')
-        conf['output_file'] = parser.get('output_file')
+        conf['model'] = parser.myget('model')
+        conf['output_file'] = parser.myget('output_file')
 
         conf['resistance_form'] = parser.getint('resistance_form', fallback=None)
 
@@ -179,23 +179,21 @@ class TSEBConfigFileInterface():
             conf['G_form'] = [[1], g_ratio]
 
         if conf['model'] == 'disTSEB':
-            conf['flux_LR_method'] = parser.get('flux_LR_method')
+            conf['flux_LR_method'] = parser.myget('flux_LR_method')
             conf['correct_LST'] = parser.getint('correct_LST')
 
         return conf
 
     @staticmethod
-    def _parse_image_config(parser):
+    def _parse_image_config(parser, conf):
         """Parse the image specific things"""
 
-        conf = {}
-
         # remaining in MODEL_FORMULATION
-        conf.update({p: parser.get(p) for p in ['KN_b', 'KN_c', 'KN_C_dash']})
+        conf.update({p: parser.myget(p) for p in ['KN_b', 'KN_c', 'KN_C_dash']})
 
-        conf.update({p: parser.get(p) for p in TSEBConfigFileInterface.SITE_DESCRIPTION})
-        conf.update({p: parser.get(p) for p in TSEBConfigFileInterface.VEGETATION_PROPERTIES})
-        conf.update({p: parser.get(p) for p in TSEBConfigFileInterface.SPECTRAL_PROPERTIES})
+        conf.update({p: parser.myget(p) for p in TSEBConfigFileInterface.SITE_DESCRIPTION})
+        conf.update({p: parser.myget(p) for p in TSEBConfigFileInterface.VEGETATION_PROPERTIES})
+        conf.update({p: parser.myget(p) for p in TSEBConfigFileInterface.SPECTRAL_PROPERTIES})
 
         img_vars = set(TSEBConfigFileInterface.IMAGE_VARS)
         if conf['model'] != 'DTD':
@@ -205,15 +203,13 @@ class TSEBConfigFileInterface():
         if not parser.has_option('subset'):
             img_vars.remove('subset')
 
-        conf.update({p: parser.get(p) for p in img_vars})
+        conf.update({p: parser.myget(p) for p in img_vars})
 
         return conf
 
     @staticmethod
-    def _parse_point_config(parser):
+    def _parse_point_config(parser, conf):
         """Parse the point specific things"""
-
-        conf = {}
 
         # remaining in MODEL_FORMULATION
         conf.update({p: parser.getfloat(p) for p in ['KN_b', 'KN_c', 'KN_C_dash']})
@@ -222,8 +218,8 @@ class TSEBConfigFileInterface():
         conf.update({p: parser.getfloat(p) for p in TSEBConfigFileInterface.VEGETATION_PROPERTIES})
         conf.update({p: parser.getfloat(p) for p in TSEBConfigFileInterface.SPECTRAL_PROPERTIES})
 
-        conf['input_file'] = parser.get('input_file')
-        conf.update({p: parser.get(p) for p in TSEBConfigFileInterface.POINT_VARS})
+        conf['input_file'] = parser.myget('input_file')
+        conf.update({p: parser.getfloat(p) for p in TSEBConfigFileInterface.POINT_VARS})
 
         return conf
 
@@ -235,9 +231,9 @@ class TSEBConfigFileInterface():
 
         try:
             if is_image:
-                conf.update(self._parse_image_config(parser))
+                conf = self._parse_image_config(parser, conf)
             else:
-                conf.update(self._parse_point_config(parser))
+                conf = self._parse_point_config(parser, conf)
             self.ready = True
         except NoOptionError as e:
             print(f'Error: missing parameter {e.option}')
