@@ -11,9 +11,12 @@ from pyTSEB import TSEB
 import numpy as np
 
 # kB coefficient
-kB = 2.3
+kB = 0
 
-ITERATIONS = 100
+ITERATIONS = 15
+
+TALL_REFERENCE = 1
+SHORT_REFERENCE = 0
 
 def penman_monteith(T_A_K, 
                     u, 
@@ -178,7 +181,7 @@ def penman_monteith(T_A_K,
     
     # Calculate Net radiation
     T_0_K=T_A_K #♦ asumme aerodynamic tempearture equals air temperature
-    Ln = emis * L_dn - emis * TSEB.met.calc_stephan_boltzmann(T_0_K)
+    Ln = emis * (L_dn - TSEB.met.calc_stephan_boltzmann(T_0_K))
     Rn = np.asarray(Sn + Ln)
 
     # Compute Soil Heat Flux
@@ -448,22 +451,20 @@ def shuttleworth_wallace(T_A_K,
     lambda_=TSEB.met.calc_lambda(T_A_K)                     # latent heat of vaporization MJ kg-1
     psicr=TSEB.met.calc_psicr(Cp, p, lambda_)                     # Psicrometric constant (mb K-1)
     es=TSEB.met.calc_vapor_pressure(T_A_K)             # saturation water vapour pressure in mb
-    
-    # Calculate LAI dependent parameters for dataset where LAI > 0
-    F = np.asarray(LAI / f_c)  # Real LAI
-    
+
     rho_cp=rho_a*Cp
     vpd=es-ea
+    del es, ea
 
     # Calculate bulk stomatal conductance
     R_c=bulk_stomatal_conductance(LAI, Rst_min, leaf_type=leaf_type, environmental_factors=environmental_factors)
+    del environmental_factors, leaf_type, Rst_min
 
     F = np.asarray(LAI / f_c)  # Real LAI
     omega0=TSEB.CI.calc_omega0_Kustas(LAI, f_c, x_LAD=x_LAD, isLAIeff=True)
     
     
     # Initially assume stable atmospheric conditions and set variables for
-    # iteration of the Monin-Obukhov length
     # iteration of the Monin-Obukhov length
     if isinstance(UseL, bool):
         # Initially assume stable atmospheric conditions and set variables for
@@ -482,17 +483,14 @@ def shuttleworth_wallace(T_A_K,
    
     # First assume that temperatures equals the Air Temperature
     T_C, T_S = np.array(T_A_K), np.array(T_A_K)
-    emis_surf=f_c*emis_C+(1.-f_c)*emis_S
-    Ln=emis_surf*(L_dn-TSEB.rad.sb*T_A_K**4)
-    Ln_S=Ln*np.exp(-0.95 * LAI)
-    Ln_C=Ln-Ln_S
+    Ln_C, Ln_S = TSEB.rad.calc_L_n_Campbell(T_C, T_S, L_dn, LAI, emis_C, emis_S, x_LAD=x_LAD)
 
     # Outer loop for estimating stability.
     # Stops when difference in consecutives L is below a given threshold
     start_time = time.time()
     loop_time = time.time()
     for n_iterations in range(max_iterations):
-        i =  ~L_converged
+        i = ~L_converged
         if np.all(L_converged):
             if L_converged.size == 0:
                 print("Finished iterations with no valid solution")
@@ -510,23 +508,24 @@ def shuttleworth_wallace(T_A_K,
         flag[i] = 0  
 
         # Calculate aerodynamic resistances
-        R_A_params = {"z_T": z_T[i], "u_friction": u_friction[i], "L": L[i], 
-                      "d_0": d_0[i], "z_0H": z_0H[i]}
-        params = {k: res_params[k][i] for k in res_params.keys()}
-        R_x_params = {"u_friction": u_friction[i], "h_C": h_C[i], "d_0": d_0[i],
-                      "z_0M": z_0M[i], "L": L[i],  "LAI": LAI[i], 
-                      "leaf_width": leaf_width[i], "massman_profile": massman_profile,
-                      "res_params": params}
-        R_S_params = {"u_friction": u_friction[i], 'u':u[i], "h_C": h_C[i], "d_0": d_0[i],
-                      "z_0M": z_0M[i], "L": L[i], "F": F[i], "omega0": omega0[i], 
-                       "LAI": LAI[i], "leaf_width": leaf_width[i], 
-                       "z0_soil": z0_soil[i], "z_u": z_u[i],  
-                       "deltaT": T_S[i] - T_C[i], "massman_profile": massman_profile,
-                       'rho':rho_a[i], 'c_p':Cp[i], 'f_cover':f_c[i], 
-                       'w_C':w_C[i],
-                       "res_params": params}
-        res_types = {"R_A": R_A_params, "R_x": R_x_params, "R_S": R_S_params}
-        R_A[i], R_x[i], R_S[i] = TSEB.calc_resistances(resistance_form, res_types)
+        R_A[i], R_x[i], R_S[i] = TSEB.calc_resistances(resistance_form,
+                                                       {"R_A": {"z_T": z_T[i], "u_friction": u_friction[i], "L": L[i],
+                                                          "d_0": d_0[i], "z_0H": z_0H[i]},
+                                                        "R_x": {"u_friction": u_friction[i], "h_C": h_C[i],
+                                                               "d_0": d_0[i],
+                                                          "z_0M": z_0M[i], "L": L[i],  "LAI": LAI[i],
+                                                          "leaf_width": leaf_width[i], "massman_profile": massman_profile,
+                                                          "res_params": {k: res_params[k][i] for k in res_params.keys()}},
+                                                        "R_S": {"u_friction": u_friction[i], 'u':u[i], "h_C": h_C[i], "d_0": d_0[i],
+                                                          "z_0M": z_0M[i], "L": L[i], "F": F[i], "omega0": omega0[i],
+                                                           "LAI": LAI[i], "leaf_width": leaf_width[i],
+                                                           "z0_soil": z0_soil[i], "z_u": z_u[i],
+                                                           "deltaT": T_S[i] - T_C[i], "massman_profile": massman_profile,
+                                                           'rho':rho_a[i], 'c_p':Cp[i], 'f_cover':f_c[i],
+                                                           'w_C':w_C[i],
+                                                           "res_params": {k: res_params[k][i] for k in res_params.keys()}}
+                                                        }
+                                                       )
 
         _, _, _, C_s[i], C_c[i] = calc_effective_resistances_SW(R_A[i], 
                                                R_x[i], 
@@ -535,9 +534,7 @@ def shuttleworth_wallace(T_A_K,
                                                R_ss[i],
                                                delta[i],
                                                psicr[i])
-        # Calculate net longwave radiation with current values of T_C and T_S
-        Ln_C[i], Ln_S[i] = TSEB.rad.calc_L_n_Kustas(
-            T_C[i], T_S[i], L_dn[i], LAI[i], emis_C[i], emis_S[i])
+
         Rn_C[i] = Sn_C[i] + Ln_C[i]
         Rn_S[i] = Sn_S[i] + Ln_S[i]
         Rn[i] = Rn_C[i] + Rn_S[i]
@@ -565,15 +562,18 @@ def shuttleworth_wallace(T_A_K,
         LE_C[i]=(delta[i]*Rn_C[i]+rho_cp[i]*vpd_0[i]/R_x[i])/\
             (delta[i]+psicr[i]*(1.+R_c[i]/R_x[i])) 
         H_C[i]=Rn_C[i]-LE_C[i]
-        
+
         T_C[i]=calc_T(H_C[i], T_A_K[i], R_A[i]+R_x[i], rho_a[i], Cp[i])
         T_S[i]=calc_T(H_S[i], T_A_K[i], R_A[i]+R_S[i], rho_a[i], Cp[i])
-        no_valid_T = np.logical_and(i, T_C < 0)
+        no_valid_T = np.logical_and(i, T_C < T_A_K)
         flag[no_valid_T] = TSEB.F_INVALID
         T_C[no_valid_T] = T_A_K[no_valid_T]
-        no_valid_T = np.logical_and(i, T_S < 0)
+        no_valid_T = np.logical_and(i, T_S < T_A_K)
         flag[no_valid_T] = TSEB.F_INVALID
         T_S[no_valid_T] = T_A_K[no_valid_T]
+        # Calculate net longwave radiation with current values of T_C and T_S
+        Ln_C[i], Ln_S[i] = TSEB.rad.calc_L_n_Campbell(T_C[i], T_S[i], L_dn[i], LAI[i], emis_C[i], emis_S[i], x_LAD=x_LAD[i])
+
         # Now L can be recalculated and the difference between iterations
         # derived
         if isinstance(UseL, bool):
@@ -641,7 +641,140 @@ def shuttleworth_wallace(T_A_K,
                           iterations))
     
     return flag, T_S, T_C, vpd_0, Ln_S, Ln_C, LE, H, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A, u_friction, L, n_iterations
-        
+
+
+def pet_asce(T_A_K, u, ea, p, Sdn, z_u, z_T, f_cd=1, reference=TALL_REFERENCE):
+    '''Calcultaes the latent heat flux for well irrigated and cold pixel using
+    ASCE potential ET from a tall (alfalfa) crop
+    Parameters
+    ----------
+    T_A_K : float or array
+        Air temperature (Kelvin).
+    u : float or array
+        Wind speed above the canopy (m s-1).
+    ea : float or array
+        Water vapour pressure above the canopy (mb).
+    p : float or array
+        Atmospheric pressure (mb), use 1013 mb by default.
+    Sdn : float or array
+        Solar irradiance (W m-2).
+    z_u : float or array
+        Height of measurement of windspeed (m).
+    z_T : float or array
+        Height of measurement of air temperature (m).
+    f_cd : float or array
+        cloudiness factor, default = 1
+    reference : bool
+        If true, reference ET is for a tall canopy (i.e. alfalfa)
+    Returns
+    -------
+    LE : float or array
+        Potential latent heat flux (W m-2)
+    '''
+    # Atmospheric constants
+    delta = 10. * TSEB.met.calc_delta_vapor_pressure(T_A_K)  # slope of saturation water vapour pressure in mb K-1
+    lambda_ = TSEB.met.calc_lambda(T_A_K)                     # latent heat of vaporization MJ kg-1
+    c_p = TSEB.met.calc_c_p(p, ea)  # Heat capacity of air
+    psicr = TSEB.met.calc_psicr(c_p, p, lambda_)                     # Psicrometric constant (mb K-1)
+    es = TSEB.met.calc_vapor_pressure(T_A_K)             # saturation water vapour pressure in mb
+
+    # Net shortwave radiation
+    # Sdn = Sdn * 3600 / 1e6 # W m-2 to MJ m-2 h-1
+    albedo = 0.23
+    Sn = Sdn * (1.0 - albedo)
+    # Net longwave radiation
+    Ln = calc_Ln(T_A_K, ea, f_cd=f_cd)
+    # Net radiation
+    Rn = Sn + Ln
+    # Soil heat flux
+    if reference == TALL_REFERENCE:
+        G_ratio = 0.04
+        h_c = 0.5
+        C_d = 0.25
+        C_n = 66.0
+        # R_s = 30.0
+    else:
+        G_ratio = 0.1
+        h_c = 0.12
+        C_d = 0.24
+        C_n = 37.0
+        # R_s = 50.0
+
+    # Soil heat flux
+    G = G_ratio * Rn
+    # Windspeed at 2m height
+    z_0M = h_c * 0.123
+    d = h_c * 0.67
+    u_2 = wind_profile(u, z_u, z_0M, d, 2.0)
+
+    LE = (delta * (Rn - G) + psicr * C_n * u_2 * (es - ea) / T_A_K) / (delta + psicr * C_d * u_2)
+
+    return LE
+
+
+def pet_fao56(T_A_K, u, ea, p, Sdn, z_u, z_T, f_cd=1, reference=SHORT_REFERENCE):
+    '''Calcultaes the latent heat flux for well irrigated and cold pixel using
+    FAO56 potential ET from a short (grass) crop
+    Parameters
+    ----------
+    T_A_K : float or array
+        Air temperature (Kelvin).
+    u : float or array
+        Wind speed above the canopy (m s-1).
+    ea : float or array
+        Water vapour pressure above the canopy (mb).
+    p : float or array
+        Atmospheric pressure (mb), use 1013 mb by default.
+    Sdn : float or array
+        Solar irradiance (W m-2).
+    z_u : float or array
+        Height of measurement of windspeed (m).
+    z_T : float or array
+        Height of measurement of air temperature (m).
+    f_cd : float or array
+        cloudiness factor, default = 1
+    reference : bool
+        If true, reference ET is for a tall canopy (i.e. alfalfa)
+    '''
+    # Atmospheric constants
+    delta = 10. * TSEB.met.calc_delta_vapor_pressure(T_A_K)  # slope of saturation water vapour pressure in mb K-1
+    lambda_ = TSEB.met.calc_lambda(T_A_K)                     # latent heat of vaporization MJ kg-1
+    c_p = TSEB.met.calc_c_p(p, ea)  # Heat capacity of air
+    psicr = TSEB.met.calc_psicr(c_p, p, lambda_)                     # Psicrometric constant (mb K-1)
+    es = TSEB.met.calc_vapor_pressure(T_A_K)             # saturation water vapour pressure in mb
+    rho = TSEB.met.calc_rho(p, ea, T_A_K)
+
+    # Net shortwave radiation
+    # Sdn = Sdn * 3600 / 1e6 # W m-2 to MJ m-2 h-1
+    albedo = 0.23
+    Sn = Sdn * (1.0 - albedo)
+    # Net longwave radiation
+    Ln = calc_Ln(T_A_K, ea, f_cd=f_cd)
+    # Net radiation
+    Rn = Sn + Ln
+
+    if reference == TALL_REFERENCE:
+        G_ratio = 0.04
+        h_c = 0.5
+    else:
+        G_ratio = 0.1
+        h_c = 0.12
+
+    R_c = 70.0
+
+    # Soil heat flux
+    G = G_ratio * Rn
+    # Windspeed at 2m height
+    z_0M = h_c * 0.123
+    d = h_c * 2./3.
+    u_2 = wind_profile(u, z_u, z_0M, d, 2.0)
+    R_a = 208./u_2
+
+    LE = (delta * (Rn - G) + rho * c_p * (es - ea) / R_a) / (delta + psicr * (1.0 + R_c / R_a))
+
+    return LE
+
+
 def bulk_stomatal_conductance(LAI, Rst, leaf_type=TSEB.res.AMPHISTOMATOUS, environmental_factors=1):
     ''' Calculate the bulk canopy stomatal conductance.
     
@@ -790,4 +923,40 @@ def calc_effective_resistances_SW(R_A, R_x, R_S, R_c, R_ss, delta, psicr):
     C_s=1./(1.+R_s_SW*R_a_SW/(R_c_SW*(R_s_SW+R_a_SW)))   # Eq. 15 [Shuttleworth1988]_
     
     return R_a_SW, R_s_SW, R_c_SW, C_s, C_c
-    
+
+
+def calc_Ln(T_A_K, ea, f_cd=1):
+    ''' Estimates net longwave radiation for potential ET
+    Parameters
+    ----------
+    T_A_K : float or array
+        Air temperature (Kelvin).
+    u : float or array
+        Wind speed above the canopy (m s-1).
+    ea : float or array
+        Water vapour pressure above the canopy (mb).
+    f_cd : float or array
+        cloudiness factor
+    Returns
+    -------
+    Ln : float or array
+        Net longwave radiation (W m-2)
+    '''
+
+    Ln = TSEB.rad.sb * f_cd * (0.34 - 0.14 * np.sqrt(ea*0.1)) * T_A_K**4
+
+    return Ln
+
+
+def calc_cloudiness(Sdn, S_0):
+
+    f_cd = 1.35 * Sdn/S_0 - 0.35
+    f_cd = np.clip(f_cd, 0.05, 1.0)
+    return f_cd
+
+
+def wind_profile(u, z_u, z_0M, d, z):
+
+    u_z = u * np.log((z - d)/z_0M) / np.log((z_u - d)/z_0M)
+
+    return u_z
