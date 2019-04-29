@@ -130,6 +130,7 @@ def calc_u_Goudriaan(u_C, h_C, LAI, leaf_width, z):
 
     # extinction factor for wind speed
     a = calc_A_Goudriaan(h_C, LAI, leaf_width)
+    del LAI, leaf_width
     u_z = u_C * np.exp(-a * (1.0 - (z / h_C)))  # Eq. 4.48 in Goudriaan 1977
     return np.asarray(u_z)
 

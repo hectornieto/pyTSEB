@@ -93,9 +93,10 @@ def calc_L(ustar, T_A_K, rho, c_p, H, LE):
     # first convert latent heat into rate of surface evaporation (kg m-2 s-1)
     Lambda = met.calc_lambda(T_A_K)  # in J kg-1
     E = LE / Lambda
-
+    del LE, Lambda
     # Virtual sensible heat flux
     Hv = H + (0.61 * T_A_K * c_p * E)
+    del H, E
 
     L = np.asarray(np.ones(ustar.shape) * float('inf'))
     i = Hv != 0
@@ -134,6 +135,7 @@ def calc_Psi_H(zoL):
     # for unstable conditions
     i = zoL < 0.0    
     y = -zoL[i]
+    del zoL
     c = 0.33
     d = 0.057
     n = 0.78
@@ -172,6 +174,7 @@ def calc_Psi_M(zoL):
     # for unstable conditions
     i = zoL < 0
     y = -zoL[i]
+    del zoL
     a = 0.33
     b = 0.41
     x = np.asarray((y / a)**0.333333)
@@ -254,5 +257,6 @@ def calc_u_star(u, z_u, L, d_0, z_0M):
     L[L == 0.0] = 1e-36
     Psi_M = calc_Psi_M((z_u - d_0) / L)
     Psi_M0 = calc_Psi_M(z_0M / L)
+    del L
     u_star = u * k / (np.log((z_u - d_0) / z_0M) - Psi_M + Psi_M0)
     return np.asarray(u_star)

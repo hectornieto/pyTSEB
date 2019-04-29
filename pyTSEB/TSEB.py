@@ -70,7 +70,7 @@ from collections import deque
 import time
 
 import numpy as np
-from pyPro4Sail.FourSAIL import FourSAIL
+from pypro4sail.four_sail import foursail
 
 import pyTSEB.meteo_utils as met
 import pyTSEB.resistances as res
@@ -296,8 +296,10 @@ def TSEB_2T(T_C,
                          w_C,
                          calcG_params[1]],
                         [T_C] * 24)
+
     res_params = resistance_form[1]
     resistance_form = resistance_form[0]
+    # calcG_params[1] = None
     # Create the output variables
     [flag, T_AC, Ln_S, Ln_C, LE_C, H_C, LE_S, H_S, G, R_S, R_x,
         R_A, iterations] = [np.zeros(T_S.shape)+np.NaN for i in range(13)]
@@ -312,8 +314,8 @@ def TSEB_2T(T_C,
         max_iterations = 1  # No iteration
 
     # Calculate the general parameters
-    rho_a = met.calc_rho(p, ea, T_A_K)  # Air density
-    Cp = met.calc_c_p(p, ea)  # Heat capacity of air
+    rho = met.calc_rho(p, ea, T_A_K)  # Air density
+    c_p = met.calc_c_p(p, ea)  # Heat capacity of air
     z_0H = res.calc_z_0H(z_0M, kB=kB)  # Roughness length for heat transport
 
     # Calculate LAI dependent parameters for dataset where LAI > 0
@@ -322,7 +324,7 @@ def TSEB_2T(T_C,
     omega0 = CI.calc_omega0_Kustas(LAI, f_c, x_LAD=x_LAD, isLAIeff=True)
 
     # And the net longwave radiation
-    Ln_C, Ln_S = rad.calc_L_n_Kustas(T_C, T_S, L_dn, LAI, emis_C, emis_S)
+    Ln_C, Ln_S = rad.calc_L_n_Kustas(T_C, T_S, L_dn, LAI, emis_C, emis_S, x_LAD=x_LAD)
 
     # Compute Net Radiation
     Rn_S = Sn_S + Ln_S
@@ -353,19 +355,21 @@ def TSEB_2T(T_C,
         flag[i] = F_ALL_FLUXES
 
         # Calculate aerodynamic resistances
-        R_A_params = {"z_T": z_T[i], "u_friction": u_friction[i], "L": L[i],
-                      "d_0": d_0[i], "z_0H": z_0H[i]}
-        params = {k: res_params[k][i] for k in res_params.keys()}
-        R_x_params = {"u_friction": u_friction[i], "h_C": h_C[i], "d_0": d_0[i],
-                      "z_0M": z_0M[i], "L": L[i],  "LAI": LAI[i],
-                      "leaf_width": leaf_width[i], "res_params": params}
-        R_S_params = {"u_friction": u_friction[i], "h_C": h_C[i], "d_0": d_0[i],
-                      "z_0M": z_0M[i], "L": L[i], "F": F[i], "omega0": omega0[i],
-                      "LAI": LAI[i], "leaf_width": leaf_width[i],
-                      "z0_soil": z0_soil[i], "z_u": z_u[i],
-                      "deltaT": T_S[i] - T_C[i], "res_params": params}
-        res_types = {"R_A": R_A_params, "R_x": R_x_params, "R_S": R_S_params}
-        R_A[i], R_x[i], R_S[i] = calc_resistances(resistance_form, res_types)
+        R_A[i], R_x[i], R_S[i] = calc_resistances(resistance_form, {"R_A": {"z_T": z_T[i], "u_friction": u_friction[i], "L": L[i],
+                                                                              "d_0": d_0[i], "z_0H": z_0H[i]},
+                                                                       "R_x": {"u_friction": u_friction[i], "h_C": h_C[i],
+                                                                               "d_0": d_0[i],
+                                                                              "z_0M": z_0M[i], "L": L[i], "F": F[i], "LAI": LAI[i],
+                                                                              "leaf_width": leaf_width[i], "res_params": {k: res_params[k][i] for k in res_params.keys()}},
+                                                                       "R_S": {"u_friction": u_friction[i], "h_C": h_C[i],
+                                                                               "d_0": d_0[i],
+                                                                              "z_0M": z_0M[i], "L": L[i], "F": F[i], "omega0": omega0[i],
+                                                                              "LAI": LAI[i], "leaf_width": leaf_width[i],
+                                                                              "z0_soil": z0_soil[i], "z_u": z_u[i],
+                                                                              "deltaT": T_S[i] - T_C[i], 'u': u[i], 'rho': rho[i],
+                                                                              "c_p": c_p[i], "f_cover": f_c[i], "w_C": w_C[i],
+                                                                              "res_params": {k: res_params[k][i] for k in res_params.keys()}}
+                                                                       })
 
         # Compute air temperature at the canopy interface
         T_AC[i] = ((T_A_K[i] / R_A[i] + T_S[i] / R_S[i] + T_C[i] / R_x[i])
@@ -373,7 +377,7 @@ def TSEB_2T(T_C,
         T_AC = np.asarray(np.maximum(1e-3, T_AC))
 
         # Calculate canopy sensible heat flux (Norman et al 1995)
-        H_C[i] = rho_a[i] * Cp[i] * (T_C[i] - T_AC[i]) / R_x[i]
+        H_C[i] = rho[i] * c_p[i] * (T_C[i] - T_AC[i]) / R_x[i]
         # Assume no condensation in the canopy (LE_C<0)
         noC = np.logical_and(i, H_C > Rn_C)
         H_C[noC] = Rn_C[noC]
@@ -386,14 +390,14 @@ def TSEB_2T(T_C,
                  1.0,
                  T_A_K,
                  p,
-                 Cp,
+                 c_p,
                  alpha_PT),
                 Rn_C > 0))
         H_C[noI] = 0
         flag[noI] = F_ZERO_H_C
 
         # Calculate soil sensible heat flux (Norman et al 1995)
-        H_S[i] = rho_a[i] * Cp[i] * (T_S[i] - T_AC[i]) / R_S[i]
+        H_S[i] = rho[i] * c_p[i] * (T_S[i] - T_AC[i]) / R_S[i]
         # Assume that there is no condensation in the soil (LE_S<0)
         noC = np.logical_and.reduce((i, H_S > Rn_S - G, (Rn_S - G) > 0))
         H_S[noC] = Rn_S[noC] - G[noC]
@@ -412,8 +416,8 @@ def TSEB_2T(T_C,
             L[i] = MO.calc_L(
                 u_friction[i],
                 T_A_K[i],
-                rho_a[i],
-                Cp[i],
+                rho[i],
+                c_p[i],
                 H[i],
                 LE[i])
             L_diff = np.asarray(np.fabs(L - L_old) / np.fabs(L_old))
@@ -643,6 +647,7 @@ def TSEB_PT(Tr_K,
                         [Tr_K] * 24)
     res_params = resistance_form[1]
     resistance_form = resistance_form[0]
+    # calcG_params[1] = None
     # Create the output variables
     [flag, T_S, T_C, T_AC, Ln_S, Ln_C, H, LE, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A, delta_Rn,
      Rn_S, iterations] = [np.zeros(Tr_K.shape)+np.NaN for i in range(19)]
@@ -665,7 +670,7 @@ def TSEB_PT(Tr_K,
     F = np.asarray(LAI / f_c)  # Real LAI
     # Fraction of vegetation observed by the sensor
     f_theta = calc_F_theta_campbell(vza, F, w_C=w_C, Omega0=omega0, x_LAD=x_LAD)
-
+    del vza, ea
     # Initially assume stable atmospheric conditions and set variables for
     # iteration of the Monin-Obukhov length
     u_friction = MO.calc_u_star(u, z_u, L, d_0, z_0M)
@@ -718,25 +723,27 @@ def TSEB_PT(Tr_K,
                 F_ZERO_LE_S
 
             # Calculate aerodynamic resistances
-            R_A_params = {"z_T": z_T[i], "u_friction": u_friction[i], "L": L[i],
-                          "d_0": d_0[i], "z_0H": z_0H[i]}
-            params = {k: res_params[k][i] for k in res_params.keys()}
-            R_x_params = {"u_friction": u_friction[i], "h_C": h_C[i], "d_0": d_0[i],
-                          "z_0M": z_0M[i], "L": L[i], "F": F[i], "LAI": LAI[i],
-                          "leaf_width": leaf_width[i], "res_params": params}
-            R_S_params = {"u_friction": u_friction[i], "h_C": h_C[i], "d_0": d_0[i],
-                          "z_0M": z_0M[i], "L": L[i], "F": F[i], "omega0": omega0[i],
-                          "LAI": LAI[i], "leaf_width": leaf_width[i],
-                          "z0_soil": z0_soil[i], "z_u": z_u[i],
-                          "deltaT": T_S[i] - T_C[i], 'u': u[i], 'rho': rho[i],
-                          "c_p": c_p[i], "f_cover": f_c[i], "w_C": w_C[i],
-                          "res_params": params}
-            res_types = {"R_A": R_A_params, "R_x": R_x_params, "R_S": R_S_params}
-            R_A[i], R_x[i], R_S[i] = calc_resistances(resistance_form, res_types)
+            R_A[i], R_x[i], R_S[i] = calc_resistances(resistance_form,
+                                                      {"R_A": {"z_T": z_T[i], "u_friction": u_friction[i], "L": L[i],
+                                                              "d_0": d_0[i], "z_0H": z_0H[i]},
+                                                       "R_x": {"u_friction": u_friction[i], "h_C": h_C[i],
+                                                               "d_0": d_0[i],
+                                                              "z_0M": z_0M[i], "L": L[i], "F": F[i], "LAI": LAI[i],
+                                                              "leaf_width": leaf_width[i], "res_params": {k: res_params[k][i] for k in res_params.keys()}},
+                                                       "R_S": {"u_friction": u_friction[i], "h_C": h_C[i],
+                                                               "d_0": d_0[i],
+                                                              "z_0M": z_0M[i], "L": L[i], "F": F[i], "omega0": omega0[i],
+                                                              "LAI": LAI[i], "leaf_width": leaf_width[i],
+                                                              "z0_soil": z0_soil[i], "z_u": z_u[i],
+                                                              "deltaT": T_S[i] - T_C[i], 'u': u[i], 'rho': rho[i],
+                                                              "c_p": c_p[i], "f_cover": f_c[i], "w_C": w_C[i],
+                                                              "res_params": {k: res_params[k][i] for k in res_params.keys()}}
+                                                       }
+                                                      )
 
             # Calculate net longwave radiation with current values of T_C and T_S
             Ln_C[i], Ln_S[i] = rad.calc_L_n_Kustas(
-                T_C[i], T_S[i], L_dn[i], LAI[i], emis_C[i], emis_S[i])
+                T_C[i], T_S[i], L_dn[i], LAI[i], emis_C[i], emis_S[i], x_LAD=x_LAD[i])
             delta_Rn[i] = Sn_C[i] + Ln_C[i]
             Rn_S[i] = Sn_S[i] + Ln_S[i]
 
@@ -759,14 +766,15 @@ def TSEB_PT(Tr_K,
             LE_S[flag_t == F_INVALID] = 0
 
             # Recalculate soil resistance using new soil temperature
-            params = {k: res_params[k][i] for k in res_params.keys()}
-            R_S_params = {"u_friction": u_friction[i], "h_C": h_C[i], "d_0": d_0[i],
-                          "z_0M": z_0M[i], "L": L[i], "F": F[i], "omega0": omega0[i],
-                          "LAI": LAI[i], "leaf_width": leaf_width[i],
-                          "z0_soil": z0_soil[i],  "z_u": z_u[i],
-                          "deltaT": T_S[i] - T_C[i], "u": u[i], "rho": rho[i],
-                          "c_p": c_p[i], "f_cover": f_c[i], "w_C": w_C[i], "res_params": params}
-            _, _, R_S[i] = calc_resistances(resistance_form, {"R_S": R_S_params})
+            _, _, R_S[i] = calc_resistances(resistance_form, {"R_S": {"u_friction": u_friction[i], "h_C": h_C[i], "d_0": d_0[i],
+                                                                      "z_0M": z_0M[i], "L": L[i], "F": F[i], "omega0": omega0[i],
+                                                                      "LAI": LAI[i], "leaf_width": leaf_width[i],
+                                                                      "z0_soil": z0_soil[i],  "z_u": z_u[i],
+                                                                      "deltaT": T_S[i] - T_C[i], "u": u[i], "rho": rho[i],
+                                                                      "c_p": c_p[i], "f_cover": f_c[i], "w_C": w_C[i],
+                                                                      "res_params": {k: res_params[k][i] for k in res_params.keys()}}
+                                                              }
+                                            )
 
             i = np.logical_and.reduce((LE_S < 0, ~L_converged, flag != F_INVALID))
 
@@ -876,6 +884,7 @@ def _L_diff(L, L_old):
     L_diff = np.asarray(np.fabs(L - L_old) / np.fabs(L_old))
     L_diff[np.isnan(L_diff)] = float('inf')
     return L_diff
+
 
 def DTD(Tr_K_0,
         Tr_K_1,
@@ -1140,7 +1149,9 @@ def DTD(Tr_K_0,
                   "leaf_width": leaf_width, "z0_soil": z0_soil, "z_u": z_u,
                   "deltaT": deltaT, "res_params": params}
     res_types = {"R_A": R_A_params, "R_x": R_x_params, "R_S": R_S_params}
+    del R_A_params, R_x_params, R_S_params
     R_A, R_x, R_S = calc_resistances(resistance_form, res_types)
+    del res_types
 
     # Outer loop until canopy and soil temperatures have stabilised
     T_C_prev = np.zeros(Tr_K_1.shape)
@@ -1181,7 +1192,7 @@ def DTD(Tr_K_0,
 
             # Calculate net longwave radiation with current values of T_C and T_S
             Ln_C[i], Ln_S[i] = rad.calc_L_n_Kustas(
-                T_C[i], T_S[i], L_dn[i], LAI[i], emis_C[i], emis_S[i])
+                T_C[i], T_S[i], L_dn[i], LAI[i], emis_C[i], emis_S[i], x_LAD=x_LAD[i])
 
             # Calculate total net radiation of soil and canopy
             delta_Rn = Sn_C + Ln_C
@@ -2258,7 +2269,7 @@ def calc_4SAIL_emission_param(
      rsot,
      gamma_sdf,
      gammas_db,
-     gamma_so] = FourSAIL(LAI,
+     gamma_so] = foursail(LAI,
                           hotspot,
                           lidf,
                           sza,
@@ -2493,6 +2504,7 @@ def calc_resistances(res_form, res_types):
     if 'R_A' in res_types.keys():
         z_T, u_friction, L, d_0, z_0H = \
             [res_types['R_A'].get(k) for k in ['z_T', 'u_friction', 'L', 'd_0', 'z_0H']]
+        del res_types['R_A']
         calc_R_A = True
     else:
         calc_R_A = False
@@ -2500,6 +2512,7 @@ def calc_resistances(res_form, res_types):
         u_friction, h_C, d_0, z_0M, L, F, LAI, leaf_width, res_params = \
             [res_types['R_x'].get(k) for k in ['u_friction', 'h_C', 'd_0', 'z_0M',
                                                'L', 'F', 'LAI', 'leaf_width', 'res_params']]
+        del res_types['R_x']
         calc_R_x = True
     else:
         calc_R_x = False
@@ -2510,7 +2523,7 @@ def calc_resistances(res_form, res_types):
                                                 'L', 'omega0', 'F', 'leaf_width',
                                                 'z0_soil', 'z_u', 'deltaT',
                                                 'u', 'rho', 'c_p', 'f_cover', 'w_C', 'res_params']]
-
+        del res_types['R_S']
         calc_R_S = True
     else:
         calc_R_S = False
@@ -2518,6 +2531,7 @@ def calc_resistances(res_form, res_types):
     # Calculate the aerodynamic resistance
     if calc_R_A:
         R_A = res.calc_R_A(z_T, u_friction, L, d_0, z_0H)
+        del z_T, z_0H
 
     # Calculate soil and canopy resistances
     if res_form == KUSTAS_NORMAN_1999:
@@ -2528,6 +2542,7 @@ def calc_resistances(res_form, res_types):
             # Vegetation in series with soil, i.e. well mixed, so we use
             # the landscape LAI
             R_x = res.calc_R_x_Norman(LAI, leaf_width, u_d_zm, res_params)
+            del LAI, u_d_zm
         if calc_R_S:
             if u_C is None:
                 u_C = wnd.calc_u_C_star(u_friction, h_C, d_0, z_0M, L)
@@ -2541,6 +2556,7 @@ def calc_resistances(res_form, res_types):
             # Vegetation in series with soil, i.e. well mixed, so we use
             # the landscape LAI
             R_x = res.calc_R_x_Choudhury(u_C, LAI, leaf_width)
+            del LAI, leaf_width
         if calc_R_S:
             R_S = res.calc_R_S_Choudhury(u_friction, h_C, z_0M, d_0, z_u, z0_soil)
 
@@ -2549,6 +2565,7 @@ def calc_resistances(res_form, res_types):
             # Vegetation in series with soil, i.e. well mixed, so we use
             # the landscape LAI
             R_x = res.calc_R_x_McNaughton(LAI, leaf_width, u_friction)
+            del LAI, leaf_width
         if calc_R_S:
             R_S = res.calc_R_S_McNaughton(u_friction)
 
@@ -2560,6 +2577,8 @@ def calc_resistances(res_form, res_types):
             # Vegetation in series with soil, i.e. well mixed, so we use
             # the landscape LAI
             R_x = res.calc_R_x_Choudhury(u_C, LAI, leaf_width, alpha_prime=alpha_prime)
+            del LAI, alpha_prime
+
         if calc_R_S:
             # Clumped vegetation enhanced wind speed for the soil surface
             alpha_k = wnd.calc_A_Goudriaan(h_C, omega0 * F, leaf_width)
@@ -2573,6 +2592,7 @@ def calc_resistances(res_form, res_types):
             # Vegetation in series with soil, i.e. well mixed, so we use
             # the landscape LAI
             R_x = res.calc_R_x_Norman(LAI, leaf_width, u_d_zm, res_params)
+            del LAI, leaf_width, u_d_zm
         if calc_R_S:
             R_S, _ = res.calc_R_S_Haghighi(u, h_C, z_u, rho, c_p, z0_soil=z0_soil, f_cover=f_cover,
                                            w_C=w_C)

@@ -183,9 +183,12 @@ def calc_roughness(LAI, h_C, w_C=1, landcover=CROP,f_c=None):
     # Shrublands
     mask = np.logical_or(landcover == SHRUB_O, landcover == SHRUB_C)
     lambda_[mask] = f_c[mask] * w_C[mask]
-
+    
+    del w_C, f_c
     # Calculation of the Raupach (1994) formulae
     z0M_factor, d_factor = raupach(lambda_)
+
+    del lambda_
 
     # Calculation of correction factors from  Lindroth
     fz = np.asarray(0.3299 * LAI**1.5 + 2.1713)
@@ -201,6 +204,7 @@ def calc_roughness(LAI, h_C, w_C=1, landcover=CROP,f_c=None):
     z0M_factor = np.asarray(z0M_factor * fz)
     d_factor = np.asarray(d_factor * fd)
 
+    del fz, fd
     # For crops and grass we use a fixed ratio of canopy height
     mask = np.logical_or.reduce((landcover == CROP, landcover == GRASS,
                          landcover == SAVANNA, landcover == CROP_MOSAIC))
@@ -260,6 +264,8 @@ def calc_R_A(z_T, ustar, L, d_0, z_0H):
     Psi_H = MO.calc_Psi_H((z_T - d_0) / L)
     Psi_H0 = MO.calc_Psi_H(z_0H / L)
 
+    del L, z_0H, z_T
+
     #i = np.logical_and(z_star>0, z_T<=z_star)
     #Psi_H_star[i] = MO.calc_Psi_H_star(z_T[i], L[i], d_0[i], z_0H[i], z_star[i])
 
@@ -307,6 +313,7 @@ def calc_R_S_Choudhury(u_star, h_C, z_0M, d_0, zm, z0_soil=0.01, alpha_k=2.0):
 
     # Soil resistance eqs. 24 & 25 [Choudhury1988]_
     K_h = k * u_star * (h_C - d_0)
+    del u_star
     R_S = (h_C * np.exp(alpha_k) / (alpha_k * K_h)) * \
         (np.exp(-alpha_k * z0_soil / h_C) - np.exp(-alpha_k * (d_0 + z_0M) / h_C))
     return np.asarray(R_S)
@@ -381,13 +388,18 @@ def calc_R_S_Haghighi(u, h_C, zm, rho, c_p, z0_soil=0.01, f_cover=0, w_C=1, thet
     f_theta = (1./np.sqrt(np.pi*(theta-theta_res)))*(np.sqrt(np.pi/(4*(theta-theta_res)))-1)
 
     THETA = (theta-theta_res)/(phi-theta_res)
+    
+    del theta, theta_res, phi
+    
     K_sat = (0.0077*n**7.35)/(24.*3600.)  #[m s-1]
     m     = 1.-1./n
     K_eff = 4*K_sat*np.sqrt(THETA)*(1-(1-THETA**(1/m))**m)**2     #[Haghighi et al., 2013, WRR]
+    
+    del K_sat, m, n 
+    w_C=h_C*w_C
 
-    width=h_C*w_C
-    A_veg  = (np.pi/4)*width**2
-    lambda_ = width*h_C*f_cover/A_veg
+    A_veg  = (np.pi/4)*w_C**2
+    lambda_ = w_C*h_C*f_cover/A_veg
     
     h_C[f_cover==0]=0
     lambda_[f_cover==0]=0
