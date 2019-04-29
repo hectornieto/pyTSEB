@@ -194,7 +194,7 @@ def calc_stephan_boltzmann(T_K):
 
 
 def calc_theta_s(xlat, xlong, stdlng, doy, year, ftime):
-    '''Calculates the Sun Zenith Angle (SZA).
+    """Calculates the Sun Zenith Angle (SZA).
 
     Parameters
     ----------
@@ -218,19 +218,22 @@ def calc_theta_s(xlat, xlong, stdlng, doy, year, ftime):
 
     References
     ----------
-    Adpopted from Martha Anderson's fortran code for ALEXI which in turn was based on Cupid.'''
+    Adopted from Martha Anderson's fortran code for ALEXI which in turn was based on Cupid.
+    """
 
     pid180 = np.pi / 180
     pid2 = np.pi / 2.0
+
     # Latitude computations
     xlat = np.radians(xlat)
     sinlat = np.sin(xlat)
     coslat = np.cos(xlat)
+
     # Declination computations
     kday = (year - 1977.0) * 365.0 + doy + 28123.0
     xm = np.radians(-1.0 + 0.9856 * kday)
-    delnu = 2.0 * 0.01674 * np.sin(xm) + \
-        1.25 * 0.01674 * 0.01674 * np.sin(2.0 * xm)
+    delnu = (2.0 * 0.01674 * np.sin(xm)
+             + 1.25 * 0.01674 * 0.01674 * np.sin(2.0 * xm))
     slong = np.radians((-79.8280 + 0.9856479 * kday)) + delnu
     decmax = np.sin(np.radians(23.44))
     decl = np.arcsin(decmax * np.sin(slong))
@@ -238,18 +241,21 @@ def calc_theta_s(xlat, xlong, stdlng, doy, year, ftime):
     cosdec = np.cos(decl)
     eqtm = 9.4564 * np.sin(2.0 * slong) / cosdec - 4.0 * delnu / pid180
     eqtm = eqtm / 60.0
+
     # Get sun zenith angle
     timsun = ftime  # MODIS time is already solar time
     hrang = (timsun - 12.0) * pid2 / 6.0
     theta_s = np.arccos(sinlat * sindec + coslat * cosdec * np.cos(hrang))
+
     # if the sun is below the horizon just set it slightly above horizon
     theta_s = np.minimum(theta_s, pid2 - 0.0000001)
     theta_s = np.degrees(theta_s)
+
     return np.asarray(theta_s)
 
 
 def calc_sun_angles(lat, lon, stdlon, doy, ftime):
-    '''Calculates the Sun Zenith and Azimuth Angles (SZA & SAA).
+    """Calculates the Sun Zenith and Azimuth Angles (SZA & SAA).
 
     Parameters
     ----------
@@ -270,40 +276,45 @@ def calc_sun_angles(lat, lon, stdlon, doy, ftime):
         Sun Zenith Angle (degrees).
     saa : float
         Sun Azimuth Angle (degrees).
-
-    '''
+    """
 
     lat, lon, stdlon, doy, ftime = map(
         np.asarray, (lat, lon, stdlon, doy, ftime))
+
     # Calculate declination
     declination = 0.409 * np.sin((2.0 * np.pi * doy / 365.0) - 1.39)
-    EOT = 0.258 * np.cos(declination) - 7.416 * np.sin(declination) - \
-        3.648 * np.cos(2.0 * declination) - 9.228 * np.sin(2.0 * declination)
+    EOT = (0.258 * np.cos(declination) - 7.416 * np.sin(declination)
+           - 3.648 * np.cos(2.0 * declination) - 9.228 * np.sin(2.0 * declination))
     LC = (stdlon - lon) / 15.
     time_corr = (-EOT / 60.) + LC
     solar_time = ftime - time_corr
+
     # Get the hour angle
     w = np.asarray((solar_time - 12.0) * 15.)
+
     # Get solar elevation angle
-    sin_thetha = np.cos(np.radians(w)) * np.cos(declination) * np.cos(np.radians(lat)) + \
-                 np.sin(declination) * np.sin(np.radians(lat))
+    sin_thetha = (np.cos(np.radians(w)) * np.cos(declination) * np.cos(np.radians(lat))
+                  + np.sin(declination) * np.sin(np.radians(lat)))
     sun_elev = np.arcsin(sin_thetha)
+
     # Get solar zenith angle
     sza = np.pi / 2.0 - sun_elev
     sza = np.asarray(np.degrees(sza))
+
     # Get solar azimuth angle
     cos_phi = np.asarray(
-        (np.sin(declination) * np.cos(np.radians(lat)) -
-         np.cos(np.radians(w)) * np.cos(declination) * np.sin(np.radians(lat))) /
-        np.cos(sun_elev))
+        (np.sin(declination) * np.cos(np.radians(lat))
+         - np.cos(np.radians(w)) * np.cos(declination) * np.sin(np.radians(lat)))
+        / np.cos(sun_elev))
     saa = np.zeros(sza.shape)
     saa[w <= 0.0] = np.degrees(np.arccos(cos_phi[w <= 0.0]))
     saa[w > 0.0] = 360. - np.degrees(np.arccos(cos_phi[w > 0.0]))
+
     return np.asarray(sza), np.asarray(saa)
 
 
 def calc_vapor_pressure(T_K):
-    '''Calculate the saturation water vapour pressure.
+    """Calculate the saturation water vapour pressure.
 
     Parameters
     ----------
@@ -313,7 +324,8 @@ def calc_vapor_pressure(T_K):
     Returns
     -------
     ea : float
-        saturation water vapour pressure (mb).'''
+        saturation water vapour pressure (mb).
+    """
 
     T_C = T_K - 273.15
     ea = 6.112 * np.exp((17.67 * T_C) / (T_C + 243.5))
@@ -321,7 +333,7 @@ def calc_vapor_pressure(T_K):
 
 
 def calc_delta_vapor_pressure(T_K):
-    '''Calculate the slope of saturation water vapour pressure.
+    """Calculate the slope of saturation water vapour pressure.
 
     Parameters
     ----------
@@ -331,11 +343,11 @@ def calc_delta_vapor_pressure(T_K):
     Returns
     -------
     s : float
-        slope of the saturation water vapour pressure (kPa K-1)'''
+        slope of the saturation water vapour pressure (kPa K-1)
+    """
 
     T_C = T_K - 273.15
-    s = 4098.0 * (0.6108 * np.exp(17.27 * T_C / (T_C + 237.3))) / \
-        ((T_C + 237.3)**2)
+    s = 4098.0 * (0.6108 * np.exp(17.27 * T_C / (T_C + 237.3))) / ((T_C + 237.3)**2)
     return np.asarray(s)
 
 
@@ -386,12 +398,12 @@ def calc_lapse_rate_moist(T_A_K, ea, p):
     r = calc_mixing_ratio(ea, p)
     c_p = calc_c_p(p, ea)
     lambda_v = calc_lambda(T_A_K)
-    Gamma_w = (g * (R_d * T_A_K**2 + lambda_v * r * T_A_K) /
-               (c_p * R_d * T_A_K**2 + lambda_v**2 * r * epsilon))
+    Gamma_w = ((g * (R_d * T_A_K**2 + lambda_v * r * T_A_K)
+               / (c_p * R_d * T_A_K**2 + lambda_v**2 * r * epsilon)))
     return Gamma_w
 
 
-def flux_2_evaporation(flux, T_K=20+273.15, time_domain=1):
+def flux_2_evaporation(flux, T_K=20 + 273.15, time_domain=1):
     '''Converts heat flux units (W m-2) to evaporation rates (mm time-1) to a given temporal window
 
     Parameters
@@ -410,8 +422,10 @@ def flux_2_evaporation(flux, T_K=20+273.15, time_domain=1):
         evaporation rate at the time_domain. Default mm h-1
     '''
     # Calculate latent heat of vaporization
-    lambda_ = calc_lambda(T_K) # J kg-1
+    lambda_ = calc_lambda(T_K)  # J kg-1
     ET = flux / lambda_  # kg s-1
+
     # Convert instantaneous rate to the time_domain rate
     ET = ET * time_domain * 3600.
+
     return ET
