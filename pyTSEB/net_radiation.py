@@ -42,15 +42,24 @@ import numpy as np
 
 import pyTSEB.meteo_utils as met
 
-#==============================================================================
-# List of constants used in the netRadiation Module
-#==============================================================================
-# Stephan Boltzmann constant (W m-2 K-4)
-sb = 5.670373e-8
+
+TAUD_STEP_SIZE_DEG = 5
+
+
+def _calc_taud(x_lad, lai):
+
+    taud = 0
+    for angle in range(0, 90, TAUD_STEP_SIZE_DEG):
+        angle = np.radians(angle)
+        akd = calc_K_be_Campbell(angle, x_lad, radians=True)
+        taub = np.exp(-akd * lai)
+        taud += taub * np.cos(angle) * np.sin(angle) * np.radians(TAUD_STEP_SIZE_DEG)
+
+    return 2.0 * taud
 
 
 def calc_difuse_ratio(S_dn, sza, press=1013.25, SOLAR_CONSTANT=1320):
-    '''Fraction of difuse shortwave radiation.
+    """Fraction of difuse shortwave radiation.
 
     Partitions the incoming solar radiation into PAR and non-PR and
     diffuse and direct beam component of the solar spectrum.
@@ -83,17 +92,19 @@ def calc_difuse_ratio(S_dn, sza, press=1013.25, SOLAR_CONSTANT=1320):
         visible and near-infrared components, Agricultural and Forest Meteorology,
         Volume 34, Issue 2, Pages 205-213,
         http://dx.doi.org/10.1016/0168-1923(85)90020-6.
-    '''
+    """
 
     # Convert input scalars to numpy arrays
     S_dn, sza, press = map(np.asarray, (S_dn, sza, press))
     difvis, difnir, fvis, fnir = [np.zeros(S_dn.shape) for i in range(4)]
     fvis = fvis + 0.6
     fnir = fnir + 0.4
+
     # Calculate potential (clear-sky) visible and NIR solar components
     # Weiss & Norman 1985
     Rdirvis, Rdifvis, Rdirnir, Rdifnir = calc_potential_irradiance_weiss(
         sza, press=press, SOLAR_CONSTANT=SOLAR_CONSTANT)
+
     # Potential total solar radiation
     potvis = np.asarray(Rdirvis + Rdifvis)
     potvis[potvis <= 0] = 1e-6
@@ -101,12 +112,13 @@ def calc_difuse_ratio(S_dn, sza, press=1013.25, SOLAR_CONSTANT=1320):
     potnir[potnir <= 0] = 1e-6
     fclear = S_dn / (potvis + potnir)
     fclear = np.minimum(1.0, fclear)
+
     # Partition S_dn into VIS and NIR
     fvis = potvis / (potvis + potnir)  # Eq. 7
     fnir = potnir / (potvis + potnir)  # Eq. 8
-    fvis = np.maximum(0, fvis)
-    fvis = np.minimum(1, fvis)
+    fvis = np.clip(fvis, 0.0, 1.0)
     fnir = 1.0 - fvis
+
     # Estimate direct beam and diffuse fractions in VIS and NIR wavebands
     ratiox = np.asarray(fclear)
     ratiox[fclear > 0.9] = 0.9
@@ -115,17 +127,17 @@ def calc_difuse_ratio(S_dn, sza, press=1013.25, SOLAR_CONSTANT=1320):
     ratiox[fclear > 0.88] = 0.88
     dirnir = (Rdirnir / potnir) * \
         (1. - ((.88 - ratiox) / .68)**.6667)  # Eq. 12
-    dirvis = np.maximum(0.0, dirvis)
-    dirnir = np.maximum(0.0, dirnir)
-    dirvis = np.minimum(1, dirvis)
-    dirnir = np.minimum(1, dirnir)
+
+    dirvis = np.clip(dirvis, 0.0, 1.0)
+    dirnir = np.clip(dirnir, 0.0, 1.0)
     difvis = 1.0 - dirvis
     difnir = 1.0 - dirnir
+
     return np.asarray(difvis), np.asarray(
         difnir), np.asarray(fvis), np.asarray(fnir)
 
 
-def calc_emiss_atm(ea, T_A_K):
+def calc_emiss_atm(ea, t_a_k):
     '''Atmospheric emissivity
 
     Estimates the effective atmospheric emissivity for clear sky.
@@ -134,7 +146,7 @@ def calc_emiss_atm(ea, T_A_K):
     ----------
     ea : float
         atmospheric vapour pressure (mb).
-    T_A_K : float
+    t_a_k : float
         air temperature (Kelvin).
 
     Returns
@@ -148,11 +160,12 @@ def calc_emiss_atm(ea, T_A_K):
         from clear skies, Water Resour. Res., 11(5), 742-744,
         htpp://dx.doi.org/10.1029/WR011i005p00742.'''
 
-    emiss_air = 1.24 * (ea / T_A_K)**(1. / 7.)  # Eq. 11 in [Brutsaert1975]_
+    emiss_air = 1.24 * (ea / t_a_k)**(1. / 7.)  # Eq. 11 in [Brutsaert1975]_
+
     return np.asarray(emiss_air)
 
 
-def calc_longwave_irradiance(ea, T_A_K, p=1013.25, z_T=2.0):
+def calc_longwave_irradiance(ea, t_a_k, p=1013.25, z_T=2.0):
     '''Longwave irradiance
 
     Estimates longwave atmospheric irradiance from clear sky.
@@ -161,7 +174,7 @@ def calc_longwave_irradiance(ea, T_A_K, p=1013.25, z_T=2.0):
     ----------
     ea : float
         atmospheric vapour pressure (mb).
-    T_A_K : float
+    t_a_k : float
         air temperature (K).
     p : float
         air pressure (mb)
@@ -174,14 +187,15 @@ def calc_longwave_irradiance(ea, T_A_K, p=1013.25, z_T=2.0):
         Longwave atmospheric irradiance (W m-2)
     '''
 
-    lapse_rate = met.calc_lapse_rate_moist(T_A_K, ea, p)
-    T_A_surface = T_A_K - z_T * lapse_rate
-    emisAtm = calc_emiss_atm(ea, T_A_surface)
-    L_dn = emisAtm * met.calc_stephan_boltzmann(T_A_surface)
+    lapse_rate = met.calc_lapse_rate_moist(t_a_k, ea, p)
+    t_a_surface = t_a_k - z_T * lapse_rate
+    emisAtm = calc_emiss_atm(ea, t_a_surface)
+    L_dn = emisAtm * met.calc_stephan_boltzmann(t_a_surface)
+
     return np.asarray(L_dn)
 
 
-def calc_K_be_Campbell(theta, x_LAD=1):
+def calc_K_be_Campbell(theta, x_lad=1, radians=False):
     ''' Beam extinction coefficient
 
     Calculates the beam extinction coefficient based on [Campbell1998]_ ellipsoidal
@@ -190,18 +204,21 @@ def calc_K_be_Campbell(theta, x_LAD=1):
     Parameters
     ----------
     theta : float
-        incidence zenith angle (degrees).
-    x_LAD : float, optional
+        incidence zenith angle.
+    x_lad : float, optional
         Chi parameter for the ellipsoidal Leaf Angle Distribution function,
-        use x_LAD=1 for a spherical LAD.
+        use x_lad=1 for a spherical LAD.
+    radians : bool, optional
+        Should be True if theta is in radians.
+        Default is False.
 
     Returns
     -------
     K_be : float
         beam extinction coefficient.
-    x_LAD: float, optional
+    x_lad: float, optional
         x parameter for the ellipsoidal Leaf Angle Distribution function,
-        use x_LAD=1 for a spherical LAD.
+        use x_lad=1 for a spherical LAD.
 
     References
     ----------
@@ -210,17 +227,21 @@ def calc_K_be_Campbell(theta, x_LAD=1):
         https://archive.org/details/AnIntroductionToEnvironmentalBiophysics.
     '''
 
-    theta = np.radians(theta)
-    K_be = np.sqrt(x_LAD**2 + np.tan(theta)**2) / \
-        (x_LAD + 1.774 * (x_LAD + 1.182)**-0.733)
-    return np.asarray(K_be)
+    if not radians:
+        theta = np.radians(theta)
+
+    K_be = (np.sqrt(x_lad**2 + np.tan(theta)**2)
+            / (x_lad + 1.774 * (x_lad + 1.182)**-0.733))
+
+    return K_be
 
 
-def calc_L_n_Kustas(T_C, T_S, L_dn, LAI, emisVeg, emisGrd, x_LAD=1):
+def calc_L_n_Kustas(T_C, T_S, L_dn, lai, emisVeg, emisGrd, x_LAD=1):
     ''' Net longwave radiation for soil and canopy layers
 
     Estimates the net longwave radiation for soil and canopy layers unisg based on equation 2a
-    from [Kustas1999]_ and incorporated the effect of the Leaf Angle Distribution based on [Campbell1998]_
+    from [Kustas1999]_ and incorporated the effect of the Leaf Angle Distribution based on
+    [Campbell1998]_
 
     Parameters
     ----------
@@ -230,15 +251,15 @@ def calc_L_n_Kustas(T_C, T_S, L_dn, LAI, emisVeg, emisGrd, x_LAD=1):
         Soil temperature (K).
     L_dn : float
         Downwelling atmospheric longwave radiation (w m-2).
-    LAI : float
+    lai : float
         Effective Leaf (Plant) Area Index.
     emisVeg : float
         Broadband emissivity of vegetation cover.
     emisGrd : float
         Broadband emissivity of soil.
-    x_LAD: float, optional
+    x_lad: float, optional
         x parameter for the ellipsoidal Leaf Angle Distribution function,
-        use x_LAD=1 for a spherical LAD.
+        use x_lad=1 for a spherical LAD.
 
     Returns
     -------
@@ -256,24 +277,25 @@ def calc_L_n_Kustas(T_C, T_S, L_dn, LAI, emisVeg, emisGrd, x_LAD=1):
     '''
 
     # Get the diffuse transmitance
-    _, _, _, taudl = calc_spectra_Cambpell(LAI,
+    _, _, _, taudl = calc_spectra_Cambpell(lai,
                                           np.zeros(emisVeg.shape),
                                           1.0 - emisVeg,
                                           np.zeros(emisVeg.shape),
                                           1.0 - emisGrd,
-                                          x_LAD=x_LAD,
-                                          LAI_eff=None)
+                                          x_lad=x_LAD,
+                                          lai_eff=None)
 
     # calculate long wave emissions from canopy, soil and sky
     L_C = emisVeg * met.calc_stephan_boltzmann(T_C)
     L_S = emisGrd * met.calc_stephan_boltzmann(T_S)
+
     # calculate net longwave radiation divergence of the soil
     L_nS = taudl * L_dn + (1.0 - taudl) * L_C - L_S
     L_nC = (1.0 - taudl) * (L_dn + L_S - 2.0 * L_C)
     return np.asarray(L_nC), np.asarray(L_nS)
 
 
-def calc_L_n_Campbell(T_C, T_S, L_dn, LAI, emisVeg, emisGrd, x_LAD=1):
+def calc_L_n_Campbell(T_C, T_S, L_dn, lai, emisVeg, emisGrd, x_LAD=1):
     ''' Net longwave radiation for soil and canopy layers
 
     Estimates the net longwave radiation for soil and canopy layers unisg based on equation 2a
@@ -287,7 +309,7 @@ def calc_L_n_Campbell(T_C, T_S, L_dn, LAI, emisVeg, emisGrd, x_LAD=1):
         Soil temperature (K).
     L_dn : float
         Downwelling atmospheric longwave radiation (w m-2).
-    LAI : float
+    lai : float
         Effective Leaf (Plant) Area Index.
     emisVeg : float
         Broadband emissivity of vegetation cover.
@@ -316,13 +338,13 @@ def calc_L_n_Campbell(T_C, T_S, L_dn, LAI, emisVeg, emisGrd, x_LAD=1):
     L_C = emisVeg * met.calc_stephan_boltzmann(T_C)
     L_S = emisGrd * met.calc_stephan_boltzmann(T_S)
     # Calculate the canopy spectral properties
-    _, albl, _, taudl = calc_spectra_Cambpell(LAI,
+    _, albl, _, taudl = calc_spectra_Cambpell(lai,
                                               np.zeros(emisVeg.shape),
                                               1.0 - emisVeg,
                                               np.zeros(emisVeg.shape),
                                               1.0 - emisGrd,
-                                              x_LAD=x_LAD,
-                                              LAI_eff=None)
+                                              x_lad=x_LAD,
+                                              lai_eff=None)
 
     # calculate net longwave radiation divergence of the soil
     L_nS = emisGrd * taudl * L_dn + emisGrd * (1.0 - taudl) * L_C - L_S
@@ -380,8 +402,8 @@ def calc_potential_irradiance_weiss(
     # opticalDepth=np.log(10.)*A
     # T=np.exp(-opticalDepth/coszen)
     # Asssume that most absortion of WV is at the NIR
-    Rdirvis[i] = (Sco_vis * np.exp(-.185 * (press[i] / 1313.25) * airmas[i]) -
-                  w[i]) * coszen[i]  # Modified Eq1 assuming water vapor absorption
+    Rdirvis[i] = (Sco_vis * np.exp(-.185 * (press[i] / 1313.25) * airmas[i])
+                  - w[i]) * coszen[i]  # Modified Eq1 assuming water vapor absorption
     # Rdirvis=(Sco_vis*exp(-.185*(press/1313.25)*airmas))*coszen
     # #Eq. 1
     Rdirvis = np.maximum(0, Rdirvis)
@@ -397,6 +419,7 @@ def calc_potential_irradiance_weiss(
     Rdirnir[i] = (Sco_nir * np.exp(-0.06 * (press[i] / 1313.25)
                                    * airmas[i]) - w) * coszen[i]  # Eq. 4
     Rdirnir = np.maximum(0, Rdirnir)
+
     # Potential diffuse radiation
     Rdifnir[i] = 0.6 * (Sco_nir * coszen[i] - Rdirvis[i] - w)  # Eq. 5
     Rdifnir = np.maximum(0, Rdifnir)
@@ -404,15 +427,15 @@ def calc_potential_irradiance_weiss(
         np.asarray, (Rdirvis, Rdifvis, Rdirnir, Rdifnir))
     return Rdirvis, Rdifvis, Rdirnir, Rdifnir
 
-def calc_spectra_Cambpell(LAI, sza, rho_leaf, tau_leaf, rho_soil, x_LAD=1, LAI_eff=None):
-    ''' Canopy spectra
+def calc_spectra_Cambpell(lai, sza, rho_leaf, tau_leaf, rho_soil, x_lad=1, lai_eff=None):
+    """ Canopy spectra
 
     Estimate canopy spectral using the [Campbell1998]_
     Radiative Transfer Model
 
     Parameters
     ----------
-    LAI : float
+    lai : float
         Effective Leaf (Plant) Area Index.
     sza : float
         Sun Zenith Angle (degrees).
@@ -422,10 +445,10 @@ def calc_spectra_Cambpell(LAI, sza, rho_leaf, tau_leaf, rho_soil, x_LAD=1, LAI_e
         Leaf bihemispherical transmittance
     rho_soil : float
         Soil bihemispherical reflectance
-    x_LAD : float,  optional
+    x_lad : float,  optional
         x parameter for the ellipsoildal Leaf Angle Distribution function of
         Campbell 1988 [default=1, spherical LIDF].
-    LAI_eff : float or None, optional
+    lai_eff : float or None, optional
         if set, its value is the directional effective LAI
         to be used in the beam radiation, if set to None we assume homogeneous canopies.
 
@@ -445,65 +468,64 @@ def calc_spectra_Cambpell(LAI, sza, rho_leaf, tau_leaf, rho_soil, x_LAD=1, LAI_e
     .. [Campbell1998] Campbell, G. S. & Norman, J. M. (1998), An introduction to environmental
         biophysics. Springer, New York
         https://archive.org/details/AnIntroductionToEnvironmentalBiophysics.
-    '''
+    """
 
     # calculate aborprtivity
     amean = 1.0 - rho_leaf - tau_leaf
-    del rho_leaf, tau_leaf
+    amean_sqrt = np.sqrt(amean)
+    del rho_leaf, tau_leaf, amean
+
     # Calculate canopy beam extinction coefficient
     # Modification to include other LADs
-    if isinstance(LAI_eff, type(None)):
-        LAI_eff = np.asarray(LAI)
+    if lai_eff is None:
+        lai_eff = np.asarray(lai)
     else:
-        LAI_eff = np.asarray(LAI_eff)
+        lai_eff = np.asarray(lai_eff)
 
     # D I F F U S E   C O M P O N E N T S
     # Integrate to get the diffuse transmitance
-    taud = 0
-    for angle in range(0, 90, 5):
-        akd = calc_K_be_Campbell(angle, x_LAD)  # Eq. 15.4
-        taub = np.exp(-akd * LAI)
-        taud = taud + taub * np.cos(np.radians(angle)) * \
-               np.sin(np.radians(angle)) * np.radians(5)
-    
-    taud = 2.0 * taud
+    taud = _calc_taud(x_lad, lai)
+
     # Diffuse light canopy reflection coefficients  for a deep canopy
-    akd = -np.log(taud) / LAI
-    del taub, taud
-    rcpy = (1.0 - np.sqrt(amean)) / (1.0 + np.sqrt(amean))  # Eq 15.7
+    akd = -np.log(taud) / lai
+    rcpy= (1.0 - amean_sqrt) / (1.0 + amean_sqrt)  # Eq 15.7
     rdcpy = 2.0 * akd * rcpy / (akd + 1.0)  # Eq 15.8
-    # Diffuse canopy transmission and albedo coeff for a generic canopy
-    expfac = np.sqrt(amean) * akd * LAI
-    del akd, LAI
-    xnum = (rdcpy * rdcpy - 1.0) * np.exp(-expfac)
-    xden = (rdcpy * rho_soil - 1.0) + rdcpy * \
-           (rdcpy - rho_soil) * np.exp(-2.0 * expfac)
+
+    # Diffuse canopy transmission and albedo coeff for a generic canopy (visible)
+    expfac = amean_sqrt * akd * lai
+    del akd
+    neg_exp, d_neg_exp = np.exp(-expfac), np.exp(-2.0 * expfac)
+    xnum = (rdcpy * rdcpy - 1.0) * neg_exp
+    xden = (rdcpy * rho_soil - 1.0) + rdcpy * (rdcpy - rho_soil) * d_neg_exp
     taudt = xnum / xden  # Eq 15.11
-    fact = ((rdcpy - rho_soil) / (rdcpy * rho_soil - 1.0)) * np.exp(-2.0 * expfac)
-    del expfac, xnum, xden
+    del xnum, xden
+    fact = ((rdcpy - rho_soil) / (rdcpy * rho_soil - 1.0)) * d_neg_exp
     albd = (rdcpy + fact) / (1.0 + rdcpy * fact)  # Eq 15.9
-    del rdcpy
+    del rdcpy, fact
+
     # B E A M   C O M P O N E N T S
     # Direct beam extinction coeff (spher. LAD)
-    akb = calc_K_be_Campbell(sza, x_LAD)  # Eq. 15.4
+    akb = calc_K_be_Campbell(sza, x_lad)  # Eq. 15.4
+
     # Direct beam canopy reflection coefficients for a deep canopy
     rbcpy = 2.0 * akb * rcpy / (akb + 1.0)  # Eq 15.8
-    del rcpy, sza, x_LAD
+    del rcpy, sza, x_lad
     # Beam canopy transmission and albedo coeff for a generic canopy (visible)
-    expfac = np.sqrt(amean) * akb * LAI_eff
-    del amean, akb, LAI_eff
-    xnum = (rbcpy * rbcpy - 1.0) * np.exp(-expfac)
-    xden = (rbcpy * rho_soil - 1.0) + rbcpy * \
-           (rbcpy - rho_soil) * np.exp(-2.0 * expfac)
+    expfac = amean_sqrt * akb * lai_eff
+    neg_exp, d_neg_exp = np.exp(-expfac), np.exp(-2.0 * expfac)
+    del amean_sqrt, akb, lai_eff
+    xnum = (rbcpy * rbcpy - 1.0) * d_neg_exp
+    xden = (rbcpy * rho_soil - 1.0) + rbcpy * (rbcpy - rho_soil) * d_neg_exp
     taubt = xnum / xden  # Eq 15.11
     del xnum, xden
-    fact = ((rbcpy - rho_soil) / (rbcpy * rho_soil - 1.0)) * np.exp(-2.0 * expfac)
+    fact = ((rbcpy - rho_soil) / (rbcpy * rho_soil - 1.0)) * d_neg_exp
     del expfac
     albb = (rbcpy + fact) / (1.0 + rbcpy * fact)  # Eq 15.9
+    del rbcpy, fact
 
     return albb, albd, taubt, taudt
 
-def calc_Sn_Campbell(LAI, sza, S_dn_dir, S_dn_dif, fvis, fnir, rho_leaf_vis,
+def calc_Sn_Campbell(lai, sza, S_dn_dir, S_dn_dif, fvis, fnir, rho_leaf_vis,
                    tau_leaf_vis, rho_leaf_nir, tau_leaf_nir, rsoilv, rsoiln,
                    x_LAD=1, LAI_eff=None):
     ''' Net shortwave radiation
@@ -513,8 +535,8 @@ def calc_Sn_Campbell(LAI, sza, S_dn_dir, S_dn_dif, fvis, fnir, rho_leaf_vis,
 
     Parameters
     ----------
-    LAI : float
-        Effective Leaf (Plant) Area Index.
+    lai : float
+        Effecive Leaf (Plant) Area Index.
     sza : float
         Sun Zenith Angle (degrees).
     S_dn_dir : float
@@ -537,7 +559,7 @@ def calc_Sn_Campbell(LAI, sza, S_dn_dir, S_dn_dif, fvis, fnir, rho_leaf_vis,
         Broadband soil bihemispherical reflectance in the visible region (400-700nm).
     rsoiln : float
         Broadband soil bihemispherical reflectance in the NIR region (700-2500nm).
-    x_LAD : float,  optional
+    x_lad : float, optional
         x parameter for the ellipsoildal Leaf Angle Distribution function of
         Campbell 1988 [default=1, spherical LIDF].
     LAI_eff : float or None, optional
@@ -565,22 +587,22 @@ def calc_Sn_Campbell(LAI, sza, S_dn_dir, S_dn_dif, fvis, fnir, rho_leaf_vis,
     rho_leaf = np.vstack((rho_leaf_vis, rho_leaf_nir))
     tau_leaf = np.vstack((tau_leaf_vis, tau_leaf_nir))
     rho_soil = np.vstack((rsoilv, rsoiln))
-    albb, albd, taubt, taudt = calc_spectra_Cambpell(LAI,
+    albb, albd, taubt, taudt = calc_spectra_Cambpell(lai,
                                                      sza,
                                                      rho_leaf,
                                                      tau_leaf,
                                                      rho_soil,
-                                                     x_LAD=x_LAD,
-                                                     LAI_eff=LAI_eff)
+                                                     x_lad=x_LAD,
+                                                     lai_eff=LAI_eff)
 
-    Sn_C = (1.0 - taubt[0]) * (1.0- albb[0]) * S_dn_dir*fvis + \
-           (1.0 - taubt[1]) * (1.0- albb[1]) * S_dn_dir*fnir + \
-           (1.0 - taudt[0]) * (1.0- albd[0]) * S_dn_dif*fvis + \
-           (1.0 - taudt[1]) * (1.0- albd[1]) * S_dn_dif*fnir
+    Sn_C = ((1.0 - taubt[0]) * (1.0- albb[0]) * S_dn_dir*fvis
+            + (1.0 - taubt[1]) * (1.0- albb[1]) * S_dn_dir*fnir
+            + (1.0 - taudt[0]) * (1.0- albd[0]) * S_dn_dif*fvis
+            + (1.0 - taudt[1]) * (1.0- albd[1]) * S_dn_dif*fnir)
             
-    Sn_S = taubt[0] * (1.0 - rsoilv) * S_dn_dir*fvis + \
-           taubt[1] * (1.0 - rsoiln) * S_dn_dir*fnir + \
-           taudt[0] * (1.0 - rsoilv) * S_dn_dif*fvis + \
-           taudt[1] * (1.0 - rsoiln) * S_dn_dif*fnir
+    Sn_S = (taubt[0] * (1.0 - rsoilv) * S_dn_dir*fvis
+            + taubt[1] * (1.0 - rsoiln) * S_dn_dir*fnir
+            + taudt[0] * (1.0 - rsoilv) * S_dn_dif*fvis
+            + taudt[1] * (1.0 - rsoiln) * S_dn_dif*fnir)
     
     return np.asarray(Sn_C), np.asarray(Sn_S)

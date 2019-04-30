@@ -1,0 +1,83 @@
+# TSEB model to run: 
+# TSEB_PT: Kustas and Norman 1999 Priestley-Taylor TSEB, DTD: Norman et al. 2003 Dual Time Differenced TSEB, TSEB_2T: Component temperatures TSEB (To be implemented the patched / parallel very high resolution TSEB
+model=TSEB_PT
+
+#==============================================================================
+# Input ASCII File with full path
+# Use forward slash '/' for path separators, even using Windows
+#==============================================================================
+# The input text file does not require any specific delimiter nor any specific order, but it is required that the first line contains explicitly the names of the variables (see example)
+# If running TSEB_PT the input table should contain at least the following columns: 'Year','DOY','Time','Trad','VZA','Ta','u','ea','Sdn','LAI','hc'
+# If running DTD the input table should contain at least the following columns: 'Year','DOY','Time','Trad_0','Trad_1','VZA','Ta_0','Ta_1','u','ea','Sdn','LAI','hc'
+# If running TSEB_2T the input table should contain at least the following columns: 'Year','DOY','Time','Tc','Ts','Ta','u','ea','Sdn','LAI','hc'
+# Temperatures are in Celsius, angles are in degrees, presure are in mb. u: wind speed, ea: vapour prssure, Sdn: incoming solar radiation
+# Additional input variables are: 'SAA': solar azimuth angle, 'SZA': solar zenith angle, 'Ldn': incoming longwave radiation, 'f_C': fractional cover, 'f_g': green fraction, 'wc': canopy width to height ratio, 'G': soil heat flux (see G_Calc flag below)
+# Other variables included (accidentaly or on purpose) in the text file are ignored
+
+input_file=./Input/ExampleTableInput.txt # mandatory file
+
+#==============================================================================
+# Output paramters
+#==============================================================================
+# full path to the output file table
+output_file=./tests/data/output/OutputTest.txt
+
+#==============================================================================
+# Site Parameters
+#==============================================================================
+lat=31.74 # Site latitude (degrees)
+lon= -110.05 # Site Longitue (degrees)
+alt=1371 # Site altitude (m)
+stdlon=-105 # Standard longitude of time zone (degrees)
+z_T=4.0 # Measurement height of air temperature (m)
+z_u=4.3 # Measurement height of wind speed (m)
+
+#==============================================================================
+# Canopy and Soil spectra
+#==============================================================================
+emis_C=0.98 # leaf emissivity
+emis_S=0.95 # soil emissivity
+
+# Leaf spectral properties:{rho_vis_C: visible reflectance, tau_vis_C: visible transmittance, rho_nir_C: NIR reflectance, tau_nir_C: NIR transmittance}
+rho_vis_C=0.094
+tau_vis_C=0.021
+rho_nir_C=0.345
+tau_nir_C=0.203 
+
+# Soil spectral properties:{rho_vis_S: visible reflectance, rho_nir_S: NIR reflectance}
+rho_vis_S=0.111
+rho_nir_S=0.410
+
+#==============================================================================
+# Canopy and soil parameters
+#==============================================================================
+alpha_PT=1.26 # Initial value for Priestley Taylor canopy transpiration
+x_LAD=1 # Cambpbell 1990 leaf inclination distribution parameter:[x_LAD=1 for spherical LIDF, x_LAD=0 for vertical LIDF, x_LAD=float(inf) for horzontal LIDF]  
+z0_soil=0.05 # Bare soil roughness lenght (m)
+landcover=6 # Primary land cover according to IGBP Land Cover Type Classification: CROP=12, GRASS=10, SHRUB=6, CONIFER=1, BROADLEAVED=4
+leaf_width=0.01 # leaf effective width (m)
+f_c=1 # Fractional cover
+f_g=1 # Green vegetation fraction
+w_C=1 # Canopy width to height ratio
+
+#==============================================================================
+# Resistances
+#==============================================================================
+resistance_form=0   # Resistance formulations: 0 - Kustas & Norman 1999; 1 - Choudhury & Monteih 1998; 2 - McNaughton & Van der Hurk 1995
+KN_b=0.012          # Kustas & Norman formulation parameter
+KN_c=0.0025         # Kustas & Norman formulation parameter
+KN_C_dash=90       # Kustas & Norman formulation parameter
+
+#==============================================================================
+# Additional options
+#==============================================================================
+# Soil Heat Flux calculation
+#1: default, estimate G as a ratio of Rn_soil, default G_ratio=0.35
+#0: Use a constant G, usually use G_Constant=0 to ignore the computation of G
+#2: estimate G from Santanello and Friedl with GAmp the maximum ration amplitude, Gphase, the time shift between G and Rn (hours) and Gshape the typical diurnal shape (hours)
+G_form=0
+G_ratio=0.35
+G_constant=0
+G_amp=0.35
+G_phase=3
+G_shape=24
