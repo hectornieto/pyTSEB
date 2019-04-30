@@ -40,8 +40,10 @@ PACKAGE CONTENTS
 TSEB models
 -----------
 * :func:`TSEB_2T` TSEB using derived/measured canopy and soil component temperatures.
-* :func:`TSEB_PT` Priestley-Taylor TSEB using a single observation of composite radiometric temperature.
-* :func:`DTD` Dual-Time Differenced TSEB using composite radiometric temperatures at two times: early morning and near afternoon.
+* :func:`TSEB_PT` Priestley-Taylor TSEB using a
+                  single observation of composite radiometric temperature.
+* :func:`DTD` Dual-Time Differenced TSEB using composite radiometric temperatures at two times:
+              early morning and near afternoon.
 
 OSEB models
 -----------
@@ -54,14 +56,20 @@ Ancillary functions
 * :func:`calc_G_ratio`. Soil heat flux as a fixed fraction of net radiation [Choudhury1987]_.
 * :func:`calc_H_C`. canopy sensible heat flux in a parallel resistance network.
 * :func:`calc_H_C_PT`. Priestley- Taylor Canopy sensible heat flux.
-* :func:`calc_H_DTD_parallel`. Priestley- Taylor Canopy sensible heat flux for DTD and resistances in parallel.
-* :func:`calc_H_DTD_series`. Priestley- Taylor Canopy sensible heat flux for DTD and resistances in series.
+* :func:`calc_H_DTD_parallel`. Priestley- Taylor Canopy sensible
+                               heat flux for DTD and resistances in parallel.
+* :func:`calc_H_DTD_series`. Priestley- Taylor Canopy sensible heat flux
+                             for DTD and resistances in series.
 * :func:`calc_H_S`. Soil heat flux with resistances in parallel.
 * :func:`calc_T_C`. Canopy temperature form composite radiometric temperature.
-* :func:`calc_T_C_series.` Canopy temperature from canopy sensible heat flux and resistance in series.
-* :func:`calc_T_CS_Norman`. Component temperatures from dual angle composite radiometric tempertures.
-* :func:`calc_T_CS_4SAIL`. Component temperatures from dual angle composite radiometric tempertures. Using 4SAIl for the inversion.
-* :func:`calc_4SAIL_emission_param`. Effective surface reflectance, and emissivities for soil and canopy using 4SAIL.
+* :func:`calc_T_C_series.` Canopy temperature from canopy sensible
+                           heat flux and resistance in series.
+* :func:`calc_T_CS_Norman`. Component temperatures from dual angle
+                            composite radiometric temperatures.
+* :func:`calc_T_CS_4SAIL`. Component temperatures from dual angle composite radiometric tempertures.
+                           Using 4SAIl for the inversion.
+* :func:`calc_4SAIL_emission_param`. Effective surface reflectance, and emissivities for soil and
+                                     canopy using 4SAIL.
 * :func:`calc_T_S`. Soil temperature from form composite radiometric temperature.
 * :func:`calc_T_S_series`. Soil temperature from soil sensible heat flux and resistance in series.
 '''
@@ -142,12 +150,10 @@ def TSEB_2T(T_C,
             f_c=1.0,
             f_g=1.0,
             w_C=1.0,
-            resistance_form=[0, {}],
-            calcG_params=[
-                [1],
-                0.35],
-            UseL=False):
-    ''' TSEB using component canopy and soil temperatures.
+            resistance_form=None,
+            calcG_params=None,
+            const_L=None):
+    """ TSEB using component canopy and soil temperatures.
 
     Calculates the turbulent fluxes by the Two Source Energy Balance model
     using canopy and soil component temperatures that were derived or measured
@@ -204,8 +210,10 @@ def TSEB_2T(T_C,
 
             * [[1],G_ratio]: default, estimate G as a ratio of Rn_S, default Gratio=0.35.
             * [[0],G_constant] : Use a constant G, usually use 0 to ignore the computation of G.
-            * [[2,Amplitude,phase_shift,shape],time] : estimate G from Santanello and Friedl with G_param list of parameters (see :func:`~TSEB.calc_G_time_diff`).
-    UseL : float or None, optional
+            * [[2,Amplitude,phase_shift,shape],time] : estimate G from Santanello and Friedl with
+                                                       G_param list of parameters
+                                                       (see :func:`~TSEB.calc_G_time_diff`).
+    const_L : float or None, optional
         If included, its value will be used to force the Moning-Obukhov stability length.
 
     Returns
@@ -243,7 +251,13 @@ def TSEB_2T(T_C,
         turbulent fluxes using multiple angle thermal infrared observations,
         Water Resour. Res., 33(6), 1495-1508,
         http://dx.doi.org/10.1029/97WR00704.
-    '''
+    """
+
+    if resistance_form is None:
+        resistance_form = [0, {}]
+
+    if calcG_params is None:
+        calcG_params = [[1], 0.35]
 
     # Convert float scalars into numpy arrays and check parameters size
     T_C = np.asarray(T_C)
@@ -302,15 +316,15 @@ def TSEB_2T(T_C,
     # calcG_params[1] = None
     # Create the output variables
     [flag, T_AC, Ln_S, Ln_C, LE_C, H_C, LE_S, H_S, G, R_S, R_x,
-        R_A, iterations] = [np.zeros(T_S.shape)+np.NaN for i in range(13)]
+        R_A, iterations] = [np.zeros(T_S.shape) + np.NaN for i in range(13)]
 
     # iteration of the Monin-Obukhov length
-    if isinstance(UseL, bool):
+    if const_L is None:
         # Initially assume stable atmospheric conditions and set variables for
         L = np.asarray(np.zeros(T_S.shape) + np.inf)
         max_iterations = ITERATIONS
     else:  # We force Monin-Obukhov lenght to the provided array/value
-        L = np.asarray(np.ones(T_S.shape) * UseL)
+        L = np.asarray(np.ones(T_S.shape) * const_L)
         max_iterations = 1  # No iteration
 
     # Calculate the general parameters
@@ -344,11 +358,10 @@ def TSEB_2T(T_C,
     # Stops when difference in consecutives L is below a given threshold
     for n_iterations in range(max_iterations):
         if np.all(L_diff < L_thres):
-            print("Finished interation with a max. L diff: " + str(np.max(L_diff)))
+            print(f"Finished iteration with a max. L diff: {np.max(L_diff)}")
             break
 
-        print("Iteration " + str(n_iterations) +
-              ", max. L diff: " + str(np.max(L_diff)))
+        print(f"Iteration {n_iterations}, max. L diff: {np.max(L_diff)}")
 
         i = np.logical_and(L_diff >= L_thres, flag != F_INVALID)
         iterations[i] = n_iterations
@@ -412,7 +425,7 @@ def TSEB_2T(T_C,
         LE = np.asarray(Rn - G - H)
         # Now L can be recalculated and the difference between iterations
         # derived
-        if isinstance(UseL, bool):
+        if const_L is None:
             L[i] = MO.calc_L(
                 u_friction[i],
                 T_A_K[i],
@@ -470,7 +483,7 @@ def TSEB_PT(Tr_K,
             calcG_params=[
                 [1],
                 0.35],
-            UseL=False):
+            const_L=None):
     '''Priestley-Taylor TSEB
 
     Calculates the Priestley Taylor TSEB fluxes using a single observation of
@@ -539,8 +552,10 @@ def TSEB_PT(Tr_K,
 
             * [[1],G_ratio]: default, estimate G as a ratio of Rn_S, default Gratio=0.35.
             * [[0],G_constant] : Use a constant G, usually use 0 to ignore the computation of G.
-            * [[2,Amplitude,phase_shift,shape],time] : estimate G from Santanello and Friedl with G_param list of parameters (see :func:`~TSEB.calc_G_time_diff`).
-    UseL : float or None, optional
+            * [[2,Amplitude,phase_shift,shape],time] : estimate G from Santanello and Friedl with
+                                                       G_param list of parameters
+                                                       (see :func:`~TSEB.calc_G_time_diff`).
+    const_L : float or None, optional
         If included, its value will be used to force the Moning-Obukhov stability length.
 
     Returns
@@ -649,16 +664,16 @@ def TSEB_PT(Tr_K,
     resistance_form = resistance_form[0]
     # calcG_params[1] = None
     # Create the output variables
-    [flag, T_S, T_C, T_AC, Ln_S, Ln_C, H, LE, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A, delta_Rn,
-     Rn_S, iterations] = [np.zeros(Tr_K.shape)+np.NaN for i in range(19)]
+    [T_AC, Ln_S, Ln_C, H, LE, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A, delta_Rn,
+     Rn_S, iterations] = [np.zeros(Tr_K.shape)+np.NaN for i in range(16)]
 
     # iteration of the Monin-Obukhov length
-    if isinstance(UseL, bool):
+    if const_L is None:
         # Initially assume stable atmospheric conditions and set variables for
-        L = np.asarray(np.zeros(T_S.shape) + np.inf)
+        L = np.asarray(np.zeros(Tr_K.shape) + np.inf)
         max_iterations = ITERATIONS
     else:  # We force Monin-Obukhov lenght to the provided array/value
-        L = np.asarray(np.ones(T_S.shape) * UseL)
+        L = np.asarray(np.ones(Tr_K.shape) * const_L)
         max_iterations = 1  # No iteration
     # Calculate the general parameters
     rho = met.calc_rho(p, ea, T_A_K)  # Air density
@@ -694,7 +709,7 @@ def TSEB_PT(Tr_K,
             if L_converged[i].size == 0:
                 print("Finished iterations with no valid solution")
             else:
-                print("Finished interations with a max. L diff: " + str(L_diff_max))
+                print(f"Finished interations with a max. L diff: {np.max(L_diff[i])}")
             break
         current_time = time.time()
         loop_duration = current_time - loop_time
@@ -756,8 +771,8 @@ def TSEB_PT(Tr_K,
                 p[i],
                 c_p[i],
                 alpha_PT_rec[i])
-            T_C[i] = calc_T_C_series(Tr_K[i], T_A_K[i], R_A[i], R_x[i], R_S[
-                                   i], f_theta[i], H_C[i], rho[i], c_p[i])
+            T_C[i] = calc_T_C_series(Tr_K[i], T_A_K[i], R_A[i], R_x[i], R_S[i],
+                                     f_theta[i], H_C[i], rho[i], c_p[i])
 
             # Calculate soil temperature
             flag_t = np.zeros(flag.shape) + F_ALL_FLUXES
@@ -807,7 +822,7 @@ def TSEB_PT(Tr_K,
             LE[i] = np.asarray(LE_C[i] + LE_S[i])
             # Now L can be recalculated and the difference between iterations
             # derived
-            if isinstance(UseL, bool):
+            if const_L is None:
                 L[i] = MO.calc_L(
                     u_friction[i],
                     T_A_K[i],
@@ -821,7 +836,7 @@ def TSEB_PT(Tr_K,
                     u[i], z_u[i], L[i], d_0[i], z_0M[i])
                 u_friction[i] = np.asarray(np.maximum(u_friction_min, u_friction[i]))
 
-        if isinstance(UseL, bool):
+        if const_L is None:
             # We check convergence against the value of L from previous iteration but as well
             # against values from 2 or 3 iterations back. This is to catch situations (not
             # infrequent) where L oscillates between 2 or 3 steady state values.
@@ -986,7 +1001,9 @@ def DTD(Tr_K_0,
 
             * [[1],G_ratio]: default, estimate G as a ratio of Rn_S, default Gratio=0.35.
             * [[0],G_constant] : Use a constant G, usually use 0 to ignore the computation of G.
-            * [[2,Amplitude,phase_shift,shape],time] : estimate G from Santanello and Friedl with G_param list of parameters (see :func:`~TSEB.calc_G_time_diff`).
+            * [[2,Amplitude,phase_shift,shape],time] : estimate G from Santanello and Friedl with
+                                                       G_param list of parameters
+                                                       (see :func:`~TSEB.calc_G_time_diff`).
     calc_Ri : float or None, optional
         If included, its value will be used to force the Richardson Number.
 
@@ -1098,7 +1115,7 @@ def DTD(Tr_K_0,
     resistance_form = resistance_form[0]
     # Create the output variables
     [flag, T_S, T_C, T_AC, Ln_S, Ln_C, LE_C, H_C, LE_S, H_S, G, R_S, R_x,
-        R_A, H, iterations] = [np.zeros(Tr_K_1.shape)+np.NaN for i in range(16)]
+        R_A, H, iterations] = [np.zeros(Tr_K_1.shape) + np.NaN for i in range(16)]
 
     # Calculate the general parameters
     rho = met.calc_rho(p, ea, T_A_K_1)  # Air density
@@ -1122,7 +1139,7 @@ def DTD(Tr_K_0,
         Ri = np.asarray(np.ones(Tr_K_1.shape) * calc_Ri)
     # Use the approximation Ri ~ (z-d_0)./L from end of section 2.2 from
     # Norman et. al., 2000 (DTD paper)
-    L_from_Ri = (z_u - d_0)/Ri
+    L_from_Ri = (z_u - d_0) / Ri
 
     # calculate the resistances
     # First calcualte u_S, wind speed at the soil surface
@@ -1163,11 +1180,11 @@ def DTD(Tr_K_0,
             if T_C_diff[i].size == 0:
                 print("Finished iterations with no valid solution")
             else:
-                print("Finished interation with a max. T_C diff: " +
-                      str(np.max(T_C_diff[i])))
+                print(f"Finished iteration with a max. T_C diff: {np.max(T_C_diff[i])}")
             break
-        print("Iteration " + str(n_iterations) +
-              ", maximum T_C difference between iterations: " + str(np.max(T_C_diff[i])))
+
+        print(f"Iteration {n_iterations},"
+              f"maximum T_C difference between iterations: {np.max(T_C_diff[i])}")
         iterations[np.logical_and(T_C_diff >= T_C_thres, flag != F_INVALID)] = n_iterations
 
         # Inner loop to iterativelly reduce alpha_PT in case latent heat flux
@@ -1258,11 +1275,11 @@ def DTD(Tr_K_0,
             # and canopy temperatures. deltaT is equivalent to T_S - T_C while
             # not being dependent on non-differential T_A.
             params = {k: res_params[k][i] for k in res_params.keys()}
-            deltaT = (H_S[i]*R_S[i] - H_C[i]*R_x[i])/(rho[i]*c_p[i])
+            deltaT = (H_S[i] * R_S[i] - H_C[i] * R_x[i]) / (rho[i] * c_p[i])
             R_S_params = {"u_friction": u_friction[i], "h_C": h_C[i], "d_0": d_0[i],
                           "z_0M": z_0M[i], "L": L_from_Ri[i], "F": F[i], "omega0": omega0[i],
                           "LAI": LAI[i], "leaf_width": leaf_width[i],
-                          "z0_soil": z0_soil[i],  "z_u": z_u[i],
+                          "z0_soil": z0_soil[i], "z_u": z_u[i],
                           "deltaT": deltaT, "res_params": params}
             _, _, R_S[i] = calc_resistances(resistance_form, {"R_S": R_S_params})
 
@@ -1346,7 +1363,7 @@ def OSEB(Tr_K,
          calcG_params=[
              [1],
              0.35],
-         UseL=False,
+         const_L=None,
          T0_K=[]):
     '''Calulates bulk fluxes from a One Source Energy Balance model
 
@@ -1383,8 +1400,10 @@ def OSEB(Tr_K,
 
             * [[1],G_ratio]: default, estimate G as a ratio of Rn_S, default Gratio=0.35.
             * [[0],G_constant] : Use a constant G, usually use 0 to ignore the computation of G.
-            * [[2,Amplitude,phase_shift,shape],time] : estimate G from Santanello and Friedl with G_param list of parameters (see :func:`~TSEB.calc_G_time_diff`).
-    UseL : Optional[float]
+            * [[2,Amplitude,phase_shift,shape],time] : estimate G from Santanello and Friedl with
+                                                       G_param list of parameters
+                                                       (see :func:`~TSEB.calc_G_time_diff`).
+    const_L : Optional[float]
         If included, its value will be used to force the Moning-Obukhov stability length.
     T0_K: Optional[tuple(float,float)]
         If given it contains radiometric composite temperature (K) at time 0 as
@@ -1442,15 +1461,15 @@ def OSEB(Tr_K,
                          calcG_params[1]],
                         [Tr_K] * 12)
     # Create the output variables
-    [flag, Ln, LE, H, G, R_A] = [np.zeros(Tr_K.shape)+np.NaN for i in range(6)]
+    [flag, Ln, LE, H, G, R_A] = [np.zeros(Tr_K.shape) + np.NaN for i in range(6)]
 
     # iteration of the Monin-Obukhov length
-    if isinstance(UseL, bool):
+    if const_L is None:
         # Initially assume stable atmospheric conditions and set variables for
         L = np.zeros(Tr_K.shape) + np.inf
         max_iterations = ITERATIONS
     else:  # We force Monin-Obukhov lenght to the provided array/value
-        L = np.ones(Tr_K.shape) * UseL
+        L = np.ones(Tr_K.shape) * const_L
         max_iterations = 1  # No iteration
 
     # Check if differential temperatures are to be used
@@ -1470,13 +1489,13 @@ def OSEB(Tr_K,
     # With differential temperatures use Richardson number to approximate L,
     # same as is done in DTD
     if differentialT:
-        if isinstance(UseL, bool):
+        if const_L is None:
             Ri = MO.calc_richardson(u, z_u, d_0, Tr_K_0, Tr_K, T_A_K_0, T_A_K)
         else:
             Ri = np.array(L)
         # Use the approximation Ri ~ (z-d_0)./L from end of section 2.2 from
         # Norman et. al., 2000 (DTD paper)
-        L_from_Ri = (z_u - d_0)/Ri
+        L_from_Ri = (z_u - d_0) / Ri
         u_friction = MO.calc_u_star(u, z_u, L_from_Ri, d_0, z_0M)
     else:
         u_friction = MO.calc_u_star(u, z_u, L, d_0, z_0M)
@@ -1528,7 +1547,7 @@ def OSEB(Tr_K,
         G[LE < 0] = np.maximum(G[LE < 0], Rn[LE < 0] - H[LE < 0])
         LE[LE < 0] = 0
 
-        if isinstance(UseL, bool):
+        if const_L is None:
             # Now L can be recalculated and the difference between iterations
             # derived
             L = MO.calc_L(u_friction, T_A_K, rho, c_p, H, LE)
@@ -1584,8 +1603,8 @@ def calc_F_theta_campbell(theta, F, w_C=1, Omega0=1, x_LAD=1):
     # First calcualte the angular clumping factor Omega based on eq (3) from
     # W.P. Kustas, J.M. Norman,  Agricultural and Forest Meteorology 94 (1999)
     # CHECK: should theta here be in degrees or radians
-    OmegaTheta = Omega0 / (Omega0 + (1.0 - Omega0) *
-                           np.exp(-2.2 * np.radians(theta)**(3.8 - 0.46 * w_C)))
+    OmegaTheta = (Omega0 / (Omega0 + (1.0 - Omega0)
+                  * np.exp(-2.2 * np.radians(theta)**(3.8 - 0.46 * w_C))))
     # Estimate the beam extinction coefficient based on a elipsoidal LAD function
     # Eq. 15.4 of Campbell and Norman (1998)
     K_be = rad.calc_K_be_Campbell(theta, x_LAD)
@@ -1602,12 +1621,13 @@ def calc_G(calcG_params, Rn_S, i=None):
     elif calcG_params[0][0] == G_RATIO:
         G = calc_G_ratio(Rn_S[i], calcG_params[1][i])
     elif calcG_params[0][0] == G_TIME_DIFF:
-        G = calc_G_time_diff(Rn_S[i], [calcG_params[1][i], calcG_params[
-                           0][1], calcG_params[0][2], calcG_params[0][3]])
+        G = calc_G_time_diff(Rn_S[i],
+                             [calcG_params[1][i], calcG_params[0][1],
+                              calcG_params[0][2], calcG_params[0][3]])
     elif calcG_params[0][0] == G_TIME_DIFF_SIGMOID:
-        G = calc_G_time_diff_sigmoid(Rn_S[i], [calcG_params[1][i], calcG_params[
-                           0][1], calcG_params[0][2], calcG_params[0][3],
-                            calcG_params[0][4], calcG_params[0][5], calcG_params[0][6]])
+        G = calc_G_time_diff_sigmoid(Rn_S[i], [calcG_params[1][i], calcG_params[0][1],
+                                     calcG_params[0][2], calcG_params[0][3], calcG_params[0][4],
+                                     calcG_params[0][5], calcG_params[0][6]])
 
     return np.asarray(G)
 
@@ -1685,8 +1705,9 @@ def calc_G_time_diff_sigmoid(R_n, G_param=[12, 0, 0.35, 10., 14., 1., 1.]):
 
     # Get parameters
     time, G_ratio_min, G_ratio_max, phase_shift_0, phase_shift_1, shape_0, shape_1 = G_param
-    G_ratio = G_ratio_min + (G_ratio_max - G_ratio_min) * 0.5 *\
-              (np.tanh((time - phase_shift_0) / shape_0) - np.tanh((time - phase_shift_1)/shape_1))
+    G_ratio = (G_ratio_min + (G_ratio_max - G_ratio_min)
+               * 0.5 * (np.tanh((time - phase_shift_0) / shape_0)
+               - np.tanh((time - phase_shift_1) / shape_1)))
     G = R_n * G_ratio
     return np.asarray(G)
 
@@ -1796,7 +1817,7 @@ def calc_H_DTD_parallel(
         R_A1,
         R_AC1,
         H_C1):
-    '''Calculates the DTD total sensible heat flux at time 1 with resistances in parallel.
+    """Calculates the DTD total sensible heat flux at time 1 with resistances in parallel.
 
     Parameters
     ----------
@@ -1835,11 +1856,11 @@ def calc_H_DTD_parallel(
         estimate surface energy fluxes with day-night MODIS observations,
         Hydrol. Earth Syst. Sci., 17, 2809-2825,
         http://dx.doi.org/10.5194/hess-17-2809-2013.
-    '''
+    """
 
     # Ignore night fluxes
-    H = (rho * c_p * (((T_R1 - T_R0) - (T_A1 - T_A0)) / ((1.0 - f_theta1) * (R_A1 + R_S1))) +
-         H_C1 * (1.0 - ((f_theta1 * R_AC1) / ((1.0 - f_theta1) * (R_A1 + R_S1)))))
+    H = (rho * c_p * (((T_R1 - T_R0) - (T_A1 - T_A0)) / ((1.0 - f_theta1) * (R_A1 + R_S1)))
+         + H_C1 * (1.0 - ((f_theta1 * R_AC1) / ((1.0 - f_theta1) * (R_A1 + R_S1)))))
     return np.asarray(H)
 
 
@@ -1855,7 +1876,7 @@ def calc_H_DTD_series(
         R_A,
         R_x,
         H_C):
-    '''Calculates the DTD total sensible heat flux at time 1 with resistances in series
+    """Calculates the DTD total sensible heat flux at time 1 with resistances in series
 
     Parameters
     ----------
@@ -1893,10 +1914,10 @@ def calc_H_DTD_series(
         Remotely sensed land-surface energy fluxes at sub-field scale in heterogeneous
         agricultural landscape and coniferous plantation, Biogeosciences, 11, 5021-5046,
         http://dx.doi.org/10.5194/bg-11-5021-2014.
-    '''
+    """
 
-    H = rho * c_p * ((T_R1 - T_R0) - (T_A1 - T_A0)) / ((1.0 - f_theta) * R_S + R_A) + \
-        H_C * ((1.0 - f_theta) * R_S - f_theta * R_x) / ((1.0 - f_theta) * R_S + R_A)
+    H = (rho * c_p * ((T_R1 - T_R0) - (T_A1 - T_A0)) / ((1.0 - f_theta) * R_S + R_A)
+         + H_C * ((1.0 - f_theta) * R_S - f_theta * R_x) / ((1.0 - f_theta) * R_S + R_A))
     return np.asarray(H)
 
 
@@ -2016,8 +2037,9 @@ def calc_T_C_series(Tr_K, T_A_K, R_A, R_x, R_S, f_theta, H_C, rho, c_p):
     T_D = (T_C_lin * (1 + R_S / R_A) - H_C * R_x / (rho * c_p)
            * (1.0 + R_S / R_x + R_S / R_A) - T_A_K * R_S / R_A)
     # equation A11 from Norman 1995
-    delta_T_C = ((T_R_K_4 - f_theta * T_C_lin**4 - (1.0 - f_theta) * T_D**4) /
-                 (4.0 * (1.0 - f_theta) * T_D**3 * (1.0 + R_S / R_A) + 4.0 * f_theta * T_C_lin**3))
+    delta_T_C = (((T_R_K_4 - f_theta * T_C_lin**4 - (1.0 - f_theta) * T_D**4)
+                 / (4.0 * (1.0 - f_theta) * T_D**3 * (1.0 + R_S / R_A)
+                 + 4.0 * f_theta * T_C_lin**3)))
     # get canopy temperature in Kelvin
     T_C = T_C_lin + delta_T_C
     return np.asarray(T_C)
@@ -2066,8 +2088,8 @@ def calc_T_CS_Norman(F, vza_n, vza_f, T_n, T_f, w_C=1, x_LAD=1, omega0=1):
     f_theta_n = calc_F_theta_campbell(vza_n, F, w_C=w_C, Omega0=omega0, x_LAD=x_LAD)
     f_theta_f = calc_F_theta_campbell(vza_f, F, w_C=w_C, Omega0=omega0, x_LAD=x_LAD)
     # Solve the sytem of two unknowns and two equations
-    T_S_4 = np.asarray((f_theta_f * T_n**4 - f_theta_n *
-                       T_f**4) / (f_theta_f - f_theta_n))
+    T_S_4 = np.asarray((f_theta_f * T_n**4 - f_theta_n * T_f**4)
+                       / (f_theta_f - f_theta_n))
     T_C_4 = np.asarray((T_n**4 - (1.0 - f_theta_n) * T_S_4) / f_theta_n)
 
     T_C_K = np.zeros(T_n.shape)
@@ -2185,8 +2207,8 @@ def calc_T_CS_4SAIL(
     # Calculate the total emission of the surface at oblique observation
     L_emiss_f = Eo_f - rdot_star_f * L_sky
     # Invert 4SAIL to get the BB emission of vegetation and soil
-    H_v = ((emiss_s_eff_n * L_emiss_f - emiss_s_eff_f * L_emiss_n) /
-           (emiss_s_eff_n * emiss_v_eff_f - emiss_s_eff_f * emiss_v_eff_n))
+    H_v = ((emiss_s_eff_n * L_emiss_f - emiss_s_eff_f * L_emiss_n)
+           / (emiss_s_eff_n * emiss_v_eff_f - emiss_s_eff_f * emiss_v_eff_n))
     H_S = (L_emiss_n - emiss_v_eff_n * H_v) / emiss_s_eff_n
     # Invert Stephan Boltzmann to obtain vegetation and soil temperatures
     T_C_K = (H_v / sb)**0.25
@@ -2332,8 +2354,8 @@ def calc_T_S(T_R, T_C, f_theta):
     flag = np.zeros(T_R.shape) + F_ALL_FLUXES
 
     # Succesfull inversion
-    T_S[T_temp >= 0] = (T_temp[T_temp >= 0] /
-                        (1.0 - f_theta[T_temp >= 0]))**0.25
+    T_S[T_temp >= 0] = (T_temp[T_temp >= 0]
+                        / (1.0 - f_theta[T_temp >= 0]))**0.25
 
     # Unsuccesfull inversion
     T_S[np.logical_or(T_temp < 0, np.isnan(T_temp))] = 1e-6
@@ -2421,18 +2443,17 @@ def calc_T_S_series(Tr_K, T_A_K, R_A, R_x, R_S, f_theta, H_S, rho, c_p):
     Eqs. A15-A19 from [Norman1995]_'''
 
     # Eq. A.15 Norman 1995
-    T_AC_lin = (((T_A_K / R_A) + (Tr_K / (f_theta * R_x)) -
-                 (((1.0 - f_theta) / (f_theta * R_x)) * H_S * R_S / (rho * c_p)) +
-                 H_S / (rho * c_p)) /
-                ((1.0 / R_A) + (1.0 / R_x) + (1.0 - f_theta) / (f_theta * R_x)))
+    T_AC_lin = (((T_A_K / R_A) + (Tr_K / (f_theta * R_x))
+                - (((1.0 - f_theta) / (f_theta * R_x)) * H_S * R_S / (rho * c_p))
+                + H_S / (rho * c_p))
+                / ((1.0 / R_A) + (1.0 / R_x) + (1.0 - f_theta) / (f_theta * R_x)))
     # Eq. A.17 Norman 1995
     T_e = T_AC_lin * (1.0 + (R_x / R_A)) - H_S * R_x / \
         (rho * c_p) - T_A_K * R_x / R_A
     # Eq. A.16 Norman 1995
-    Delta_T_AC = ((Tr_K**4 - (1.0 - f_theta) * (H_S * R_S / (rho * c_p) + T_AC_lin)**4 -
-                   f_theta * T_e**4) /
-                  (4 * f_theta * T_e**3.0 * (1.0 + (R_x / R_A)) +
-                   4.0 * (1.0 - f_theta) * (H_S * R_S / (rho * c_p) + T_AC_lin)**3))
+    Delta_T_AC = ((Tr_K**4 - (1.0 - f_theta) * (H_S * R_S / (rho * c_p) + T_AC_lin)**4
+                  - f_theta * T_e**4) / (4 * f_theta * T_e**3.0 * (1.0 + (R_x / R_A))
+                  + 4.0 * (1.0 - f_theta) * (H_S * R_S / (rho * c_p) + T_AC_lin)**3))
     # Eq. A.18 Norman 1995
     T_AC = T_AC_lin + Delta_T_AC
     T_S = T_AC + H_S * R_S / (rho * c_p)
