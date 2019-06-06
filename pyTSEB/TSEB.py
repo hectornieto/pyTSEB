@@ -844,14 +844,20 @@ def TSEB_PT(Tr_K,
             L_new[L_new == 0] = 1e-36
             L_queue.appendleft(L_new)
             i = np.logical_and(~L_converged, flag != F_INVALID)
+            if not np.any(i):
+                continue
             L_converged[i] = _L_diff(L_queue[0][i], L_queue[1][i]) < L_thres
             L_diff_max = np.max(_L_diff(L_queue[0][i], L_queue[1][i]))
             if len(L_queue) >= 4:
                 i = np.logical_and(~L_converged, flag != F_INVALID)
+                if not np.any(i):
+                    continue
                 L_converged[i] = np.logical_and(_L_diff(L_queue[0][i], L_queue[2][i]) < L_thres,
                                                 _L_diff(L_queue[1][i], L_queue[3][i]) < L_thres)
             if len(L_queue) == 6:
                 i = np.logical_and(~L_converged, flag != F_INVALID)
+                if not np.any(i):
+                    continue
                 L_converged[i] = np.logical_and.reduce((_L_diff(L_queue[0][i], L_queue[3][i]) < L_thres,
                                                         _L_diff(L_queue[1][i], L_queue[4][i]) < L_thres,
                                                         _L_diff(L_queue[2][i], L_queue[5][i]) < L_thres))
