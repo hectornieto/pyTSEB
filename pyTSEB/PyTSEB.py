@@ -156,7 +156,7 @@ class PyTSEB(object):
                 elif self.subset[3] <= 0 or self.subset[2] <= 0:
                     print("ERROR: Requested subset does not intersect the data extent.")
                     return
-				else:
+                else:
                     dims = (self.subset[3], self.subset[2])
         except KeyError:
             print('Error reading ' + input_fields[field])
