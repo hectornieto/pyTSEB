@@ -609,7 +609,7 @@ class PyTSEB(object):
                                                       in_data['tau_nir_C'][i],
                                                       in_data['rho_vis_S'][i],
                                                       in_data['rho_nir_S'][i],
-                                                      x_lad=in_data['x_LAD'][i],
+                                                      x_LAD=in_data['x_LAD'][i],
                                                       LAI_eff=LAI_eff[i])
 
         # Other fluxes for vegetation
