@@ -102,7 +102,8 @@ class TSEBConfigFileInterface():
         'row_az',
         'output_file',
         'correct_LST',
-        'flux_LR_method'
+        'flux_LR_method',
+        'water_stress'
     ]
 
     IMAGE_VARS = [
@@ -161,6 +162,8 @@ class TSEBConfigFileInterface():
         conf['output_file'] = parser.myget('output_file')
 
         conf['resistance_form'] = parser.getint('resistance_form', fallback=None)
+
+        conf['water_stress'] = parser.getint('water_stress', fallback=False)
 
         conf['calc_row'] = parser.getint('calc_row', fallback=[0, 0])
         if conf['calc_row'] != [0, 0]:
