@@ -156,7 +156,7 @@ class PyTSEB(object):
                 elif self.subset[3] <= 0 or self.subset[2] <= 0:
                     print("ERROR: Requested subset does not intersect the data extent.")
                     return
-				else:
+                else:
                     dims = (self.subset[3], self.subset[2])
         except KeyError:
             print('Error reading ' + input_fields[field])
@@ -169,15 +169,15 @@ class PyTSEB(object):
             if field in ["lat", "lon", "stdlon", "DOY", "time"]:
                 success, temp_data[field] = self._set_param_array(field, dims)
             elif field == "input_mask":
-                    if self.p['input_mask'] == '0':
-                        # Create mask from landcover array
-                        mask = np.ones(dims)
-                        mask[np.logical_or.reduce((in_data['landcover'] == res.WATER,
-                                                   in_data['landcover'] == res.URBAN,
-                                                   in_data['landcover'] == res.SNOW))] = 0
-                        success = True
-                    else:
-                        success, mask = self._set_param_array(field, dims)
+                if self.p['input_mask'] == '0':
+                    # Create mask from landcover array
+                    mask = np.ones(dims)
+                    mask[np.logical_or.reduce((in_data['landcover'] == res.WATER,
+                                               in_data['landcover'] == res.URBAN,
+                                               in_data['landcover'] == res.SNOW))] = 0
+                    success = True
+                else:
+                    success, mask = self._set_param_array(field, dims)
             elif field in ['KN_b', 'KN_c', 'KN_c_dash']:
                 success, res_params[field] = self._set_param_array(field, dims)
             elif field == "G":
@@ -609,7 +609,7 @@ class PyTSEB(object):
                                                       in_data['tau_nir_C'][i],
                                                       in_data['rho_vis_S'][i],
                                                       in_data['rho_nir_S'][i],
-                                                      x_lad=in_data['x_LAD'][i],
+                                                      x_LAD=in_data['x_LAD'][i],
                                                       LAI_eff=LAI_eff[i])
 
         # Other fluxes for vegetation
