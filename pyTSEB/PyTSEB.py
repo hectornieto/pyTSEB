@@ -169,15 +169,15 @@ class PyTSEB(object):
             if field in ["lat", "lon", "stdlon", "DOY", "time"]:
                 success, temp_data[field] = self._set_param_array(field, dims)
             elif field == "input_mask":
-                    if self.p['input_mask'] == '0':
-                        # Create mask from landcover array
-                        mask = np.ones(dims)
-                        mask[np.logical_or.reduce((in_data['landcover'] == res.WATER,
-                                                   in_data['landcover'] == res.URBAN,
-                                                   in_data['landcover'] == res.SNOW))] = 0
-                        success = True
-                    else:
-                        success, mask = self._set_param_array(field, dims)
+                if self.p['input_mask'] == '0':
+                    # Create mask from landcover array
+                    mask = np.ones(dims)
+                    mask[np.logical_or.reduce((in_data['landcover'] == res.WATER,
+                                               in_data['landcover'] == res.URBAN,
+                                               in_data['landcover'] == res.SNOW))] = 0
+                    success = True
+                else:
+                    success, mask = self._set_param_array(field, dims)
             elif field in ['KN_b', 'KN_c', 'KN_c_dash']:
                 success, res_params[field] = self._set_param_array(field, dims)
             elif field == "G":
