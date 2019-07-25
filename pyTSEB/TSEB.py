@@ -709,7 +709,7 @@ def TSEB_PT(Tr_K,
             if L_converged[i].size == 0:
                 print("Finished iterations with no valid solution")
             else:
-                print(f"Finished interations with a max. L diff: {np.max(L_diff[i])}")
+                print(f"Finished interations with a max. L diff: {L_diff_max}")
             break
         current_time = time.time()
         loop_duration = current_time - loop_time
