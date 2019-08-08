@@ -149,15 +149,15 @@ class PyTSEB(object):
             self.subset = []
             if "subset" in self.p:
                 self.subset, self.geo = self._get_subset(self.p["subset"], self.prj, self.geo)
-                if self.subset[1] + self.subset[3] > dims[0] or\
-                   self.subset[0] + self.subset[2] > dims[1]:
-                    print("ERROR: Requested subset extends beyond the data extent.")
-                    return
-                elif self.subset[3] <= 0 or self.subset[2] <= 0:
+                if self.subset[3] <= 0 or self.subset[2] <= 0:
                     print("ERROR: Requested subset does not intersect the data extent.")
                     return
-                else:
-                    dims = (self.subset[3], self.subset[2])
+                if self.subset[1] + self.subset[3] > dims[0] or\
+                   self.subset[0] + self.subset[2] > dims[1]:
+                    print("WARNING: Requested subset extends beyond the data extent.")
+                    self.subset[3] = min(self.subset[3],  dims[0] - self.subset[1])
+                    self.subset[2] = min(self.subset[2],  dims[1] - self.subset[0])
+                dims = (self.subset[3], self.subset[2])
         except KeyError:
             print('Error reading ' + input_fields[field])
             fid = None
