@@ -167,7 +167,6 @@ class TSEBConfigFileInterface():
 
         conf['calc_row'] = parser.getint('calc_row', fallback=[0, 0])
 
-        conf['water_stress'] = parser.getint('water_stress', fallback=[0, 0])
         if conf['calc_row'] != [0, 0]:
             row_az = parser.getfloat('row_az')
             conf['calc_row'] = [1, row_az]
