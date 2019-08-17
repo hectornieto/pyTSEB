@@ -127,7 +127,8 @@ class TSEBConfigFileInterface():
         'L_dn',
         'p',
         'flux_LR',
-        'flux_LR_ancillary'
+        'flux_LR_ancillary',
+        'S_dn_24'
     ]
 
     POINT_VARS = [
@@ -207,7 +208,11 @@ class TSEBConfigFileInterface():
         if not parser.has_option('subset'):
             img_vars.remove('subset')
 
-        conf.update({p: parser.myget(p) for p in img_vars})
+        for p in img_vars:
+            if p == 'S_dn_24':
+                conf.update({p: parser.myget(p, fallback='')})
+            else:
+                conf.update({p: parser.myget(p)})
 
         return conf
 
