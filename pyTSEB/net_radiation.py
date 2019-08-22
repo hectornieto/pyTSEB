@@ -42,7 +42,11 @@ import numpy as np
 
 import pyTSEB.meteo_utils as met
 
-
+#==============================================================================
+# List of constants used in the netRadiation Module
+#==============================================================================
+# Stephan Boltzmann constant (W m-2 K-4)
+sb = 5.670373e-8
 TAUD_STEP_SIZE_DEG = 5
 
 
