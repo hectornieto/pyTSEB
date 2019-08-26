@@ -79,3 +79,6 @@ Output/
 #Ipython Notebook
 .ipynb_checkpoints
 
+# PyCharm
+.idea/*
+
