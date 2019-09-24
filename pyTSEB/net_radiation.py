@@ -42,7 +42,11 @@ import numpy as np
 
 import pyTSEB.meteo_utils as met
 
-
+#==============================================================================
+# List of constants used in the netRadiation Module
+#==============================================================================
+# Stephan Boltzmann constant (W m-2 K-4)
+sb = 5.670373e-8
 TAUD_STEP_SIZE_DEG = 5
 
 
@@ -584,9 +588,9 @@ def calc_Sn_Campbell(lai, sza, S_dn_dir, S_dn_dif, fvis, fnir, rho_leaf_vis,
         Pages 13-29, http://dx.doi.org/10.1016/S0168-1923(99)00005-2.
     '''
 
-    rho_leaf = np.vstack((rho_leaf_vis, rho_leaf_nir))
-    tau_leaf = np.vstack((tau_leaf_vis, tau_leaf_nir))
-    rho_soil = np.vstack((rsoilv, rsoiln))
+    rho_leaf = np.array((rho_leaf_vis, rho_leaf_nir))
+    tau_leaf = np.array((tau_leaf_vis, tau_leaf_nir))
+    rho_soil = np.array((rsoilv, rsoiln))
     albb, albd, taubt, taudt = calc_spectra_Cambpell(lai,
                                                      sza,
                                                      rho_leaf,
