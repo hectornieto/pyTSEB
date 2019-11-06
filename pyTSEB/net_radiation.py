@@ -169,10 +169,13 @@ def calc_emiss_atm(ea, t_a_k):
     return np.asarray(emiss_air)
 
 
-def calc_longwave_irradiance(ea, t_a_k, p=1013.25, z_T=2.0):
+def calc_longwave_irradiance(ea, t_a_k, p=1013.25, z_T=2.0, h_C=2.0):
     '''Longwave irradiance
 
     Estimates longwave atmospheric irradiance from clear sky.
+    By default there is no lapse rate correction unless air temperature
+    measurement height is considerably different than canopy height, (e.g. when
+    using NWP gridded meteo data at blending height)
 
     Parameters
     ----------
@@ -184,18 +187,19 @@ def calc_longwave_irradiance(ea, t_a_k, p=1013.25, z_T=2.0):
         air pressure (mb)
     z_T: float
         air temperature measurement height (m), default 2 m.
+    h_C: float
+        canopy height (m), default 2 m,
 
     Returns
     -------
     L_dn : float
-        Longwave atmospheric irradiance (W m-2)
+        Longwave atmospheric irradiance (W m-2) above the canopy
     '''
 
     lapse_rate = met.calc_lapse_rate_moist(t_a_k, ea, p)
-    t_a_surface = t_a_k - z_T * lapse_rate
+    t_a_surface = t_a_k - lapse_rate * (h_C - z_T)
     emisAtm = calc_emiss_atm(ea, t_a_surface)
     L_dn = emisAtm * met.calc_stephan_boltzmann(t_a_surface)
-
     return np.asarray(L_dn)
 
 
