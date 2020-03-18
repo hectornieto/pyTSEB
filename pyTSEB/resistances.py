@@ -90,7 +90,7 @@ BARREN = 16
 AMPHISTOMATOUS = 2
 HYPOSTOMATOUS = 1
 # von Karman's constant
-k = 0.4
+k = 0.41
 # acceleration of gravity (m s-2)
 gravity = 9.8
 # Universal gas constant (kPa m3 mol-1 K-1)
