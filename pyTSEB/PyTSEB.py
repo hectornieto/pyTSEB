@@ -858,7 +858,8 @@ class PyTSEB(object):
         ext = splitext(outfile)[1]
         if ext.lower() == ".nc":
             driver_name = "netCDF"
-            opt = ["FORMAT=NC2"]
+            opt = ["FORMAT=NC4"]
+            opt = []
         elif ext.lower() == ".vrt":
             driver_name = "VRT"
             opt = []
