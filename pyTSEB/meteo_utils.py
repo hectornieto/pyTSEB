@@ -175,6 +175,19 @@ def calc_rho(p, ea, T_A_K):
     rho = ((p * 100.0) / (R_d * T_A_K)) * (1.0 - (1.0 - epsilon) * ea / p)
     return np.asarray(rho)
 
+def calc_rho_w(T_K):
+    """
+    density of air-free water ata pressure of 101.325kPa
+    :param T_K:
+    :return:
+    density of water (kg m-3)
+    """
+    t = T_K - 273.15  # Temperature in Celsius
+    rho_w = (999.83952 + 16.945176 * t - 7.9870401e-3 * t**2
+             - 46.170461e-6 * t**3 + 105.56302e-9 * t**4
+             - 280.54253e-12 * t**5) / (1 + 16.897850e-3 * t)
+
+    return rho_w
 
 def calc_stephan_boltzmann(T_K):
     '''Calculates the total energy radiated by a blackbody.
@@ -403,7 +416,7 @@ def calc_lapse_rate_moist(T_A_K, ea, p):
     return Gamma_w
 
 
-def flux_2_evaporation(flux, T_K=20 + 273.15, time_domain=1):
+def flux_2_evaporation(flux, t_k=20 + 273.15, time_domain=1):
     '''Converts heat flux units (W m-2) to evaporation rates (mm time-1) to a given temporal window
 
     Parameters
@@ -418,14 +431,14 @@ def flux_2_evaporation(flux, T_K=20 + 273.15, time_domain=1):
 
     Returns
     -------
-    ET : float or numpy array
+    et : float or numpy array
         evaporation rate at the time_domain. Default mm h-1
     '''
     # Calculate latent heat of vaporization
-    lambda_ = calc_lambda(T_K)  # J kg-1
-    ET = flux / lambda_  # kg s-1
-
+    lambda_ = calc_lambda(t_k)  # J kg-1
+    # Density of water
+    rho_w = calc_rho_w(t_k)  # kg m-3
+    et = flux / (rho_w * lambda_)  # m s-1
     # Convert instantaneous rate to the time_domain rate
-    ET = ET * time_domain * 3600.
-
-    return ET
+    et = et * 1e3 * time_domain * 3600.  # mm
+    return et
