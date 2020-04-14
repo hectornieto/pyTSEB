@@ -720,8 +720,8 @@ def calc_stomatal_conductance_TSEB(LE_C, LE, R_A, R_x, e_a, T_A, T_C, F,
     return np.asarray(G_s)
 
 
-def calc_coef_m2mmol(T_C, p=101.325):
-    """Calculates the conversion factor from stomatal conductance from m s-1
+def calc_coef_m2mmol(T_C, p=1013.25):
+    '''Calculates the conversion factor from stomatal conductance from m s-1
     to mmol m-2 s-1.
 
     Parameters
@@ -729,7 +729,7 @@ def calc_coef_m2mmol(T_C, p=101.325):
     T_C : float
         Leaf temperature (K).
     p : float, optional
-        Atmospheric pressure (kPa), default = 101.3 kPa.
+        Atmospheric pressure (mb), default = 1013 mb.
 
     Returns
     -------
@@ -742,9 +742,9 @@ def calc_coef_m2mmol(T_C, p=101.325):
         Morgan, J., & Smith, D. P. (2015). Predicting canopy temperatures and infrared heater energy
         requirements for warming field plots. Agronomy Journal, 107(1), 129-141
         http://dx.doi.org/10.2134/agronj14.0109.
-    """
+    '''
 
-    K_gs = p / (R_u * T_C)  # to mol m-2 s-1
+    K_gs = 0.1 * p / (R_u * T_C)  # to mol m-2 s-1
     K_gs = K_gs * 1e3  # to mmol m-2 s-1
     return np.asarray(K_gs)
 
