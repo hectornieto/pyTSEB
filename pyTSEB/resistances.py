@@ -642,8 +642,19 @@ def calc_R_x_Norman(LAI, leaf_width, u_d_zm, params=None):
     return np.asarray(R_x)
 
 
-def calc_stomatal_conductance_TSEB(LE_C, LE, R_A, R_x, e_a, T_A, T_C, F,
-                                   p=1013.0, leaf_type=1, f_g=1, f_dry=1):
+def calc_stomatal_resistance_TSEB(
+        LE_C,
+        LE,
+        R_A,
+        R_x,
+        e_a,
+        T_A,
+        T_C,
+        F,
+        p=1013.0,
+        leaf_type=1,
+        f_g=1,
+        f_dry=1):
     ''' TSEB Stomatal conductace
 
     Estimates the effective Stomatal conductace by inverting the
@@ -695,7 +706,6 @@ def calc_stomatal_conductance_TSEB(LE_C, LE, R_A, R_x, e_a, T_A, T_C, F,
     # Convert input scalars to numpy arrays
     LE_C, LE, R_A, R_x, e_a, T_A, T_C, F, p, leaf_type, f_g, f_dry = map(
         np.asarray, (LE_C, LE, R_A, R_x, e_a, T_A, T_C, F, p, leaf_type, f_g, f_dry))
-    G_s = np.zeros(np.shape(LE_C))
 
     # Invert the bulk SW to obtain eb (vapor pressure at the canopy interface)
     rho = met.calc_rho(p, e_a, T_A)
@@ -703,20 +713,98 @@ def calc_stomatal_conductance_TSEB(LE_C, LE, R_A, R_x, e_a, T_A, T_C, F,
     Lambda = met.calc_lambda(T_A)
     psicr = met.calc_psicr(Cp, p, Lambda)
     e_ac = e_a + LE * R_A * psicr / (rho * Cp)
-
     # Calculate the saturation vapour pressure in the leaf in mb
     e_star = met.calc_vapor_pressure(T_C)
-
     # Calculate the boundary layer canopy resisitance to water vapour (Anderson et al. 2000)
     # Invert the SW LE_S equation to calculate the bulk stomatal resistance
     R_c = np.asarray((rho * Cp * (e_star - e_ac) / (LE_C * psicr)) - R_x)
     K_c = np.asarray(f_dry * f_g * leaf_type)
-
     # Get the mean stomatal resistance (here LAI comes in as stomatal resistances
     # are in parallel: 1/Rc=sum(1/R_st)=LAI/Rst
-    # ans the mean leaf conductance is the reciprocal of R_st (m s-1)
-    G_s[R_c > 0] = 1.0 / R_c[R_c > 0] * K_c[R_c > 0] * F[R_c > 0]
+    r_st = R_c * K_c * F
+    return np.asarray(r_st)
 
+
+def calc_stomatal_conductance_TSEB(
+        LE_C,
+        LE,
+        R_A,
+        R_x,
+        e_a,
+        T_A,
+        T_C,
+        F,
+        p=1013.0,
+        leaf_type=1,
+        f_g=1,
+        f_dry=1):
+    ''' TSEB Stomatal conductace
+
+    Estimates the effective Stomatal conductace by inverting the
+    resistance-based canopy latent heat flux from a Two source perspective
+
+    Parameters
+    ----------
+    LE_C : float
+        Canopy latent heat flux (W m-2).
+    LE : float
+        Surface (bulk) latent heat flux (W m-2).
+    R_A : float
+        Aerodynamic resistance to heat transport (s m-1).
+    R_x : float
+        Bulk aerodynamic resistance to heat transport at the canopy boundary layer (s m-1).
+    e_a : float
+        Water vapour pressure at the reference height (mb).
+    T_A : float
+        Air temperature at the reference height (K).
+    T_C : float
+        Canopy (leaf) temperature (K).
+    F : float
+        local Leaf Area Index.
+    p : float, optional
+        Atmospheric pressure (mb) use 1013.0 as default.
+    leaf_type : int, optional
+        type of leaf regarding stomata distribution.
+
+            1=HYPOSTOMATOUS stomata in the lower surface of the leaf (default).
+            2=AMPHISTOMATOUS, stomata in both surfaces of the leaf.
+    f_g : float, optional
+        Fraction of green leaves.
+    f_dry : float, optional
+        Fraction of dry (non-wet) leaves.
+
+    Returns
+    -------
+    G_s : float
+        effective leaf stomata conductance (mmol m-2 s-1).
+
+    References
+    ----------
+    .. [Anderson2000] M.C. Anderson, J.M. Norman, T.P. Meyers, G.R. Diak, An analytical
+        model for estimating canopy transpiration and carbon assimilation fluxes based on
+        canopy light-use efficiency, Agricultural and Forest Meteorology, Volume 101,
+        Issue 4, 12 April 2000, Pages 265-289, ISSN 0168-1923,
+        http://dx.doi.org/10.1016/S0168-1923(99)00170-7.'''
+
+    # Get the mean stomatal resistance
+    rst = calc_stomatal_resistance_TSEB(
+        LE_C,
+        LE,
+        R_A,
+        R_x,
+        e_a,
+        T_A,
+        T_C,
+        F,
+        p=p,
+        leaf_type=leaf_type,
+        f_g=f_g,
+        f_dry=f_dry)
+
+    # and the mean leaf conductance is the reciprocal of R_st (m s-1)
+    G_s = np.full(rst.shape, np.nan)
+    G_s[rst > 0] = 1.0 / rst[rst > 0]
+    G_s[rst > 0] = calc_coef_m2mmol(T_C[rst > 0], p=p[rst > 0]) * G_s[rst > 0]
     return np.asarray(G_s)
 
 
