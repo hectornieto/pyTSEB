@@ -299,7 +299,7 @@ def dis_TSEB(flux_LR,
                                       z_u[i],
                                       z_T[i],
                                       calcG_params=[calcG_params[0], calcG_params[1][i]],
-                                      UseL=L[i])
+                                      const_L=L[i])
 
         T_S[i] = Tr_K_modified[i]
         T_AC[i] = T_A_K_modified[i]
@@ -361,7 +361,7 @@ def dis_TSEB(flux_LR,
                                          w_C=w_C[i],
                                          resistance_form=resistance_flag,
                                          calcG_params=[calcG_params[0], calcG_params[1][i]],
-                                         UseL=L[i])
+                                         const_L=L[i])
 
         LE_HR = LE_C + LE_S
         H_HR = H_C + H_S
@@ -460,7 +460,7 @@ def dis_TSEB(flux_LR,
                                   z_u[i],
                                   z_T[i],
                                   calcG_params=[calcG_params[0], calcG_params[1][i]],
-                                  UseL=L[i])
+                                  const_L=L[i])
 
     T_S[i] = Tr_K_modified[i]
     T_AC[i] = T_A_K_modified[i]
@@ -523,7 +523,7 @@ def dis_TSEB(flux_LR,
                                      w_C=w_C[i],
                                      resistance_form=resistance_flag,
                                      calcG_params=[calcG_params[0], calcG_params[1][i]],
-                                     UseL=L[i])
+                                     const_L=L[i])
 
     return [flag,
             T_S,
