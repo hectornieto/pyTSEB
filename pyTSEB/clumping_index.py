@@ -30,10 +30,11 @@ PACKAGE CONTENTS
 ================
 * :func:`calc_omega0_Kustas` Nadir viewing clmping factor.
 * :func:`calc_omega_Kustas` Clumping index at an incidence angle.
+* :func:`calc_omega_rows` Clumping index for row crops at an incidence angle.
 """
 
 import numpy as np
-
+from pyTSEB import net_radiation as rad
 
 def calc_omega0_Kustas(LAI, f_C, x_LAD=1, isLAIeff=True):
     ''' Nadir viewing clmping factor
@@ -121,3 +122,70 @@ def calc_omega_Kustas(omega0, theta, w_C=1):
     omega = omega0 / (omega0 + (1.0 - omega0) *
                       np.exp(-2.2 * (np.radians(theta))**(3.8 - 0.46 * w_C)))
     return omega
+
+def calc_omega_rows(lai,
+                    f_c0,
+                    theta=0,
+                    psi=0,
+                    w_c=1,
+                    x_lad=1,
+                    is_lai_eff=True):
+
+    ''' Clumping index in row crops.
+    Calculates the clumping index for a given incidence angle assuming structured row crops.
+    Parameters
+    ----------
+    lai : float
+        Leaf Area Index, it can be either the effective LAI or the real LAI
+        depending on isLAIeff, default input LAI is effective.
+    f_c0 : float
+        Apparent nadir fractional cover, can be expresses as canopy width/row spacing.
+    theta : float, optional
+        Incidence angle (degrees), default nadir.
+    psi : float, optional
+        relative row-sun azimiuth angle
+    w_c :  float, optional
+        canopy witdht to height ratio, [default = 1].
+    x_lad : float, optional
+        Chi parameter for the ellipsoildal Leaf Angle Distribution function of
+        [Campbell1988]_ [default=1, spherical LIDF].
+    is_lai_eff :  bool, optional
+        Defines whether the input LAI is effective or real. [default True]
+
+    Returns
+    -------
+    omega : float
+        clumping index at an incidence angle.
+
+    References
+    ----------
+    .. [Parry2018] Parry, C. K., H. Nieto, P. Guillevic, N. Agam, W. P. Kustas, J. Alfieri, L. McKee, and A. J. McElrone.
+        An intercomparison of radiation partitioning models in vineyard canopies.
+        Irrigation Science. Pages 1-14. https://doi.org/10.1007/s00271-019-00621-x.
+    '''
+
+    # Convert input scalars in numpy arrays
+    lai, f_c0, theta, psi, w_c, x_lad = map(
+        np.asarray, (lai, f_c0, theta, psi, w_c, x_lad =))
+    omega = np.zeros(lai.shape)
+    # Calculate the zenith angle of incidence towards the normal of the row
+    # direction
+    tan_alpha_x = np.tan(np.radians(theta)) * abs(np.sin(np.radians(psi)))
+    # Calculate the fraction that is transmitted trough vegetation
+    f_c = np.asarray(f_c0 * (1.0 + (tan_alpha_x / w_c)))
+
+    f_c = np.minimum(f_c, 1.0)
+    # Estimate the beam extinction coefficient based on a elipsoidal LAD function
+    # Eq. 15.4 of Campbell and Norman (1998)
+    k_be = rad.calc_K_be_Campbell(theta, x_LAD=x_lad)
+    if is_lai_eff is True:
+        f = lai / f_c0
+    else:
+        f = np.asarray(lai)
+    # Calculate the real gap fraction of our canopy
+    trans = f_c * np.exp(-k_be * f) + (1.0 - f_c)
+    # and then the clumping factor
+    omega[trans > 0] = -np.log(trans[trans > 0]) / (f[trans > 0] * k_be[trans > 0])
+
+    return omega
+
