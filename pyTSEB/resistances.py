@@ -339,7 +339,7 @@ def calc_R_S_Haghighi(u, h_C, zm, rho, c_p, z0_soil=0.01, f_cover=0, w_C=1,
     """ Aerodynamic resistance at the  soil boundary layer.
 
     Estimates the aerodynamic resistance at the  soil boundary layer based on the
-    K-Theory model of [Choudhury1988]_.
+    soil resistance formulation adapted by [Li2019]_.
 
     Parameters
     ----------
@@ -365,10 +365,23 @@ def calc_R_S_Haghighi(u, h_C, zm, rho, c_p, z0_soil=0.01, f_cover=0, w_C=1,
 
     References
     ----------
-    .. [Choudhury1988] Choudhury, B. J., & Monteith, J. L. (1988). A four-layer model
-        for the heat budget of homogeneous land surfaces.
-        Royal Meteorological Society, Quarterly Journal, 114(480), 373-398.
-        http://dx/doi.org/10.1002/qj.49711448006.
+    ..[Li2019] Li, Yan, et al.
+        "Evaluating Soil Resistance Formulations in Thermal?Based
+        Two?Source Energy Balance (TSEB) Model:
+        Implications for Heterogeneous Semiarid and Arid Regions."
+        Water Resources Research 55.2 (2019): 1059-1078.
+        https://doi.org/10.1029/2018WR022981.
+    ..[Haghighi2015] Haghighi, Erfan, and Dani Or.
+        "Interactions of bluff-body obstacles with turbulent airflows affecting
+        evaporative fluxes from porous surfaces."
+        Journal of Hydrology 530 (2015): 103-116.
+        https://doi.org/10.1016/j.jhydrol.2015.09.048
+    ..[Haghighi2013] Haghighi, E., and Dani Or.
+        "Evaporation from porous surfaces into turbulent airflows:
+        Coupling eddy characteristics with pore scale vapor diffusion."
+        Water Resources Research 49.12 (2013): 8432-8442.
+        https://doi.org/10.1002/2012WR013324.
+
 
 % -------------------------------------------------------------------------
 %  Inputs   |              Description
@@ -393,13 +406,13 @@ def calc_R_S_Haghighi(u, h_C, zm, rho, c_p, z0_soil=0.01, f_cover=0, w_C=1,
     Ka = 0.024    # [W m-1 K-1] thermal conductivity of air
     lambda_E = 2450e3   # [J/kg]      Latent heat of vaporization
 
-    # [Haghighi and Or, 2015, JHydrol]
+    # ..[Haghighi2015]
     a_r = 3.
     a_s = 5.
     k = 0.1
     k_v = 0.41
     gamma = 150.
-    f_alpha = 22.  # [Haghighi and Or, 2013, WRR]
+    f_alpha = 22.  # [Haghighi2013]_
 
     u, h_C, zm, z0_soil, f_cover, w_C, theta, theta_res, phi, ps, n = map(
         np.asarray, (u, h_C, zm, z0_soil, f_cover, w_C, theta, theta_res, phi, ps, n))
@@ -413,7 +426,7 @@ def calc_R_S_Haghighi(u, h_C, zm, rho, c_p, z0_soil=0.01, f_cover=0, w_C=1,
     K_sat = (0.0077 * n**7.35) / (24. * 3600.)  # [m s-1]
     m = 1. - 1. / n
     K_eff = (4 * K_sat * np.sqrt(THETA)
-             * (1 - (1 - THETA**(1 / m))**m)**2)  # [Haghighi et al., 2013, WRR]
+             * (1 - (1 - THETA**(1 / m))**m)**2)  # [Haghighi2013]_
     del K_sat, m, n
 
     width = h_C * w_C
@@ -434,10 +447,11 @@ def calc_R_S_Haghighi(u, h_C, zm, rho, c_p, z0_soil=0.01, f_cover=0, w_C=1,
               + (f_s * (1 - f_cover) + f_c * f_cover) * C_sg))
     delta = f_alpha * nu / u_star
     R_S_LE = (rho * c_p * ((delta + (ps / 3) * f_theta) / D + 1.73e-5 / K_eff)
-              / lambda_E)     # see Haghighi et al. [2013, WRR]
+              / lambda_E)     # [Haghighi2013]_
     R_S_H = rho * c_p * delta / Ka
 
     return np.asarray(R_S_H), np.asarray(R_S_LE)
+
 
 def calc_R_S_McNaughton(u_friction):
     ''' Aerodynamic resistance at the  soil boundary layer.
