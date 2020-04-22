@@ -842,12 +842,14 @@ def pet_fao56(T_A_K,
     # Net radiation
     Rn = Sn + Ln
 
-    if is_daily:
+
+    if is_daily is True:
         G_ratio = 0
-    elif Sdn > 0:
-        G_ratio = 0.1
     else:
-        G_ratio = 0.5
+        G_ratio = np.zeros(Sdn.shape)
+        case = Sdn > 0
+        G_ratio[case] = 0.1
+        G_ratio[~case] = 0.5
 
     h_c = 0.12
     R_c = 70.0
