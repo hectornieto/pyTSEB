@@ -315,7 +315,9 @@ class PyTSEB(object):
         # Process the input
 
         # Read input data from CSV file
-        in_data = pd.read_csv(self.p['input_file'], delim_whitespace=True)
+        in_data = pd.read_csv(self.p['input_file'],
+                              delim_whitespace=True,
+                              index_col=False)
         in_data.index = compose_date(
             years=in_data['year'],
             days=in_data['DOY'],
@@ -403,7 +405,7 @@ class PyTSEB(object):
         # ======================================
         # Run the chosen model
 
-        out_data = self.run(in_data)
+        out_data = self.run(in_data.to_records(index=False))
         out_data = pd.DataFrame(data=np.stack(out_data.values()).T,
                                 index=in_data.index,
                                 columns=out_data.keys())
