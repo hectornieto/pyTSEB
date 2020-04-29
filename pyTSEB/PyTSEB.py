@@ -206,6 +206,7 @@ class PyTSEB(object):
             if not success:
                 # Some fields are optional is some circumstances or can be calculated if missing.
                 if field in ["SZA", "SAA"]:
+                    print("Estimating missing %s parameter" % field)
                     try:
                         in_data['SZA'], in_data['SAA'] = met.calc_sun_angles(temp_data["lat"],
                                                                              temp_data["lon"],
@@ -217,6 +218,7 @@ class PyTSEB(object):
                               .format(input_fields[field], field, e))
                         return
                 elif field == "p":
+                    print("Estimating missing %s parameter" % field)
                     try:
                         in_data["p"] = met.calc_pressure(in_data["alt"])
                     except KeyError as e:
@@ -224,6 +226,7 @@ class PyTSEB(object):
                               .format(input_fields[field], field, e))
                         return
                 elif field == "L_dn":
+                    print("Estimating missing %s parameter" % field)
                     try:
                         in_data['L_dn'] = rad.calc_longwave_irradiance(in_data['ea'],
                                                                        in_data['T_A1'],
@@ -240,7 +243,12 @@ class PyTSEB(object):
                 elif field == "input_mask":
                     print("Please set input_mask=0 for processing the whole image.")
                     return
-                elif field in ["alt", "lat", "lon", "stdlon", "DOY", "time", 'S_dn_24']:
+                elif field == "S_dn_24":
+                    print("Provide a valid S_dn_24 (Daily shortwave irradiance) "
+                          "value if you want to estimate daily ET")
+                elif field in ["alt", "lat", "lon", "stdlon", "DOY", "time"]:
+                    print("WARNING!: Non-critical parameter %s "
+                          "is invalid or missing..."%field)
                     pass
                 else:
                     print('ERROR: file read {}'.format(field))
@@ -819,6 +827,7 @@ class PyTSEB(object):
                 else:
                     array = fid.GetRasterBand(band).ReadAsArray()
             except AttributeError:
+                print("%s image not present for parameter %s"%(inputString, parameter))
                 success = False
             finally:
                 fid = None
