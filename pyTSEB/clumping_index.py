@@ -166,7 +166,7 @@ def calc_omega_rows(lai,
 
     # Convert input scalars in numpy arrays
     lai, f_c0, theta, psi, w_c, x_lad = map(
-        np.asarray, (lai, f_c0, theta, psi, w_c, x_lad =))
+        np.asarray, (lai, f_c0, theta, psi, w_c, x_lad))
     omega = np.zeros(lai.shape)
     # Calculate the zenith angle of incidence towards the normal of the row
     # direction
