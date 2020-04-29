@@ -13,8 +13,8 @@ model=TSEB_PT
 # Temperatures are in Celsius, angles are in degrees, presure are in mb. u: wind speed, ea: vapour prssure, Sdn: incoming solar radiation
 # Additional input variables are: 'SAA': solar azimuth angle, 'SZA': solar zenith angle, 'Ldn': incoming longwave radiation, 'f_C': fractional cover, 'f_g': green fraction, 'wc': canopy width to height ratio, 'G': soil heat flux (see G_Calc flag below)
 # Other variables included (accidentaly or on purpose) in the text file are ignored
-
-input_file=./Input/ExampleTableInput.txt# mandatory file
+# mandatory file
+input_file=./Input/ExampleTableInput.txt
 
 #==============================================================================
 # Output paramters
