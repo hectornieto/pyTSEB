@@ -666,8 +666,7 @@ class PyTSEB(object):
                                                {k: model_params["resistance_form"][1][k][i]
                                                    for k in model_params["resistance_form"][1]}],
                               Rst_min=100,
-                              R_ss=500,
-                              environmental_factors=in_data['f_g'][i])
+                              R_ss=500)
 
             out_data['CWSI'][i] = 1.0 - (out_data['LE_C1'][i] / out_data['LE_C_0'][i])
 
