@@ -673,7 +673,7 @@ class PyTSEB(object):
         
         if self.calc_daily_ET:
             out_data['ET_day'] = met.flux_2_evaporation(in_data['S_dn_24'] * out_data['LE1'] / in_data['S_dn'], 
-                                                        T_K=20+273.15, 
+                                                        t_k=20+273.15, 
                                                         time_domain=24)
             
         
