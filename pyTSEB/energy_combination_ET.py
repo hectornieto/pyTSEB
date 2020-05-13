@@ -39,7 +39,7 @@ def penman_monteith(T_A_K,
                     z_T,
                     calcG_params=[[1], 0.35],
                     const_L=None,
-                    Rst_min=100,
+                    Rst_min=400,
                     leaf_type=TSEB.res.AMPHISTOMATOUS):
     '''Penman Monteith [Allen1998]_ energy combination model.
     Calculates the Penman Monteith one source fluxes using meteorological and crop data.
@@ -79,7 +79,7 @@ def penman_monteith(T_A_K,
     const_L : float or None, optional
         If included, its value will be used to force the Moning-Obukhov stability length.
     Rst_min : float
-        Minimum (unstress) single-leaf stomatal coductance (s m -1), Default = 100 s m-1
+        Minimum (unstress) single-leaf stomatal coductance (s m -1), Default = 400 s m-1
     leaf_type : int
         1: Hipostomatous leaves (stomata only in one side of the leaf)
         2: Amphistomatous leaves (stomata in both sides of the leaf)
@@ -442,10 +442,10 @@ def shuttleworth_wallace(T_A_K,
     resistance_form = resistance_form[0]
 
     # Create the output variables
-    [flag, vpd_0, T_0, Ln_C, Ln_S, LE, H, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A,
+    [flag, vpd_0, LE, H, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A,
      Rn, Rn_C, Rn_S, C_s, C_c, PM_C, PM_S, iterations] = [np.full(T_A_K.shape,
                                                                   np.NaN)
-                                                          for i in range(23)]
+                                                          for i in range(20)]
 
     # Calculate the general parameters
     rho_a = TSEB.met.calc_rho(p, ea, T_A_K)  # Air density
@@ -486,7 +486,7 @@ def shuttleworth_wallace(T_A_K,
     z_0H = TSEB.res.calc_z_0H(z_0M, kB=0)  # Roughness length for heat transport
 
     # First assume that temperatures equals the Air Temperature
-    T_C, T_S = np.array(T_A_K), np.array(T_A_K)
+    T_C, T_S, T_0 = T_A_K.copy(), T_A_K.copy(), T_A_K.copy()
     Ln_C, Ln_S = TSEB.rad.calc_L_n_Campbell(T_C, T_S, L_dn, LAI, emis_C, emis_S,
                                             x_LAD=x_LAD)
 
@@ -652,7 +652,7 @@ def shuttleworth_wallace(T_A_K,
             # We check convergence against the value of L from previous iteration but as well
             # against values from 2 or 3 iterations back. This is to catch situations (not
             # infrequent) where L oscillates between 2 or 3 steady state values.
-            L_new = np.array(L)
+            L_new = L.copy()
             L_new[L_new == 0] = 1e-36
             L_queue.appendleft(L_new)
             L_converged[i] = TSEB._L_diff(L_queue[0][i],
@@ -667,6 +667,7 @@ def shuttleworth_wallace(T_A_K,
                     (TSEB._L_diff(L_queue[0][i], L_queue[3][i]) < TSEB.L_thres,
                      TSEB._L_diff(L_queue[1][i], L_queue[4][i]) < TSEB.L_thres,
                      TSEB._L_diff(L_queue[2][i], L_queue[5][i]) < TSEB.L_thres))
+
     (flag,
      T_S,
      T_C,
@@ -866,7 +867,7 @@ def le_penman_monteith(r_n, g_flux, vpd, r_a, r_c, delta, rho, cp, psicr):
 
 
 def bulk_stomatal_resistance(LAI, Rst, leaf_type=TSEB.res.AMPHISTOMATOUS):
-    ''' Calculate the bulk canopy stomatal conductance.
+    ''' Calculate the bulk canopy stomatal resistance.
 
     Parameters
     ----------
@@ -883,7 +884,7 @@ def bulk_stomatal_resistance(LAI, Rst, leaf_type=TSEB.res.AMPHISTOMATOUS):
     Returns
     -------
     R_c : float
-        Canopy bulk stomatal conductance (s m-1)
+        Canopy bulk stomatal resistance (s m-1)
     '''
 
     R_c = Rst / (leaf_type * LAI)
