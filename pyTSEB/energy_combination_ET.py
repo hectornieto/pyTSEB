@@ -703,6 +703,10 @@ def shuttleworth_wallace(T_A_K,
                           L,
                           iterations))
 
+    # Ensure conservation of energy
+    LE_C = Sn_C + Ln_C - H_C
+    LE_S = Sn_S + Ln_S - G - H_S
+    
     return flag, T_S, T_C, vpd_0, Ln_S, Ln_C, LE, H, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A, u_friction, L, n_iterations
 
 
