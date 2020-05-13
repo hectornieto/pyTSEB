@@ -578,6 +578,11 @@ def shuttleworth_wallace(T_A_K,
                                                                 delta[i],
                                                                 psicr[i])
 
+        # Calculate net longwave radiation with current values of T_C and T_S
+        Ln_C[i], Ln_S[i] = TSEB.rad.calc_L_n_Campbell(T_C[i], T_S[i], L_dn[i],
+                                                      LAI[i], emis_C[i], emis_S[i],
+                                                      x_LAD=x_LAD[i])
+
         Rn_C[i] = Sn_C[i] + Ln_C[i]
         Rn_S[i] = Sn_S[i] + Ln_S[i]
         Rn[i] = Rn_C[i] + Rn_S[i]
@@ -627,10 +632,6 @@ def shuttleworth_wallace(T_A_K,
         flag[no_valid_T] = F_LOW_TS
         T_S[no_valid_T] = T_A_K[no_valid_T] - LOWEST_TS_DIFF
 
-        # Calculate net longwave radiation with current values of T_C and T_S
-        Ln_C[i], Ln_S[i] = TSEB.rad.calc_L_n_Campbell(T_C[i], T_S[i], L_dn[i],
-                                                      LAI[i], emis_C[i], emis_S[i],
-                                                      x_LAD=x_LAD[i])
 
         # Now L can be recalculated and the difference between iterations
         # derived
@@ -703,10 +704,6 @@ def shuttleworth_wallace(T_A_K,
                           L,
                           iterations))
 
-    # Ensure conservation of energy
-    LE_C = Sn_C + Ln_C - H_C
-    LE_S = Sn_S + Ln_S - G - H_S
-    
     return flag, T_S, T_C, vpd_0, Ln_S, Ln_C, LE, H, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A, u_friction, L, n_iterations
 
 
