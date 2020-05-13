@@ -13,7 +13,7 @@ import numpy as np
 # kB coefficient
 kB = 2.3
 
-ITERATIONS = 15
+ITERATIONS = 30
 
 TALL_REFERENCE = 1
 SHORT_REFERENCE = 0
