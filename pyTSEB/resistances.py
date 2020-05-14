@@ -60,7 +60,7 @@ Estimation of roughness
 from math import pi
 
 import numpy as np
-
+from scipy.special import gamma as gamma_func
 import pyTSEB.MO_similarity as MO
 import pyTSEB.meteo_utils as met
 
@@ -399,9 +399,28 @@ def calc_R_S_Haghighi(u, h_c, zm, rho, c_p, z0_soil=0.01, f_cover=0, w_C=1,
 % -------------------------------------------------------------------------
 
     """
+    def calc_prod_alpha(alpha, n):
+        out = 1.0
+        for i in range(n):
+            out = out * (2 * (alpha - i) + 1)
+        return out
+
+    def calc_prod_alpha_array(alpha_array):
+        out_array = np.ones(alpha_array.shape)
+        n_array = np.ceil(alpha_array).astype(np.int)
+        ns = np.unique(n_array)
+        for n in ns:
+            index = n_array == n
+            out_array[index] = calc_prod_alpha(alpha_array[index], n)
+        return out_array
+
+
+
     # Define constanst
     nu = 15.11e-6   # [m2 s-1]    kinmeatic visocosity of air
     k_a = 0.024    # [W m-1 K-1] thermal conductivity of air
+    c_2 = 2.2
+    c_3 = 112.
     g_alpha = 21.7
     u, h_c, zm, z0_soil, f_cover, w_C = map(np.asarray, (u, h_c, zm, z0_soil, f_cover, w_C))
 
@@ -421,15 +440,16 @@ def calc_R_S_Haghighi(u, h_c, zm, rho, c_p, z0_soil=0.01, f_cover=0, w_C=1,
     beta = (c_d / KARMAN ** 2) * ((np.log(h_c / z0_soil) - 1)**2 + 1)
     c_rg = beta * c_sg
 
-    alpha_mean = 0.3 / np.sqrt(f_r * lambda_ * (1 - f_cover) * c_rg
-                               + (f_s * (1 - f_cover) + f_v * f_cover) * c_sg) - 1
-    u_star = (u * np.sqrt(f_r * lambda_ * (1 - f_cover) * c_rg
+    alpha_mean = (0.3 / np.sqrt(f_r * lambda_ * (1. - f_cover) * c_rg
+                               + (f_s * (1. - f_cover) + f_v * f_cover) * c_sg)) - 1
+    u_star = (u * np.sqrt(f_r * lambda_ * (1. - f_cover) * c_rg
               + (f_s * (1 - f_cover) + f_v * f_cover) * c_sg))
 
-    # prod_alpha = calc_prod_alpha(alpha_mean)
-    # g_alpha = 2.2 * np.sqrt(112 * np.pi) / (prod_alpha * 2 ** (alpha_mean + 1)
-    #                                        * np.sqrt(alpha_mean + 1))
-    # g_alpha[alpha_mean > 0] = g_alpha[alpha_mean > 0] * prod_alpha[alpha_mean > 0]
+    prod_alpha = calc_prod_alpha_array(alpha_mean)
+    g_alpha = c_2 * np.sqrt(c_3 * np.pi) / (gamma_func(alpha_mean + 1)
+                                            * 2**(alpha_mean + 1)
+                                            * np.sqrt(alpha_mean + 1))
+    g_alpha[alpha_mean > 0] = g_alpha[alpha_mean > 0] * prod_alpha[alpha_mean > 0]
     delta = g_alpha * nu / u_star
     r_s = rho * c_p * delta / k_a
 
