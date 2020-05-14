@@ -175,7 +175,7 @@ def penman_monteith(T_A_K,
         L = np.asarray(np.ones(T_A_K.shape) * const_L)
         max_iterations = 1  # No iteration
     u_friction = TSEB.MO.calc_u_star(u, z_u, L, d_0, z_0M)
-    u_friction = np.asarray(np.maximum(TSEB.u_friction_min, u_friction))
+    u_friction = np.asarray(np.maximum(TSEB.U_FRICTION_MIN, u_friction))
 
     L_old = np.ones(T_A_K.shape)
     L_diff = np.asarray(np.ones(T_A_K.shape) * np.inf)
@@ -228,7 +228,7 @@ def penman_monteith(T_A_K,
             # Calculate again the friction velocity with the new stability
             # correctios
             u_friction[i] = TSEB.MO.calc_u_star(u[i], z_u[i], L[i], d_0[i], z_0M[i])
-            u_friction = np.asarray(np.maximum(TSEB.u_friction_min, u_friction))
+            u_friction = np.asarray(np.maximum(TSEB.U_FRICTION_MIN, u_friction))
 
     flag, Ln, LE, H, G, R_A, u_friction, L, n_iterations = map(
         np.asarray, (flag, Ln, LE, H, G, R_A, u_friction, L, n_iterations))
@@ -478,7 +478,7 @@ def shuttleworth_wallace(T_A_K,
         L = np.asarray(np.ones(T_A_K.shape) * const_L)
         max_iterations = 1  # No iteration
     u_friction = TSEB.MO.calc_u_star(u, z_u, L, d_0, z_0M)
-    u_friction = np.asarray(np.maximum(TSEB.u_friction_min, u_friction))
+    u_friction = np.asarray(np.maximum(TSEB.U_FRICTION_MIN, u_friction))
     L_queue = deque([np.array(L)], 6)
     L_converged = np.asarray(np.zeros(T_A_K.shape)).astype(bool)
     L_diff_max = np.inf
@@ -654,10 +654,9 @@ def shuttleworth_wallace(T_A_K,
 
             # Calculate again the friction velocity with the new stability
             # correctios
-            u_friction[i] = TSEB.MO.calc_u_star(
-                u[i], z_u[i], L[i], d_0[i], z_0M[i])
-            u_friction[i] = np.asarray(
-                np.maximum(TSEB.u_friction_min, u_friction[i]))
+            u_friction[i] = TSEB.MO.calc_u_star(u[i], z_u[i], L[i], d_0[i], z_0M[i])
+            u_friction[i] = np.asarray(np.maximum(TSEB.U_FRICTION_MIN, u_friction[i]))
+
             # We check convergence against the value of L from previous iteration but as well
             # against values from 2 or 3 iterations back. This is to catch situations (not
             # infrequent) where L oscillates between 2 or 3 steady state values.

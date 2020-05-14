@@ -93,13 +93,13 @@ import pyTSEB.wind_profile as wnd
 # Threshold for relative change in Monin-Obukhov lengh to stop the iterations
 L_thres = 0.001
 # mimimun allowed friction velocity
-u_friction_min = 0.01
+U_FRICTION_MIN = 0.01
 # Maximum number of interations
 ITERATIONS = 15
 # kB coefficient
-kB = 0.0
+KB_1_DEFAULT = 0.0
 # Stephan Boltzmann constant (W m-2 K-4)
-sb = 5.670373e-8
+SB = 5.670373e-8
 
 # Resistance formulation constants
 KUSTAS_NORMAN_1999 = 0
@@ -152,7 +152,8 @@ def TSEB_2T(T_C,
             w_C=1.0,
             resistance_form=None,
             calcG_params=None,
-            const_L=None):
+            const_L=None,
+            kB=KB_1_DEFAULT):
     """ TSEB using component canopy and soil temperatures.
 
     Calculates the turbulent fluxes by the Two Source Energy Balance model
@@ -350,7 +351,7 @@ def TSEB_2T(T_C,
     G[i] = calc_G([calcG_params[0], calcG_array], Rn_S, i)
     # iteration of the Monin-Obukhov length
     u_friction = MO.calc_u_star(u, z_u, L, d_0, z_0M)
-    u_friction = np.asarray(np.maximum(u_friction_min, u_friction))
+    u_friction = np.asarray(np.maximum(U_FRICTION_MIN, u_friction))
     L_old = np.ones(T_C.shape)
     L_diff = np.asarray(np.ones(T_C.shape) * np.inf)
 
@@ -441,7 +442,7 @@ def TSEB_2T(T_C,
             # Calculate again the friction velocity with the new stability
             # correctios
             u_friction[i] = MO.calc_u_star(u[i], z_u[i], L[i], d_0[i], z_0M[i])
-            u_friction = np.asarray(np.maximum(u_friction_min, u_friction))
+            u_friction = np.asarray(np.maximum(U_FRICTION_MIN, u_friction))
 
     # Compute soil and canopy latent heat fluxes
     LE_S = Rn_S - G - H_S
@@ -483,7 +484,8 @@ def TSEB_PT(Tr_K,
             calcG_params=[
                 [1],
                 0.35],
-            const_L=None):
+            const_L=None,
+            KB_1_DEFAULT):
     '''Priestley-Taylor TSEB
 
     Calculates the Priestley Taylor TSEB fluxes using a single observation of
@@ -689,7 +691,7 @@ def TSEB_PT(Tr_K,
     # Initially assume stable atmospheric conditions and set variables for
     # iteration of the Monin-Obukhov length
     u_friction = MO.calc_u_star(u, z_u, L, d_0, z_0M)
-    u_friction = np.asarray(np.maximum(u_friction_min, u_friction))
+    u_friction = np.asarray(np.maximum(U_FRICTION_MIN, u_friction))
     L_queue = deque([np.array(L)], 6)
     L_converged = np.asarray(np.zeros(Tr_K.shape)).astype(bool)
     L_diff_max = np.inf
@@ -834,7 +836,7 @@ def TSEB_PT(Tr_K,
                 # correctios
                 u_friction[i] = MO.calc_u_star(
                     u[i], z_u[i], L[i], d_0[i], z_0M[i])
-                u_friction[i] = np.asarray(np.maximum(u_friction_min, u_friction[i]))
+                u_friction[i] = np.asarray(np.maximum(U_FRICTION_MIN, u_friction[i]))
 
         if const_L is None:
             # We check convergence against the value of L from previous iteration but as well
@@ -937,7 +939,8 @@ def DTD(Tr_K_0,
         calcG_params=[
             [1],
             0.35],
-        calc_Ri=True):
+        calc_Ri=True,
+        kB=KB_1_DEFAULT):
     ''' Calculate daytime Dual Time Difference TSEB fluxes
 
     Parameters
@@ -1150,7 +1153,7 @@ def DTD(Tr_K_0,
     # calculate the resistances
     # First calcualte u_S, wind speed at the soil surface
     u_friction = MO.calc_u_star(u, z_u, L_from_Ri, d_0, z_0M)
-    u_friction = np.asarray(np.maximum(u_friction_min, u_friction))
+    u_friction = np.asarray(np.maximum(U_FRICTION_MIN, u_friction))
 
     # First assume that canopy temperature equals the minumum of Air or
     # radiometric T
@@ -1370,7 +1373,8 @@ def OSEB(Tr_K,
              [1],
              0.35],
          const_L=None,
-         T0_K=[]):
+         T0_K=[],
+         kB=KB_1_DEFAULT):
     '''Calulates bulk fluxes from a One Source Energy Balance model
 
     Parameters
@@ -1505,7 +1509,7 @@ def OSEB(Tr_K,
         u_friction = MO.calc_u_star(u, z_u, L_from_Ri, d_0, z_0M)
     else:
         u_friction = MO.calc_u_star(u, z_u, L, d_0, z_0M)
-    u_friction = np.maximum(u_friction_min, u_friction)
+    u_friction = np.maximum(U_FRICTION_MIN, u_friction)
     L_old = np.ones(Tr_K.shape)
     L_diff = np.ones(Tr_K.shape) * float('inf')
 
@@ -1565,7 +1569,7 @@ def OSEB(Tr_K,
             # and derive the change between iterations
             if not differentialT:
                 u_friction = MO.calc_u_star(u, z_u, L, d_0, z_0M)
-                u_friction = np.maximum(u_friction_min, u_friction)
+                u_friction = np.maximum(U_FRICTION_MIN, u_friction)
 
     flag, Ln, LE, H, G, R_A, u_friction, L, n_iterations = map(
         np.asarray, (flag, Ln, LE, H, G, R_A, u_friction, L, n_iterations))
@@ -2217,8 +2221,8 @@ def calc_T_CS_4SAIL(
            / (emiss_s_eff_n * emiss_v_eff_f - emiss_s_eff_f * emiss_v_eff_n))
     H_S = (L_emiss_n - emiss_v_eff_n * H_v) / emiss_s_eff_n
     # Invert Stephan Boltzmann to obtain vegetation and soil temperatures
-    T_C_K = (H_v / sb)**0.25
-    T_S_K = (H_S / sb)**0.25
+    T_C_K = (H_v / SB)**0.25
+    T_S_K = (H_S / SB)**0.25
     return np.asarray(T_C_K), np.asarray(T_S_K)
 
 
@@ -2403,7 +2407,7 @@ def calc_T_S_4SAIL(T_R, T_C, rdot_star, emiss_v_eff, emiss_s_eff, L_dn=0):
     T_S = np.zeros(T_R.shape)
 
     # Succesfull inversion
-    T_S[Hs >= 0] = (Hs / sb)**0.25
+    T_S[Hs >= 0] = (Hs / SB)**0.25
 
     # Unsuccesfull inversion
     T_S[Hs < 0] = 1e-6
