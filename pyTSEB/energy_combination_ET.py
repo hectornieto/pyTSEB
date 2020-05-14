@@ -863,7 +863,7 @@ def pet_fao56(T_A_K,
     # u_2 = wind_profile(u, z_u, z_0M, d, 2.0)
     # R_a = 208. / u_2
     u_friction = TSEB.MO.calc_u_star(u, z_u, np.inf, d, z_0M)
-    R_a = np.log((z_T - d) / z_0H) / (u_friction * TSEB.res.k)
+    R_a = np.log((z_T - d) / z_0H) / (u_friction * TSEB.res.KARMAN)
 
     LE = le_penman_monteith(Rn, G, es - ea, R_a, R_c, delta, rho, c_p, psicr)
 
