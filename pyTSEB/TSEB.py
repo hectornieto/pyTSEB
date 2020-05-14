@@ -2621,7 +2621,7 @@ def calc_resistances(res_form, res_types):
             R_x = res.calc_R_x_Norman(LAI, leaf_width, u_d_zm, res_params)
             del LAI, leaf_width, u_d_zm
         if calc_R_S:
-            R_S, _ = res.calc_R_S_Haghighi(u, h_C, z_u, rho, c_p, z0_soil=z0_soil, f_cover=f_cover,
+            R_S = res.calc_R_S_Haghighi(u, h_C, z_u, rho, c_p, z0_soil=z0_soil, f_cover=f_cover,
                                            w_C=w_C)
 
     R_A = np.asarray(np.maximum(1e-3, R_A))
