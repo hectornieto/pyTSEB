@@ -13,7 +13,7 @@ import numpy as np
 # kB coefficient
 kB = 2.3
 
-ITERATIONS = 30
+ITERATIONS = 15
 
 TALL_REFERENCE = 1
 SHORT_REFERENCE = 0
@@ -513,125 +513,133 @@ def shuttleworth_wallace(T_A_K,
         iterations[i] = n_iterations
         flag[i] = 0
 
-        # Calculate aerodynamic resistances
-        R_A[i], R_x[i], R_S[i] = TSEB.calc_resistances(resistance_form,
-                                                       {"R_A": {"z_T": z_T[i],
-                                                                "u_friction":
-                                                                    u_friction[i],
-                                                                "L": L[i],
-                                                                "d_0": d_0[i],
-                                                                "z_0H": z_0H[i]},
-                                                        "R_x": {"u_friction":
-                                                                    u_friction[i],
-                                                                "h_C": h_C[i],
-                                                                "d_0": d_0[i],
-                                                                "z_0M": z_0M[i],
-                                                                "L": L[i],
-                                                                "LAI": LAI[i],
-                                                                "leaf_width":
-                                                                    leaf_width[i],
-                                                                "massman_profile": massman_profile,
-                                                                "res_params": {k:
-                                                                                   res_params[
-                                                                                       k][
-                                                                                       i]
-                                                                               for k
-                                                                               in
-                                                                               res_params.keys()}},
-                                                        "R_S": {"u_friction":
-                                                                    u_friction[i],
-                                                                'u': u[i],
-                                                                "h_C": h_C[i],
-                                                                "d_0": d_0[i],
-                                                                "z_0M": z_0M[i],
-                                                                "L": L[i],
-                                                                "F": F[i],
-                                                                "omega0": omega0[i],
-                                                                "LAI": LAI[i],
-                                                                "leaf_width":
-                                                                    leaf_width[i],
-                                                                "z0_soil": z0_soil[
-                                                                    i],
-                                                                "z_u": z_u[i],
-                                                                "deltaT": T_S[i] -
-                                                                          T_C[i],
-                                                                "massman_profile": massman_profile,
-                                                                'rho': rho_a[i],
-                                                                'c_p': Cp[i],
-                                                                'f_cover': f_c[i],
-                                                                'w_C': w_C[i],
-                                                                "res_params": {k:
-                                                                                   res_params[
-                                                                                       k][
-                                                                                       i]
-                                                                               for k
-                                                                               in
-                                                                               res_params.keys()}}
-                                                        }
-                                                       )
+        T_C_old = np.zeros(T_C.shape)
+        T_S_old = np.zeros(T_S.shape)
+        for nn_interations in range(max_iterations):
+            # Calculate aerodynamic resistances
+            R_A[i], R_x[i], R_S[i] = TSEB.calc_resistances(resistance_form,
+                                                           {"R_A": {"z_T": z_T[i],
+                                                                    "u_friction":
+                                                                        u_friction[i],
+                                                                    "L": L[i],
+                                                                    "d_0": d_0[i],
+                                                                    "z_0H": z_0H[i]},
+                                                            "R_x": {"u_friction":
+                                                                        u_friction[i],
+                                                                    "h_C": h_C[i],
+                                                                    "d_0": d_0[i],
+                                                                    "z_0M": z_0M[i],
+                                                                    "L": L[i],
+                                                                    "LAI": LAI[i],
+                                                                    "leaf_width":
+                                                                        leaf_width[i],
+                                                                    "massman_profile": massman_profile,
+                                                                    "res_params": {k:
+                                                                                       res_params[
+                                                                                           k][
+                                                                                           i]
+                                                                                   for k
+                                                                                   in
+                                                                                   res_params.keys()}},
+                                                            "R_S": {"u_friction":
+                                                                        u_friction[i],
+                                                                    'u': u[i],
+                                                                    "h_C": h_C[i],
+                                                                    "d_0": d_0[i],
+                                                                    "z_0M": z_0M[i],
+                                                                    "L": L[i],
+                                                                    "F": F[i],
+                                                                    "omega0": omega0[i],
+                                                                    "LAI": LAI[i],
+                                                                    "leaf_width":
+                                                                        leaf_width[i],
+                                                                    "z0_soil": z0_soil[
+                                                                        i],
+                                                                    "z_u": z_u[i],
+                                                                    "deltaT": T_S[i] -
+                                                                              T_C[i],
+                                                                    "massman_profile": massman_profile,
+                                                                    'rho': rho_a[i],
+                                                                    'c_p': Cp[i],
+                                                                    'f_cover': f_c[i],
+                                                                    'w_C': w_C[i],
+                                                                    "res_params": {k:
+                                                                                       res_params[
+                                                                                           k][
+                                                                                           i]
+                                                                                   for k
+                                                                                   in
+                                                                                   res_params.keys()}}
+                                                            }
+                                                           )
 
-        _, _, _, C_s[i], C_c[i] = calc_effective_resistances_SW(R_A[i],
-                                                                R_x[i],
-                                                                R_S[i],
-                                                                R_c[i],
-                                                                R_ss[i],
-                                                                delta[i],
-                                                                psicr[i])
+            _, _, _, C_s[i], C_c[i] = calc_effective_resistances_SW(R_A[i],
+                                                                    R_x[i],
+                                                                    R_S[i],
+                                                                    R_c[i],
+                                                                    R_ss[i],
+                                                                    delta[i],
+                                                                    psicr[i])
 
-        # Calculate net longwave radiation with current values of T_C and T_S
-        Ln_C[i], Ln_S[i] = TSEB.rad.calc_L_n_Campbell(T_C[i], T_S[i], L_dn[i],
-                                                      LAI[i], emis_C[i], emis_S[i],
-                                                      x_LAD=x_LAD[i])
+            # Calculate net longwave radiation with current values of T_C and T_S
+            Ln_C[i], Ln_S[i] = TSEB.rad.calc_L_n_Campbell(T_C[i], T_S[i], L_dn[i],
+                                                          LAI[i], emis_C[i], emis_S[i],
+                                                          x_LAD=x_LAD[i])
 
-        Rn_C[i] = Sn_C[i] + Ln_C[i]
-        Rn_S[i] = Sn_S[i] + Ln_S[i]
-        Rn[i] = Rn_C[i] + Rn_S[i]
-        # Compute Soil Heat Flux Ratio
-        G[i] = TSEB.calc_G([calcG_params[0], calcG_array], Rn_S, i)
+            Rn_C[i] = Sn_C[i] + Ln_C[i]
+            Rn_S[i] = Sn_S[i] + Ln_S[i]
+            Rn[i] = Rn_C[i] + Rn_S[i]
+            # Compute Soil Heat Flux Ratio
+            G[i] = TSEB.calc_G([calcG_params[0], calcG_array], Rn_S, i)
 
-        # Eq. 12 in [Shuttleworth1988]_
-        PM_C[i] = (delta[i] * (Rn[i] - G[i]) + (
-                    rho_cp[i] * vpd[i] - delta[i] * R_x[i] * (Rn_S[i] - G[i])) / (
-                           R_A[i] + R_x[i])) / \
-                  (delta[i] + psicr[i] * (1. + R_c[i] / (R_A[i] + R_x[i])))
-        # Eq. 13 in [Shuttleworth1988]_
-        PM_S[i] = (delta[i] * (Rn[i] - G[i]) + (
-                    rho_cp[i] * vpd[i] - delta[i] * R_S[i] * Rn_C[i]) / (
-                               R_A[i] + R_S[i])) / \
-                  (delta[i] + psicr[i] * (1. + R_ss[i] / (R_A[i] + R_S[i])))
-        # Eq. 11 in [Shuttleworth1988]_
-        LE[i] = C_c[i] * PM_C[i] + C_s[i] * PM_S[i]
-        H[i] = Rn[i] - G[i] - LE[i]
+            # Eq. 12 in [Shuttleworth1988]_
+            PM_C[i] = (delta[i] * (Rn[i] - G[i]) + (
+                        rho_cp[i] * vpd[i] - delta[i] * R_x[i] * (Rn_S[i] - G[i])) / (
+                               R_A[i] + R_x[i])) / \
+                      (delta[i] + psicr[i] * (1. + R_c[i] / (R_A[i] + R_x[i])))
+            # Eq. 13 in [Shuttleworth1988]_
+            PM_S[i] = (delta[i] * (Rn[i] - G[i]) + (
+                        rho_cp[i] * vpd[i] - delta[i] * R_S[i] * Rn_C[i]) / (
+                                   R_A[i] + R_S[i])) / \
+                      (delta[i] + psicr[i] * (1. + R_ss[i] / (R_A[i] + R_S[i])))
+            # Eq. 11 in [Shuttleworth1988]_
+            LE[i] = C_c[i] * PM_C[i] + C_s[i] * PM_S[i]
+            H[i] = Rn[i] - G[i] - LE[i]
 
-        # Compute canopy and soil  fluxes
-        # Vapor pressure deficit at canopy source height (mb) # Eq. 8 in [Shuttleworth1988]_
-        vpd_0[i] = vpd[i] + (
-                    delta[i] * (Rn[i] - G[i]) - (delta[i] + psicr[i]) * LE[i]) * \
-                   R_A[i] / (rho_cp[i])
-        # Eq. 9 in Shuttleworth & Wallace 1985
-        LE_S[i] = (delta[i] * (Rn_S[i] - G[i]) + rho_cp[i] * vpd_0[i] / R_S[i]) / \
-                  (delta[i] + psicr[i] * (1. + R_ss[i] / R_S[i]))
-        H_S[i] = Rn_S[i] - G[i] - LE_S[i]
-        # Eq. 10 in Shuttleworth & Wallace 1985
-        LE_C[i] = (delta[i] * Rn_C[i] + rho_cp[i] * vpd_0[i] / R_x[i]) / \
-                  (delta[i] + psicr[i] * (1. + R_c[i] / R_x[i]))
-        H_C[i] = Rn_C[i] - LE_C[i]
+            # Compute canopy and soil  fluxes
+            # Vapor pressure deficit at canopy source height (mb) # Eq. 8 in [Shuttleworth1988]_
+            vpd_0[i] = vpd[i] + (
+                        delta[i] * (Rn[i] - G[i]) - (delta[i] + psicr[i]) * LE[i]) * \
+                       R_A[i] / (rho_cp[i])
+            # Eq. 9 in Shuttleworth & Wallace 1985
+            LE_S[i] = (delta[i] * (Rn_S[i] - G[i]) + rho_cp[i] * vpd_0[i] / R_S[i]) / \
+                      (delta[i] + psicr[i] * (1. + R_ss[i] / R_S[i]))
+            H_S[i] = Rn_S[i] - G[i] - LE_S[i]
+            # Eq. 10 in Shuttleworth & Wallace 1985
+            LE_C[i] = (delta[i] * Rn_C[i] + rho_cp[i] * vpd_0[i] / R_x[i]) / \
+                      (delta[i] + psicr[i] * (1. + R_c[i] / R_x[i]))
+            H_C[i] = Rn_C[i] - LE_C[i]
 
-        T_0[i] = calc_T(H[i], T_A_K[i], R_A[i], rho_a[i], Cp[i])
-        T_C[i] = calc_T(H_C[i], T_0[i], R_x[i], rho_a[i], Cp[i])
-        T_S[i] = calc_T(H_S[i], T_0[i], R_S[i], rho_a[i], Cp[i])
-        no_valid_T = np.logical_and.reduce((i, T_C <= T_A_K - LOWEST_TC_DIFF,
-                                            T_S <= T_A_K - LOWEST_TS_DIFF))
-        flag[no_valid_T] = F_LOW_TS_TC
-        T_C[no_valid_T] = T_A_K[no_valid_T] - LOWEST_TC_DIFF
-        T_S[no_valid_T] = T_A_K[no_valid_T] - LOWEST_TS_DIFF
-        no_valid_T = np.logical_and(i, T_C <= T_A_K - LOWEST_TC_DIFF)
-        flag[no_valid_T] = F_LOW_TC
-        T_C[no_valid_T] = T_A_K[no_valid_T] - LOWEST_TC_DIFF
-        no_valid_T = np.logical_and(i, T_S <= T_A_K - LOWEST_TS_DIFF)
-        flag[no_valid_T] = F_LOW_TS
-        T_S[no_valid_T] = T_A_K[no_valid_T] - LOWEST_TS_DIFF
+            T_0[i] = calc_T(H[i], T_A_K[i], R_A[i], rho_a[i], Cp[i])
+            T_C[i] = calc_T(H_C[i], T_0[i], R_x[i], rho_a[i], Cp[i])
+            T_S[i] = calc_T(H_S[i], T_0[i], R_S[i], rho_a[i], Cp[i])
+            no_valid_T = np.logical_and.reduce((i, T_C <= T_A_K - LOWEST_TC_DIFF,
+                                                T_S <= T_A_K - LOWEST_TS_DIFF))
+            flag[no_valid_T] = F_LOW_TS_TC
+            T_C[no_valid_T] = T_A_K[no_valid_T] - LOWEST_TC_DIFF
+            T_S[no_valid_T] = T_A_K[no_valid_T] - LOWEST_TS_DIFF
+            no_valid_T = np.logical_and(i, T_C <= T_A_K - LOWEST_TC_DIFF)
+            flag[no_valid_T] = F_LOW_TC
+            T_C[no_valid_T] = T_A_K[no_valid_T] - LOWEST_TC_DIFF
+            no_valid_T = np.logical_and(i, T_S <= T_A_K - LOWEST_TS_DIFF)
+            flag[no_valid_T] = F_LOW_TS
+            T_S[no_valid_T] = T_A_K[no_valid_T] - LOWEST_TS_DIFF
 
+            if np.all(np.abs(T_C - T_C_old) < 0.1) and np.all(np.abs(T_S - T_S_old) < 0.1):
+                break
+            else:
+                T_C_old = T_C.copy()
+                T_S_old = T_S.copy()
 
         # Now L can be recalculated and the difference between iterations
         # derived
