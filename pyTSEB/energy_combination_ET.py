@@ -11,7 +11,7 @@ from pyTSEB import TSEB
 import numpy as np
 
 # kB coefficient
-kB = 2.3
+KB_1_DEFAULT = 2.3
 
 ITERATIONS = 15
 
@@ -41,6 +41,8 @@ def penman_monteith(T_A_K,
                     const_L=None,
                     Rst_min=400,
                     leaf_type=TSEB.res.AMPHISTOMATOUS):
+                    f_cd=None,
+                    kB=KB_1_DEFAULT):
     '''Penman Monteith [Allen1998]_ energy combination model.
     Calculates the Penman Monteith one source fluxes using meteorological and crop data.
 
@@ -157,9 +159,8 @@ def penman_monteith(T_A_K,
         T_A_K)  # slope of saturation water vapour pressure in mb K-1
     lambda_ = TSEB.met.calc_lambda(T_A_K)  # latent heat of vaporization MJ kg-1
     psicr = TSEB.met.calc_psicr(Cp, p, lambda_)  # Psicrometric constant (mb K-1)
-    es = TSEB.met.calc_vapor_pressure(
-        T_A_K)  # saturation water vapour pressure in mb
-
+    es = TSEB.met.calc_vapor_pressure(T_A_K)  # saturation water vapour pressure in mb
+    z_0H = TSEB.res.calc_z_0H(z_0M, kB=kB)  # Roughness length for heat transport
     rho_cp = rho_a * Cp
     vpd = es - ea
 
@@ -176,40 +177,59 @@ def penman_monteith(T_A_K,
         max_iterations = 1  # No iteration
     u_friction = TSEB.MO.calc_u_star(u, z_u, L, d_0, z_0M)
     u_friction = np.asarray(np.maximum(TSEB.U_FRICTION_MIN, u_friction))
+    L_queue = deque([np.array(L)], 6)
+    L_converged = np.asarray(np.zeros(T_A_K.shape)).astype(bool)
+    L_diff_max = np.inf
 
-    L_old = np.ones(T_A_K.shape)
-    L_diff = np.asarray(np.ones(T_A_K.shape) * np.inf)
-    z_0H = TSEB.res.calc_z_0H(z_0M, kB=kB)  # Roughness length for heat transport
-
-    # Calculate Net radiation
-    T_0_K = np.copy(
-        T_A_K)  # ♦ asumme aerodynamic tempearture equals air temperature
-
+    T_0_K = T_A_K.copy()
+    # Outer loop for estimating stability.
+    # Stops when difference in consecutives L is below a given threshold
+    start_time = time.time()
+    loop_time = time.time()
     for n_iterations in range(max_iterations):
-        Ln = emis * (L_dn - TSEB.met.calc_stephan_boltzmann(T_0_K))
-        Rn = np.asarray(Sn + Ln)
-
-        # Compute Soil Heat Flux
-        i = np.ones(Rn.shape, dtype=bool)
-        G[i] = TSEB.calc_G([calcG_params[0], calcG_array], Rn, i)
-
-        if np.all(L_diff < TSEB.L_thres):
+        i = ~L_converged
+        if np.all(L_converged):
+            if L_converged.size == 0:
+                print("Finished iterations with no valid solution")
+            else:
+                print("Finished interations with a max. L diff: " + str(L_diff_max))
             break
+        current_time = time.time()
+        loop_duration = current_time - loop_time
+        loop_time = current_time
+        total_duration = loop_time - start_time
+        print("Iteration: %d, non-converged pixels: %d, max L diff: %f, total time: %f, loop time: %f" %
+              (n_iterations, np.sum(i), L_diff_max, total_duration, loop_duration))
 
-        i = np.logical_and(L_diff >= TSEB.L_thres, flag != 255)
         iterations[i] = n_iterations
         flag[i] = 0
 
-        # Calculate aerodynamic resistances
-        R_A[i] = TSEB.res.calc_R_A(z_T[i], u_friction[i], L[i], d_0[i], z_0H[i])
+        T_0_old = np.zeros(T_0_K.shape)
+        for nn_interations in range(max_iterations):
+            if f_cd is None:
+                Ln = emis * (L_dn - TSEB.met.calc_stephan_boltzmann(T_0_K))
+            else:
+                # As the original equation in FAO56 uses net outgoing radiation
+                Ln = - calc_Ln(T_A_K, ea, f_cd=f_cd)
 
-        # Apply Penman Monteith Combination equation
-        LE[i] = le_penman_monteith(Rn[i], G[[i]], vpd[i], R_A[i], R_c[i],
-                                   delta[i], rho_a[i], Cp[i], psicr[i])
-        H[i] = Rn[i] - G[i] - LE[i]
+            Rn = np.asarray(Sn + Ln)
+            # Compute Soil Heat Flux
+            G[i] = TSEB.calc_G([calcG_params[0], calcG_array], Rn, i)
+            # Calculate aerodynamic resistances
+            R_A[i] = TSEB.res.calc_R_A(z_T[i], u_friction[i], L[i], d_0[i], z_0H[i])
 
-        # Recomputue aerodynamic temperature
-        T_0_K[i] = calc_T(H[i], T_A_K[i], R_A[i], rho_a[i], Cp[i])
+            # Apply Penman Monteith Combination equation
+            LE[i] = le_penman_monteith(Rn[i], G[[i]], vpd[i], R_A[i], R_c[i],
+                                       delta[i], rho_a[i], Cp[i], psicr[i])
+            H[i] = Rn[i] - G[i] - LE[i]
+
+            # Recomputue aerodynamic temperature
+            T_0_K[i] = calc_T(H[i], T_A_K[i], R_A[i], rho_a[i], Cp[i])
+            if np.all(np.abs(T_0_K - T_0_old) < 0.1):
+                break
+            else:
+                T_0_old = T_0_K.copy()
+
         # Now L can be recalculated and the difference between iterations
         # derived
         if const_L is None:
@@ -220,15 +240,26 @@ def penman_monteith(T_A_K,
                 Cp[i],
                 H[i],
                 LE[i])
-            L_diff = np.asarray(np.fabs(L - L_old) / np.fabs(L_old))
-            L_diff[np.isnan(L_diff)] = np.inf
-            L_old = np.array(L)
-            L_old[L_old == 0] = 1e-36
 
             # Calculate again the friction velocity with the new stability
             # correctios
             u_friction[i] = TSEB.MO.calc_u_star(u[i], z_u[i], L[i], d_0[i], z_0M[i])
             u_friction = np.asarray(np.maximum(TSEB.U_FRICTION_MIN, u_friction))
+            # We check convergence against the value of L from previous iteration but as well
+            # against values from 2 or 3 iterations back. This is to catch situations (not
+            # infrequent) where L oscillates between 2 or 3 steady state values.
+            L_new = L.copy()
+            L_new[L_new == 0] = 1e-36
+            L_queue.appendleft(L_new)
+            L_converged[i] = TSEB._L_diff(L_queue[0][i], L_queue[1][i]) < TSEB.L_thres
+            L_diff_max = np.max(TSEB._L_diff(L_queue[0][i], L_queue[1][i]))
+            if len(L_queue) >= 4:
+                L_converged[i] = np.logical_and(TSEB._L_diff(L_queue[0][i], L_queue[2][i]) < TSEB.L_thres,
+                                                TSEB._L_diff(L_queue[1][i], L_queue[3][i]) < TSEB.L_thres)
+            if len(L_queue) == 6:
+                L_converged[i] = np.logical_and.reduce((TSEB._L_diff(L_queue[0][i], L_queue[3][i]) < TSEB.L_thres,
+                                                        TSEB._L_diff(L_queue[1][i], L_queue[4][i]) < TSEB.L_thres,
+                                                        TSEB._L_diff(L_queue[2][i], L_queue[5][i]) < TSEB.L_thres))
 
     flag, Ln, LE, H, G, R_A, u_friction, L, n_iterations = map(
         np.asarray, (flag, Ln, LE, H, G, R_A, u_friction, L, n_iterations))
@@ -263,7 +294,8 @@ def shuttleworth_wallace(T_A_K,
                          calcG_params=[[1], 0.35],
                          const_L=None,
                          massman_profile=[0, []],
-                         leaf_type=TSEB.res.AMPHISTOMATOUS):
+                         leaf_type=TSEB.res.AMPHISTOMATOUS,
+                         kB=0):
     '''Shuttleworth and Wallace [Shuttleworth1995]_ dual source energy combination model.
     Calculates turbulent fluxes using meteorological and crop data for a
     dual source system in series.
@@ -454,9 +486,7 @@ def shuttleworth_wallace(T_A_K,
         T_A_K)  # slope of saturation water vapour pressure in mb K-1
     lambda_ = TSEB.met.calc_lambda(T_A_K)  # latent heat of vaporization MJ kg-1
     psicr = TSEB.met.calc_psicr(Cp, p, lambda_)  # Psicrometric constant (mb K-1)
-    es = TSEB.met.calc_vapor_pressure(
-        T_A_K)  # saturation water vapour pressure in mb
-
+    es = TSEB.met.calc_vapor_pressure(T_A_K)  # saturation water vapour pressure in mb
     rho_cp = rho_a * Cp
     vpd = es - ea
     del es, ea
@@ -483,7 +513,7 @@ def shuttleworth_wallace(T_A_K,
     L_converged = np.asarray(np.zeros(T_A_K.shape)).astype(bool)
     L_diff_max = np.inf
 
-    z_0H = TSEB.res.calc_z_0H(z_0M, kB=0)  # Roughness length for heat transport
+    z_0H = TSEB.res.calc_z_0H(z_0M, kB=kB)  # Roughness length for heat transport
 
     # First assume that temperatures equals the Air Temperature
     T_C, T_S, T_0 = T_A_K.copy(), T_A_K.copy(), T_A_K.copy()
@@ -969,6 +999,43 @@ def rst_sdn_factor_Noilhan(Sdn, lai, fvis=0.55, r_st_min=40, r_st_max=5000,
 
     return f
 
+def rst_apar_factor(apar, r_st_min=40, r_st_max=5000, apar_min=100):
+    ''' Estimate stomatal stress due to vapour pressure deficit based on [Noilhan]_
+
+    Parameteers
+    -----------
+    Sdn : float
+        Solar Irradiance (W m-2)
+    lai : float
+        Leaf Area Index
+    fvis : float
+        Fraction of PAR radiation to solar irradiance
+    r_st_min : float
+        Minimum stomatal resistance (s m-1)
+    r_st_max : float
+        Maximum stomatal resistance (s m-1)
+    Sdn_min : float
+        Miminumn solar irradiance
+
+    Returns
+    -------
+    f : float
+        Reduction factor in stomatal conductance [0-1]
+
+    References
+    ----------
+    .. [Noilhan1989] J. Noilhan, S. Planton, A simple parameterization of
+        land surface processes for meteorological models,
+        Monthly Weather Review , Volume 117, 1989,
+        Pages 536-549,
+        https://doi.org/10.1175/1520-0493(1989)117<0536:ASPOLS>2.0.CO;2.
+    '''
+
+    f = apar / apar_min
+    f = (f + r_st_min / r_st_max) / (1. + f)
+    f = np.clip(f, 0, 1)  # Ensure that the reduction factor lies between 0 and 1
+
+    return f
 
 def rst_temp_factor_Noilhan(T_A_K, T_ref_K=298):
     ''' Estimate stomatal stress due to temperature based on [Noilhan]_
