@@ -58,7 +58,8 @@ KARMAN = 0.41
 # acceleration of gravity (m s-2)
 GRAVITY = 9.8
 
-FREE_CONVECTION_THRES = -100
+UNSTABLE_THRES = None
+STABLE_THRES = None
 
 def calc_L(ustar, T_A_K, rho, c_p, H, LE):
     '''Calculates the Monin-Obukhov length.
@@ -88,16 +89,49 @@ def calc_L(ustar, T_A_K, rho, c_p, H, LE):
     .. [Brutsaert2005] Brutsaert, W. (2005). Hydrology: an introduction (Vol. 61, No. 8).
         Cambridge: Cambridge University Press.'''
 
+    l_mo = calc_mo_length_hv(ustar, T_A_K, rho, c_p, H, LE)
+    return np.asarray(l_mo)
+
+
+def calc_mo_length(ustar, T_A_K, rho, c_p, H):
+    '''Calculates the Monin-Obukhov length.
+
+    Parameters
+    ----------
+    ustar : float
+        friction velocity (m s-1).
+    T_A_K : float
+        air temperature (Kelvin).
+    rho : float
+        air density (kg m-3).
+    c_p : float
+        Heat capacity of air at constant pressure (J kg-1 K-1).
+    H : float
+        sensible heat flux (W m-2).
+    LE : float
+        latent heat flux (W m-2).
+
+    Returns
+    -------
+    L : float
+        Obukhov stability length (m).
+
+    References
+    ----------
+    .. [Brutsaert2005] Brutsaert, W. (2005). Hydrology: an introduction (Vol. 61, No. 8).
+        Cambridge: Cambridge University Press.'''
+
     # Convert input scalars to numpy arrays
-    ustar, T_A_K, rho, c_p, H, LE = map(
-        np.asarray, (ustar, T_A_K, rho, c_p, H, LE))
+    ustar, T_A_K, rho, c_p, H = map(
+        np.asarray, (ustar, T_A_K, rho, c_p, H))
 
     L = np.asarray(np.ones(ustar.shape) * float('inf'))
     i = H != 0
     L[i] = - c_p[i] * T_A_K[i] * rho[i] * ustar[i]**3 / (KARMAN * GRAVITY * H[i])
     return np.asarray(L)
 
-def calc_L_orig(ustar, T_A_K, rho, c_p, H, LE):
+
+def calc_mo_length_hv(ustar, T_A_K, rho, c_p, H, LE):
     '''Calculates the Monin-Obukhov length.
 
     Parameters
@@ -160,6 +194,9 @@ def calc_Psi_H(zoL):
     .. [Brutsaert2005] Brutsaert, W. (2005). Hydrology: an introduction (Vol. 61, No. 8).
         Cambridge: Cambridge University Press.
     '''
+    # Avoid free convection situations
+    if UNSTABLE_THRES is not None or STABLE_THRES is not None:
+        zoL = np.clip(zoL, UNSTABLE_THRES, STABLE_THRES)
     Psi_H = psi_h_brutsaert(zoL)
     return np.asarray(Psi_H)
 
@@ -171,8 +208,6 @@ def psi_h_dyer(zol):
     zol = np.asarray(zol)
     psi_h = np.zeros(zol.shape)
     finite = np.isfinite(zol)
-    # Avoid free convection situations
-    zol[finite] = np.maximum(zol[finite], FREE_CONVECTION_THRES)
     # for stable and netural (zoL = 0 -> Psi_H = 0) conditions
     i = np.logical_and(finite, zol >= 0.0)
     psi_h[i] = -beta * zol[i]
@@ -224,6 +259,9 @@ def calc_Psi_M(zoL):
     .. [Brutsaert2005] Brutsaert, W. (2005). Hydrology: an introduction (Vol. 61, No. 8).
         Cambridge: Cambridge University Press.
     '''
+    # Avoid free convection situations
+    if UNSTABLE_THRES is not None or STABLE_THRES is not None:
+        zoL = np.clip(zoL, UNSTABLE_THRES, STABLE_THRES)
     Psi_M = psi_m_brutsaert(zoL)
     return np.asarray(Psi_M)
 
@@ -234,8 +272,6 @@ def psi_m_dyer(zol):
     # Convert input scalars to numpy array
     zol = np.asarray(zol)
     finite = np.isfinite(zol)
-    # Avoid free convection situations
-    zol[finite] = np.maximum(zol[finite], FREE_CONVECTION_THRES)
     psi_m = np.zeros(zol.shape)
     # for stable and netural (zoL = 0 -> Psi_M = 0) conditions
     i = np.logical_and(finite, zol >= 0.0)
