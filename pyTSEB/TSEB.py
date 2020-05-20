@@ -2540,20 +2540,21 @@ def calc_resistances(res_form, res_types):
     else:
         calc_R_A = False
     if 'R_x' in res_types.keys():
-        u_friction, h_C, d_0, z_0M, L, F, LAI, leaf_width, res_params = \
+        u_friction, h_C, d_0, z_0M, L, LAI, leaf_width, res_params = \
             [res_types['R_x'].get(k) for k in ['u_friction', 'h_C', 'd_0', 'z_0M',
-                                               'L', 'F', 'LAI', 'leaf_width', 'res_params']]
+                                               'L', 'LAI', 'leaf_width', 'res_params']]
         del res_types['R_x']
         calc_R_x = True
     else:
         calc_R_x = False
     if 'R_S' in res_types.keys():
-        u_friction, h_C, d_0, z_0M, L, omega0, F, leaf_width, z0_soil, z_u, deltaT, u, rho,\
-         c_p, f_cover, w_C, res_params = \
+        u_friction, h_C, d_0, z_0M, L, leaf_width, z0_soil, z_u, deltaT, u, rho,\
+         c_p, f_cover, w_C, res_params, LAI = \
              [res_types['R_S'].get(k) for k in ['u_friction', 'h_C', 'd_0', 'z_0M',
-                                                'L', 'omega0', 'F', 'leaf_width',
-                                                'z0_soil', 'z_u', 'deltaT',
-                                                'u', 'rho', 'c_p', 'f_cover', 'w_C', 'res_params']]
+                                                'L', 'leaf_width', 'z0_soil', 'z_u', 'deltaT',
+                                                'u', 'rho', 'c_p', 'f_cover', 'w_C', 'res_params',
+                                                'LAI']]
+
         del res_types['R_S']
         calc_R_S = True
     else:
@@ -2569,16 +2570,16 @@ def calc_resistances(res_form, res_types):
         if calc_R_x:
             u_C = wnd.calc_u_C_star(u_friction, h_C, d_0, z_0M, L)
             # Wind speed is highly attenuated within the canopy volume
-            u_d_zm = wnd.calc_u_Goudriaan(u_C, h_C, F, leaf_width, d_0+z_0M)
+            u_d_zm = wnd.calc_u_Goudriaan(u_C, h_C, LAI, leaf_width, d_0+z_0M)
             # Vegetation in series with soil, i.e. well mixed, so we use
             # the landscape LAI
             R_x = res.calc_R_x_Norman(LAI, leaf_width, u_d_zm, res_params)
-            del LAI, u_d_zm
+            del u_d_zm
         if calc_R_S:
             if u_C is None:
                 u_C = wnd.calc_u_C_star(u_friction, h_C, d_0, z_0M, L)
             # Clumped vegetation enhanced wind speed for the soil surface
-            u_S = wnd.calc_u_Goudriaan(u_C, h_C, omega0 * F, leaf_width, z0_soil)
+            u_S = wnd.calc_u_Goudriaan(u_C, h_C, LAI, leaf_width, z0_soil)
             R_S = res.calc_R_S_Kustas(u_S, deltaT, params=res_params)
 
     elif res_form == CHOUDHURY_MONTEITH_1988:
@@ -2604,7 +2605,7 @@ def calc_resistances(res_form, res_types):
         if calc_R_x:
             u_C = wnd.calc_u_C_star(u_friction, h_C, d_0, z_0M, L)
             # Wind speed is highly attenuated within the canopy volume
-            alpha_prime = wnd.calc_A_Goudriaan(h_C, F, leaf_width)
+            alpha_prime = wnd.calc_A_Goudriaan(h_C, LAI, leaf_width)
             # Vegetation in series with soil, i.e. well mixed, so we use
             # the landscape LAI
             R_x = res.calc_R_x_Choudhury(u_C, LAI, leaf_width, alpha_prime=alpha_prime)
@@ -2612,21 +2613,21 @@ def calc_resistances(res_form, res_types):
 
         if calc_R_S:
             # Clumped vegetation enhanced wind speed for the soil surface
-            alpha_k = wnd.calc_A_Goudriaan(h_C, omega0 * F, leaf_width)
+            alpha_k = wnd.calc_A_Goudriaan(h_C, LAI, leaf_width)
             R_S = res.calc_R_S_Choudhury(u_friction, h_C, z_0M, d_0, z_u, z0_soil, alpha_k=alpha_k)
 
     elif res_form == HADHIGHI_AND_OR_2015:
         if calc_R_x:
             u_C = wnd.calc_u_C_star(u_friction, h_C, d_0, z_0M, L)
             # Wind speed is highly attenuated within the canopy volume
-            u_d_zm = wnd.calc_u_Goudriaan(u_C, h_C, F, leaf_width, d_0+z_0M)
+            u_d_zm = wnd.calc_u_Goudriaan(u_C, h_C, LAI, leaf_width, d_0+z_0M)
             # Vegetation in series with soil, i.e. well mixed, so we use
             # the landscape LAI
             R_x = res.calc_R_x_Norman(LAI, leaf_width, u_d_zm, res_params)
             del LAI, leaf_width, u_d_zm
         if calc_R_S:
             R_S = res.calc_R_S_Haghighi(u, h_C, z_u, rho, c_p, z0_soil=z0_soil, f_cover=f_cover,
-                                           w_C=w_C)
+                                        w_C=w_C)
 
     R_A = np.asarray(np.maximum(1e-3, R_A))
     R_x = np.asarray(np.maximum(1e-3, R_x))
