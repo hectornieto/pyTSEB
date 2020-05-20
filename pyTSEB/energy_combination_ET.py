@@ -23,6 +23,7 @@ LOWEST_TS_DIFF = 5.  # Lowest Soil to Air temperature difference
 F_LOW_TS_TC = 254  # Low Soil and Canopy Temperature flag
 F_LOW_TS = 253  # Low Soil Temperature flag
 F_LOW_TC = 252  # Low Canopy Temperature flag
+T_DIFF_THRES = 0.1
 
 
 def penman_monteith(T_A_K,
@@ -225,7 +226,7 @@ def penman_monteith(T_A_K,
 
             # Recomputue aerodynamic temperature
             T_0_K[i] = calc_T(H[i], T_A_K[i], R_A[i], rho_a[i], Cp[i])
-            if np.all(np.abs(T_0_K - T_0_old) < 0.1):
+            if np.all(np.abs(T_0_K - T_0_old) < T_DIFF_THRES):
                 break
             else:
                 T_0_old = T_0_K.copy()
@@ -512,14 +513,23 @@ def shuttleworth_wallace(T_A_K,
     L_queue = deque([np.array(L)], 6)
     L_converged = np.asarray(np.zeros(T_A_K.shape)).astype(bool)
     L_diff_max = np.inf
-
     z_0H = TSEB.res.calc_z_0H(z_0M, kB=kB)  # Roughness length for heat transport
 
     # First assume that temperatures equals the Air Temperature
     T_C, T_S, T_0 = T_A_K.copy(), T_A_K.copy(), T_A_K.copy()
-    Ln_C, Ln_S = TSEB.rad.calc_L_n_Campbell(T_C, T_S, L_dn, LAI, emis_C, emis_S,
-                                            x_LAD=x_LAD)
 
+    _, _, _, taudl = TSEB.rad.calc_spectra_Cambpell(LAI,
+                                                      np.zeros(emis_C.shape),
+                                                      1.0 - emis_C,
+                                                      np.zeros(emis_S.shape),
+                                                      1.0 - emis_S,
+                                                      x_LAD=x_LAD,
+                                                      LAI_eff=None)
+    emiss = taudl * emis_S + (1 - taudl) * emis_C
+    Ln = emiss * (L_dn - TSEB.met.calc_stephan_boltzmann(T_0))
+    Ln_C = (1. - taudl) * Ln
+    Ln_S = taudl * Ln
+    
     # Outer loop for estimating stability.
     # Stops when difference in consecutives L is below a given threshold
     start_time = time.time()
@@ -548,59 +558,49 @@ def shuttleworth_wallace(T_A_K,
         for nn_interations in range(max_iterations):
             # Calculate aerodynamic resistances
             R_A[i], R_x[i], R_S[i] = TSEB.calc_resistances(resistance_form,
-                                                           {"R_A": {"z_T": z_T[i],
-                                                                    "u_friction":
-                                                                        u_friction[i],
-                                                                    "L": L[i],
-                                                                    "d_0": d_0[i],
-                                                                    "z_0H": z_0H[i]},
-                                                            "R_x": {"u_friction":
-                                                                        u_friction[i],
-                                                                    "h_C": h_C[i],
-                                                                    "d_0": d_0[i],
-                                                                    "z_0M": z_0M[i],
-                                                                    "L": L[i],
-                                                                    "LAI": LAI[i],
-                                                                    "leaf_width":
-                                                                        leaf_width[i],
-                                                                    "massman_profile": massman_profile,
-                                                                    "res_params": {k:
-                                                                                       res_params[
-                                                                                           k][
-                                                                                           i]
-                                                                                   for k
-                                                                                   in
-                                                                                   res_params.keys()}},
-                                                            "R_S": {"u_friction":
-                                                                        u_friction[i],
-                                                                    'u': u[i],
-                                                                    "h_C": h_C[i],
-                                                                    "d_0": d_0[i],
-                                                                    "z_0M": z_0M[i],
-                                                                    "L": L[i],
-                                                                    "F": F[i],
-                                                                    "omega0": omega0[i],
-                                                                    "LAI": LAI[i],
-                                                                    "leaf_width":
-                                                                        leaf_width[i],
-                                                                    "z0_soil": z0_soil[
-                                                                        i],
-                                                                    "z_u": z_u[i],
-                                                                    "deltaT": T_S[i] -
-                                                                              T_C[i],
-                                                                    "massman_profile": massman_profile,
-                                                                    'rho': rho_a[i],
-                                                                    'c_p': Cp[i],
-                                                                    'f_cover': f_c[i],
-                                                                    'w_C': w_C[i],
-                                                                    "res_params": {k:
-                                                                                       res_params[
-                                                                                           k][
-                                                                                           i]
-                                                                                   for k
-                                                                                   in
-                                                                                   res_params.keys()}}
-                                                            }
+                                       {"R_A": {"z_T": z_T[i],
+                                                "u_friction":
+                                                    u_friction[i],
+                                                "L": L[i],
+                                                "d_0": d_0[i],
+                                                "z_0H": z_0H[i],
+                                                },
+                                        "R_x": {"u_friction":
+                                                    u_friction[i],
+                                                "h_C": h_C[i],
+                                                "d_0": d_0[i],
+                                                "z_0M": z_0M[i],
+                                                "L": L[i],
+                                                "LAI": LAI[i],
+                                                "leaf_width":
+                                                    leaf_width[i],
+                                                "massman_profile": massman_profile,
+                                                "res_params":
+                                                    {k:res_params[k][i] for k in
+                                                               res_params.keys()}
+                                                },
+                                        "R_S": {"u_friction": u_friction[i],
+                                                'u': u[i],
+                                                "h_C": h_C[i],
+                                                "d_0": d_0[i],
+                                                "z_0M": z_0M[i],
+                                                "L": L[i],
+                                                "F": F[i],
+                                                "omega0": omega0[i],
+                                                "LAI": LAI[i],
+                                                "leaf_width": leaf_width[i],
+                                                "z0_soil": z0_soil[i],
+                                                "z_u": z_u[i],
+                                                "deltaT": T_S[i] - T_C[i],
+                                                "massman_profile": massman_profile,
+                                                'rho': rho_a[i],
+                                                'c_p': Cp[i],
+                                                'f_cover': f_c[i],
+                                                'w_C': w_C[i],
+                                                "res_params":
+                                                    {k: res_params[k][i] for k in
+                                                               res_params.keys()}}
+                                        }
                                                            )
 
             _, _, _, C_s[i], C_c[i] = calc_effective_resistances_SW(R_A[i],
@@ -611,10 +611,10 @@ def shuttleworth_wallace(T_A_K,
                                                                     delta[i],
                                                                     psicr[i])
 
-            # Calculate net longwave radiation with current values of T_C and T_S
-            Ln_C[i], Ln_S[i] = TSEB.rad.calc_L_n_Campbell(T_C[i], T_S[i], L_dn[i],
-                                                          LAI[i], emis_C[i], emis_S[i],
-                                                          x_LAD=x_LAD[i])
+            # Compute net bulk longwave radiation and split between canopy and soil
+            Ln[i] = emiss[i] * (L_dn[i] - TSEB.met.calc_stephan_boltzmann(T_0[i]))
+            Ln_C[i] = (1. - taudl[i]) * Ln[i]
+            Ln_S[i] = taudl[i] * Ln[i]
 
             Rn_C[i] = Sn_C[i] + Ln_C[i]
             Rn_S[i] = Sn_S[i] + Ln_S[i]
@@ -627,6 +627,9 @@ def shuttleworth_wallace(T_A_K,
                         rho_cp[i] * vpd[i] - delta[i] * R_x[i] * (Rn_S[i] - G[i])) / (
                                R_A[i] + R_x[i])) / \
                       (delta[i] + psicr[i] * (1. + R_c[i] / (R_A[i] + R_x[i])))
+
+            # Avoid arithmetic error with no LAI
+            PM_C[np.isnan(PM_C)] = 0
             # Eq. 13 in [Shuttleworth1988]_
             PM_S[i] = (delta[i] * (Rn[i] - G[i]) + (
                         rho_cp[i] * vpd[i] - delta[i] * R_S[i] * Rn_C[i]) / (
@@ -649,7 +652,8 @@ def shuttleworth_wallace(T_A_K,
             LE_C[i] = (delta[i] * Rn_C[i] + rho_cp[i] * vpd_0[i] / R_x[i]) / \
                       (delta[i] + psicr[i] * (1. + R_c[i] / R_x[i]))
             H_C[i] = Rn_C[i] - LE_C[i]
-
+            no_canopy = np.logical_and(i, np.isnan(LE_C))
+            H_C[no_canopy] = np.nan
             T_0[i] = calc_T(H[i], T_A_K[i], R_A[i], rho_a[i], Cp[i])
             T_C[i] = calc_T(H_C[i], T_0[i], R_x[i], rho_a[i], Cp[i])
             T_S[i] = calc_T(H_S[i], T_0[i], R_S[i], rho_a[i], Cp[i])
@@ -665,7 +669,9 @@ def shuttleworth_wallace(T_A_K,
             flag[no_valid_T] = F_LOW_TS
             T_S[no_valid_T] = T_A_K[no_valid_T] - LOWEST_TS_DIFF
 
-            if np.all(np.abs(T_C - T_C_old) < 0.1) and np.all(np.abs(T_S - T_S_old) < 0.1):
+
+            if np.all(np.abs(T_C - T_C_old) < T_DIFF_THRES) \
+                    and np.all(np.abs(T_S - T_S_old) < T_DIFF_THRES):
                 break
             else:
                 T_C_old = T_C.copy()
@@ -674,13 +680,12 @@ def shuttleworth_wallace(T_A_K,
         # Now L can be recalculated and the difference between iterations
         # derived
         if const_L is None:
-            L[i] = TSEB.MO.calc_L(
-                u_friction[i],
-                T_A_K[i],
-                rho_a[i],
-                Cp[i],
-                H[i],
-                LE[i])
+            L[i] = TSEB.MO.calc_mo_length(u_friction[i],
+                                          T_A_K[i],
+                                          rho_a[i],
+                                          Cp[i],
+                                          H[i])
+
 
             # Calculate again the friction velocity with the new stability
             # correctios
@@ -691,7 +696,7 @@ def shuttleworth_wallace(T_A_K,
             # against values from 2 or 3 iterations back. This is to catch situations (not
             # infrequent) where L oscillates between 2 or 3 steady state values.
             L_new = L.copy()
-            L_new[L_new == 0] = 1e-36
+            L_new[L_new == 0] = 1e-6
             L_queue.appendleft(L_new)
             L_converged[i] = TSEB._L_diff(L_queue[0][i],
                                           L_queue[1][i]) < TSEB.L_thres
@@ -1133,6 +1138,8 @@ def calc_effective_resistances_SW(R_A, R_x, R_S, R_c, R_ss, delta, psicr):
     C_s = 1. / (1. + R_s_SW * R_a_SW / (
                 R_c_SW * (R_s_SW + R_a_SW)))  # Eq. 15 [Shuttleworth1988]_
 
+    C_c[np.isnan(C_c)] = 0
+    C_s[np.isnan(C_s)] = 0
     return R_a_SW, R_s_SW, R_c_SW, C_s, C_c
 
 
