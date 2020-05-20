@@ -24,6 +24,8 @@ F_LOW_TS_TC = 254  # Low Soil and Canopy Temperature flag
 F_LOW_TS = 253  # Low Soil Temperature flag
 F_LOW_TC = 252  # Low Canopy Temperature flag
 T_DIFF_THRES = 0.1
+STABILITY_THRES = -0.01
+
 
 
 def penman_monteith(T_A_K,
@@ -43,7 +45,7 @@ def penman_monteith(T_A_K,
                     Rst_min=400,
                     leaf_type=TSEB.res.AMPHISTOMATOUS):
                     f_cd=None,
-                    kB=KB_1_DEFAULT):
+                    kB=0):
     '''Penman Monteith [Allen1998]_ energy combination model.
     Calculates the Penman Monteith one source fluxes using meteorological and crop data.
 
@@ -181,7 +183,7 @@ def penman_monteith(T_A_K,
     L_queue = deque([np.array(L)], 6)
     L_converged = np.asarray(np.zeros(T_A_K.shape)).astype(bool)
     L_diff_max = np.inf
-
+    zol = np.zeros(T_A_K.shape)
     T_0_K = T_A_K.copy()
     # Outer loop for estimating stability.
     # Stops when difference in consecutives L is below a given threshold
@@ -241,7 +243,10 @@ def penman_monteith(T_A_K,
                 Cp[i],
                 H[i],
                 LE[i])
-
+            # Check stability
+            zol[i] = z_0M[i] / L[i]
+            stable = np.logical_and(i, zol > STABILITY_THRES)
+            L[stable] = 1e36
             # Calculate again the friction velocity with the new stability
             # correctios
             u_friction[i] = TSEB.MO.calc_u_star(u[i], z_u[i], L[i], d_0[i], z_0M[i])
@@ -514,7 +519,7 @@ def shuttleworth_wallace(T_A_K,
     L_converged = np.asarray(np.zeros(T_A_K.shape)).astype(bool)
     L_diff_max = np.inf
     z_0H = TSEB.res.calc_z_0H(z_0M, kB=kB)  # Roughness length for heat transport
-
+    zol = np.zeros(T_A_K.shape)
     # First assume that temperatures equals the Air Temperature
     T_C, T_S, T_0 = T_A_K.copy(), T_A_K.copy(), T_A_K.copy()
 
@@ -591,7 +596,7 @@ def shuttleworth_wallace(T_A_K,
                                                 "leaf_width": leaf_width[i],
                                                 "z0_soil": z0_soil[i],
                                                 "z_u": z_u[i],
-                                                "deltaT": T_S[i] - T_C[i],
+                                                "deltaT": T_S[i] - T_0[i],
                                                 "massman_profile": massman_profile,
                                                 'rho': rho_a[i],
                                                 'c_p': Cp[i],
@@ -635,6 +640,7 @@ def shuttleworth_wallace(T_A_K,
                         rho_cp[i] * vpd[i] - delta[i] * R_S[i] * Rn_C[i]) / (
                                    R_A[i] + R_S[i])) / \
                       (delta[i] + psicr[i] * (1. + R_ss[i] / (R_A[i] + R_S[i])))
+            PM_S[np.isnan(PM_S)] = 0
             # Eq. 11 in [Shuttleworth1988]_
             LE[i] = C_c[i] * PM_C[i] + C_s[i] * PM_S[i]
             H[i] = Rn[i] - G[i] - LE[i]
@@ -647,6 +653,7 @@ def shuttleworth_wallace(T_A_K,
             # Eq. 9 in Shuttleworth & Wallace 1985
             LE_S[i] = (delta[i] * (Rn_S[i] - G[i]) + rho_cp[i] * vpd_0[i] / R_S[i]) / \
                       (delta[i] + psicr[i] * (1. + R_ss[i] / R_S[i]))
+            LE_S[np.isnan(LE_S)] = 0
             H_S[i] = Rn_S[i] - G[i] - LE_S[i]
             # Eq. 10 in Shuttleworth & Wallace 1985
             LE_C[i] = (delta[i] * Rn_C[i] + rho_cp[i] * vpd_0[i] / R_x[i]) / \
@@ -685,7 +692,9 @@ def shuttleworth_wallace(T_A_K,
                                           rho_a[i],
                                           Cp[i],
                                           H[i])
-
+            zol[i] = z_0M[i] / L[i]
+            stable = np.logical_and(i, zol > STABILITY_THRES)
+            L[stable] = 1e36
 
             # Calculate again the friction velocity with the new stability
             # correctios
