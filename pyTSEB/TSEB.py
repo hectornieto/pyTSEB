@@ -1097,6 +1097,7 @@ def DTD(Tr_K_0,
      leaf_width,
      z0_soil,
      alpha_PT,
+     x_LAD,
      f_c,
      f_g,
      w_C,
@@ -1122,11 +1123,12 @@ def DTD(Tr_K_0,
                          leaf_width,
                          z0_soil,
                          alpha_PT,
+                         x_LAD,
                          f_c,
                          f_g,
                          w_C,
                          calcG_params[1]],
-                        [Tr_K_0] * 25)
+                        [Tr_K_0] * 26)
     res_params = resistance_form[1]
     resistance_form = resistance_form[0]
     # Create the output variables
