@@ -487,7 +487,7 @@ def TSEB_PT(Tr_K,
                 [1],
                 0.35],
             const_L=None,
-            KB_1_DEFAULT):
+            kB=KB_1_DEFAULT):
     '''Priestley-Taylor TSEB
 
     Calculates the Priestley Taylor TSEB fluxes using a single observation of

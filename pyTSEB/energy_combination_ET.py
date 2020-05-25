@@ -27,7 +27,6 @@ T_DIFF_THRES = 0.1
 STABILITY_THRES = -0.01
 
 
-
 def penman_monteith(T_A_K,
                     u,
                     ea,
@@ -43,7 +42,7 @@ def penman_monteith(T_A_K,
                     calcG_params=[[1], 0.35],
                     const_L=None,
                     Rst_min=400,
-                    leaf_type=TSEB.res.AMPHISTOMATOUS):
+                    leaf_type=TSEB.res.AMPHISTOMATOUS,
                     f_cd=None,
                     kB=0):
     '''Penman Monteith [Allen1998]_ energy combination model.
@@ -524,17 +523,17 @@ def shuttleworth_wallace(T_A_K,
     T_C, T_S, T_0 = T_A_K.copy(), T_A_K.copy(), T_A_K.copy()
 
     _, _, _, taudl = TSEB.rad.calc_spectra_Cambpell(LAI,
-                                                      np.zeros(emis_C.shape),
-                                                      1.0 - emis_C,
-                                                      np.zeros(emis_S.shape),
-                                                      1.0 - emis_S,
-                                                      x_LAD=x_LAD,
-                                                      LAI_eff=None)
+                                                    np.zeros(emis_C.shape),
+                                                    1.0 - emis_C,
+                                                    np.zeros(emis_S.shape),
+                                                    1.0 - emis_S,
+                                                    x_lad=x_LAD,
+                                                    lai_eff=None)
     emiss = taudl * emis_S + (1 - taudl) * emis_C
     Ln = emiss * (L_dn - TSEB.met.calc_stephan_boltzmann(T_0))
     Ln_C = (1. - taudl) * Ln
     Ln_S = taudl * Ln
-    
+
     # Outer loop for estimating stability.
     # Stops when difference in consecutives L is below a given threshold
     start_time = time.time()
