@@ -94,6 +94,7 @@ import pyTSEB.wind_profile as wnd
 L_thres = 0.001
 # mimimun allowed friction velocity
 U_FRICTION_MIN = 0.01
+U_S_MIN = 0.4
 # Maximum number of interations
 ITERATIONS = 15
 # kB coefficient
@@ -2586,6 +2587,7 @@ def calc_resistances(res_form, res_types):
                 u_C = wnd.calc_u_C_star(u_friction, h_C, d_0, z_0M, L)
             # Clumped vegetation enhanced wind speed for the soil surface
             u_S = wnd.calc_u_Goudriaan(u_C, h_C, LAI, leaf_width, z0_soil)
+            u_S = np.maximum(u_S, U_S_MIN)
             R_S = res.calc_R_S_Kustas(u_S, deltaT, params=res_params)
 
     elif res_form == CHOUDHURY_MONTEITH_1988:
