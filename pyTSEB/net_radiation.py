@@ -526,7 +526,7 @@ def calc_spectra_Cambpell(lai, sza, rho_leaf, tau_leaf, rho_soil, x_lad=1, lai_e
     expfac = amean_sqrt * akb * lai_eff
     neg_exp, d_neg_exp = np.exp(-expfac), np.exp(-2.0 * expfac)
     del amean_sqrt, akb, lai_eff
-    xnum = (rbcpy * rbcpy - 1.0) * d_neg_exp
+    xnum = (rbcpy * rbcpy - 1.0) * neg_exp
     xden = (rbcpy * rho_soil - 1.0) + rbcpy * (rbcpy - rho_soil) * d_neg_exp
     taubt = xnum / xden  # Eq 15.11
     del xnum, xden
