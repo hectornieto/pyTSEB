@@ -31,7 +31,7 @@ c_d = 0.2
 # Relative turbulence intensity (Goudriaan 1977)
 i_w = 0.5
 # Von Karman constant
-KARMAN = 0.4
+KARMAN = 0.41
 # Size of the normalized height bins in Massman wind profile
 BIN_SIZE = 0.0001
 

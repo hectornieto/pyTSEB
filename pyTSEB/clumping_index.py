@@ -177,7 +177,7 @@ def calc_omega_rows(lai,
     f_c = np.minimum(f_c, 1.0)
     # Estimate the beam extinction coefficient based on a elipsoidal LAD function
     # Eq. 15.4 of Campbell and Norman (1998)
-    k_be = rad.calc_K_be_Campbell(theta, x_LAD=x_lad)
+    k_be = rad.calc_K_be_Campbell(theta, x_lad=x_lad)
     if is_lai_eff is True:
         f = lai / f_c0
     else:

@@ -46,7 +46,7 @@ import pyTSEB.meteo_utils as met
 # List of constants used in the netRadiation Module
 #==============================================================================
 # Stephan Boltzmann constant (W m-2 K-4)
-sb = 5.670373e-8
+SB = 5.670373e-8
 TAUD_STEP_SIZE_DEG = 5
 
 
@@ -169,10 +169,13 @@ def calc_emiss_atm(ea, t_a_k):
     return np.asarray(emiss_air)
 
 
-def calc_longwave_irradiance(ea, t_a_k, p=1013.25, z_T=2.0):
+def calc_longwave_irradiance(ea, t_a_k, p=1013.25, z_T=2.0, h_C=2.0):
     '''Longwave irradiance
 
     Estimates longwave atmospheric irradiance from clear sky.
+    By default there is no lapse rate correction unless air temperature
+    measurement height is considerably different than canopy height, (e.g. when
+    using NWP gridded meteo data at blending height)
 
     Parameters
     ----------
@@ -184,18 +187,19 @@ def calc_longwave_irradiance(ea, t_a_k, p=1013.25, z_T=2.0):
         air pressure (mb)
     z_T: float
         air temperature measurement height (m), default 2 m.
+    h_C: float
+        canopy height (m), default 2 m,
 
     Returns
     -------
     L_dn : float
-        Longwave atmospheric irradiance (W m-2)
+        Longwave atmospheric irradiance (W m-2) above the canopy
     '''
 
     lapse_rate = met.calc_lapse_rate_moist(t_a_k, ea, p)
-    t_a_surface = t_a_k - z_T * lapse_rate
+    t_a_surface = t_a_k - lapse_rate * (h_C - z_T)
     emisAtm = calc_emiss_atm(ea, t_a_surface)
     L_dn = emisAtm * met.calc_stephan_boltzmann(t_a_surface)
-
     return np.asarray(L_dn)
 
 
@@ -340,7 +344,9 @@ def calc_L_n_Campbell(T_C, T_S, L_dn, lai, emisVeg, emisGrd, x_LAD=1):
 
     # calculate long wave emissions from canopy, soil and sky
     L_C = emisVeg * met.calc_stephan_boltzmann(T_C)
+    L_C[np.isnan(L_C)] = 0
     L_S = emisGrd * met.calc_stephan_boltzmann(T_S)
+    L_S[np.isnan(L_S)] = 0
     # Calculate the canopy spectral properties
     _, albl, _, taudl = calc_spectra_Cambpell(lai,
                                               np.zeros(emisVeg.shape),
@@ -353,6 +359,8 @@ def calc_L_n_Campbell(T_C, T_S, L_dn, lai, emisVeg, emisGrd, x_LAD=1):
     # calculate net longwave radiation divergence of the soil
     L_nS = emisGrd * taudl * L_dn + emisGrd * (1.0 - taudl) * L_C - L_S
     L_nC = (1 - albl) * (1.0 - taudl) * (L_dn + L_S) - 2.0 * (1.0 - taudl) * L_C
+    L_nC[np.isnan(L_nC)] = 0
+    L_nS[np.isnan(L_nS)] = 0
     return np.asarray(L_nC), np.asarray(L_nS)
 
 
@@ -518,7 +526,7 @@ def calc_spectra_Cambpell(lai, sza, rho_leaf, tau_leaf, rho_soil, x_lad=1, lai_e
     expfac = amean_sqrt * akb * lai_eff
     neg_exp, d_neg_exp = np.exp(-expfac), np.exp(-2.0 * expfac)
     del amean_sqrt, akb, lai_eff
-    xnum = (rbcpy * rbcpy - 1.0) * d_neg_exp
+    xnum = (rbcpy * rbcpy - 1.0) * neg_exp
     xden = (rbcpy * rho_soil - 1.0) + rbcpy * (rbcpy - rho_soil) * d_neg_exp
     taubt = xnum / xden  # Eq 15.11
     del xnum, xden
@@ -527,11 +535,17 @@ def calc_spectra_Cambpell(lai, sza, rho_leaf, tau_leaf, rho_soil, x_lad=1, lai_e
     albb = (rbcpy + fact) / (1.0 + rbcpy * fact)  # Eq 15.9
     del rbcpy, fact
 
+    taubt[np.isnan(taubt)] = 1
+    taudt[np.isnan(taudt)] = 1
+    albb[np.isnan(albb)] = rho_soil[np.isnan(albb)]
+    albd[np.isnan(albd)] = rho_soil[np.isnan(albd)]
+
     return albb, albd, taubt, taudt
 
+
 def calc_Sn_Campbell(lai, sza, S_dn_dir, S_dn_dif, fvis, fnir, rho_leaf_vis,
-                   tau_leaf_vis, rho_leaf_nir, tau_leaf_nir, rsoilv, rsoiln,
-                   x_LAD=1, LAI_eff=None):
+                     tau_leaf_vis, rho_leaf_nir, tau_leaf_nir, rsoilv, rsoiln,
+                     x_LAD=1, LAI_eff=None):
     ''' Net shortwave radiation
 
     Estimate net shorwave radiation for soil and canopy below a canopy using the [Campbell1998]_

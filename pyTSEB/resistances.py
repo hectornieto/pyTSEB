@@ -60,7 +60,7 @@ Estimation of roughness
 from math import pi
 
 import numpy as np
-
+from scipy.special import gamma as gamma_func
 import pyTSEB.MO_similarity as MO
 import pyTSEB.meteo_utils as met
 
@@ -90,7 +90,7 @@ BARREN = 16
 AMPHISTOMATOUS = 2
 HYPOSTOMATOUS = 1
 # von Karman's constant
-k = 0.4
+KARMAN = 0.41
 # acceleration of gravity (m s-2)
 gravity = 9.8
 # Universal gas constant (kPa m3 mol-1 K-1)
@@ -285,7 +285,7 @@ def calc_R_A(z_T, ustar, L, d_0, z_0H):
 
     i = ustar != 0
     R_A = np.asarray(np.ones(ustar.shape) * float('inf'))
-    R_A[i] = (R_A_log[i] - Psi_H[i] + Psi_H0[i]) / (ustar[i] * k)
+    R_A[i] = (R_A_log[i] - Psi_H[i] + Psi_H0[i]) / (ustar[i] * KARMAN)
     return np.asarray(R_A)
 
 
@@ -326,7 +326,7 @@ def calc_R_S_Choudhury(u_star, h_C, z_0M, d_0, zm, z0_soil=0.01, alpha_k=2.0):
     '''
 
     # Soil resistance eqs. 24 & 25 [Choudhury1988]_
-    K_h = k * u_star * (h_C - d_0)
+    K_h = KARMAN * u_star * (h_C - d_0)
     del u_star
     R_S = ((h_C * np.exp(alpha_k) / (alpha_k * K_h))
            * (np.exp(-alpha_k * z0_soil / h_C) - np.exp(-alpha_k * (d_0 + z_0M) / h_C)))
@@ -334,8 +334,8 @@ def calc_R_S_Choudhury(u_star, h_C, z_0M, d_0, zm, z0_soil=0.01, alpha_k=2.0):
     return np.asarray(R_S)
 
 
-def calc_R_S_Haghighi(u, h_C, zm, rho, c_p, z0_soil=0.01, f_cover=0, w_C=1,
-                      theta=0.4, theta_res=0.1, phi=2.0, ps=0.001, n=0.5):
+def calc_R_S_Haghighi(u, h_c, zm, rho, c_p, z0_soil=0.01, f_cover=0, w_C=1,
+                      c_d=0.2, a_r=3, a_s=5, k=0.1):
     """ Aerodynamic resistance at the  soil boundary layer.
 
     Estimates the aerodynamic resistance at the  soil boundary layer based on the
@@ -399,59 +399,62 @@ def calc_R_S_Haghighi(u, h_C, zm, rho, c_p, z0_soil=0.01, f_cover=0, w_C=1,
 % -------------------------------------------------------------------------
 
     """
+    def calc_prod_alpha(alpha, n):
+        out = 1.0
+        for i in range(n):
+            out = out * (2 * (alpha - i) + 1)
+        return out
+
+    def calc_prod_alpha_array(alpha_array):
+        out_array = np.ones(alpha_array.shape)
+        n_array = np.ceil(alpha_array).astype(np.int)
+        ns = np.unique(n_array)
+        for n in ns:
+            index = n_array == n
+            out_array[index] = calc_prod_alpha(alpha_array[index], n)
+        return out_array
+
+
 
     # Define constanst
-    D = 0.282e-4   # [m2 s-1]    water vapor diffusion coefficient in air
     nu = 15.11e-6   # [m2 s-1]    kinmeatic visocosity of air
-    Ka = 0.024    # [W m-1 K-1] thermal conductivity of air
-    lambda_E = 2450e3   # [J/kg]      Latent heat of vaporization
+    k_a = 0.024    # [W m-1 K-1] thermal conductivity of air
+    c_2 = 2.2
+    c_3 = 112.
+    g_alpha = 21.7
+    u, h_c, zm, z0_soil, f_cover, w_C = map(np.asarray, (u, h_c, zm, z0_soil, f_cover, w_C))
 
-    # ..[Haghighi2015]
-    a_r = 3.
-    a_s = 5.
-    k = 0.1
-    k_v = 0.41
-    gamma = 150.
-    f_alpha = 22.  # [Haghighi2013]_
+    width = h_c * w_C
+    a_veg = (np.pi / 4) * width**2
+    lambda_ = width * h_c * f_cover / a_veg
 
-    u, h_C, zm, z0_soil, f_cover, w_C, theta, theta_res, phi, ps, n = map(
-        np.asarray, (u, h_C, zm, z0_soil, f_cover, w_C, theta, theta_res, phi, ps, n))
-
-    f_theta = ((1. / np.sqrt(np.pi * (theta - theta_res)))
-               * (np.sqrt(np.pi / (4 * (theta - theta_res))) - 1))
-
-    THETA = (theta - theta_res) / (phi - theta_res)
-    del theta, theta_res, phi
-
-    K_sat = (0.0077 * n**7.35) / (24. * 3600.)  # [m s-1]
-    m = 1. - 1. / n
-    K_eff = (4 * K_sat * np.sqrt(THETA)
-             * (1 - (1 - THETA**(1 / m))**m)**2)  # [Haghighi2013]_
-    del K_sat, m, n
-
-    width = h_C * w_C
-    A_veg = (np.pi / 4) * width**2
-    lambda_ = width * h_C * f_cover / A_veg
-
-    h_C[f_cover == 0] = 0
+    h_c[f_cover == 0] = 0
     lambda_[f_cover == 0] = 0
 
-    z_0sc = z0_soil * (1 + f_cover * ((zm - h_C) / zm - 1))
+    z_0sc = z0_soil * (1 + f_cover * ((zm - h_c) / zm - 1))
     f_r = np.exp(-a_r * lambda_ / (1. - f_cover)**k)
     f_s = np.exp(-a_s * lambda_ / (1. - f_cover)**k)
-    C_sgc = k_v**2 * (np.log((zm - h_C) / z_0sc))**(-2)
-    C_sg = k_v**2 * (np.log(zm / z0_soil))**(-2)
-    f_c = 1. + f_cover * (C_sgc / C_sg - 1.)
-    C_rg = gamma * C_sg
-    u_star = (u * np.sqrt(f_r * lambda_ * (1 - f_cover) * C_rg
-              + (f_s * (1 - f_cover) + f_c * f_cover) * C_sg))
-    delta = f_alpha * nu / u_star
-    R_S_LE = (rho * c_p * ((delta + (ps / 3) * f_theta) / D + 1.73e-5 / K_eff)
-              / lambda_E)     # [Haghighi2013]_
-    R_S_H = rho * c_p * delta / Ka
+    c_sgc = KARMAN**2 * (np.log((zm - h_c) / z_0sc))**-2
+    c_sg = KARMAN**2 * (np.log(zm / z0_soil))**-2
+    f_v = 1. + f_cover * (c_sgc / c_sg - 1.)
+    beta = (c_d / KARMAN ** 2) * ((np.log(h_c / z0_soil) - 1)**2 + 1)
+    c_rg = beta * c_sg
 
-    return np.asarray(R_S_H), np.asarray(R_S_LE)
+    alpha_mean = (0.3 / np.sqrt(f_r * lambda_ * (1. - f_cover) * c_rg
+                               + (f_s * (1. - f_cover) + f_v * f_cover) * c_sg)) - 1
+    u_star = (u * np.sqrt(f_r * lambda_ * (1. - f_cover) * c_rg
+              + (f_s * (1 - f_cover) + f_v * f_cover) * c_sg))
 
+    prod_alpha = calc_prod_alpha_array(alpha_mean)
+    g_alpha = c_2 * np.sqrt(c_3 * np.pi) / (gamma_func(alpha_mean + 1)
+                                            * 2**(alpha_mean + 1)
+                                            * np.sqrt(alpha_mean + 1))
+    g_alpha[alpha_mean > 0] = g_alpha[alpha_mean > 0] * prod_alpha[alpha_mean > 0]
+    delta = g_alpha * nu / u_star
+    r_s = rho * c_p * delta / k_a
+
+    return np.asarray(r_s)
+    
 
 def calc_R_S_McNaughton(u_friction):
     ''' Aerodynamic resistance at the  soil boundary layer.
@@ -528,6 +531,121 @@ def calc_R_S_Kustas(u_S, deltaT, params=None):
     R_S = 1.0 / (c * deltaT**(1.0 / 3.0) + b * u_S)
     return np.asarray(R_S)
 
+
+def calc_r_ss_Haghighi(u, h_c, zm, rho, c_p, z0_soil=0.01, f_cover=0, w_c=1,
+                      theta=0.4, theta_res=0.1, phi=2.0, ps=0.001, n=0.5):
+    """ Aerodynamic resistance at the  soil boundary layer.
+
+    Estimates the aerodynamic resistance at the  soil boundary layer based on the
+    soil resistance formulation adapted by [Li2019]_.
+
+    Parameters
+    ----------
+    u_star : float
+        friction velocity (m s-1).
+    h_C : float
+        canopy height (m).
+    z_0M : float
+        aerodynamic roughness length for momentum trasport (m).
+    d_0 : float
+        zero-plane displacement height (m).
+    zm : float
+        height on measurement of wind speed (m).
+    z0_soil : float, optional
+        roughness length of the soil layer, use z0_soil=0.01.
+    alpha_k : float, optional
+        Heat diffusion coefficient, default=2.
+
+    Returns
+    -------
+    R_S : float
+        Aerodynamic resistance at the  soil boundary layer (s m-1).
+
+    References
+    ----------
+    ..[Li2019] Li, Yan, et al.
+        "Evaluating Soil Resistance Formulations in Thermal?Based
+        Two?Source Energy Balance (TSEB) Model:
+        Implications for Heterogeneous Semiarid and Arid Regions."
+        Water Resources Research 55.2 (2019): 1059-1078.
+        https://doi.org/10.1029/2018WR022981.
+    ..[Haghighi2015] Haghighi, Erfan, and Dani Or.
+        "Interactions of bluff-body obstacles with turbulent airflows affecting
+        evaporative fluxes from porous surfaces."
+        Journal of Hydrology 530 (2015): 103-116.
+        https://doi.org/10.1016/j.jhydrol.2015.09.048
+    ..[Haghighi2013] Haghighi, E., and Dani Or.
+        "Evaporation from porous surfaces into turbulent airflows:
+        Coupling eddy characteristics with pore scale vapor diffusion."
+        Water Resources Research 49.12 (2013): 8432-8442.
+        https://doi.org/10.1002/2012WR013324.
+
+
+% -------------------------------------------------------------------------
+%  Inputs   |              Description
+% -------------------------------------------------------------------------
+% ps        | mean particle size of soil        [m]
+% n         | soil pore size distribution index [-]
+% phi       | porosity                          [-]
+% theta     | soil water content                [m3 m-3]
+% theta_res | residual water content            [m3 m-3]
+% z_w       | measurement height                [m]
+% U         | wind velocity                     [m s-1]
+% eta       | vegetation cover fraction         [-]      =0 for bare soil
+% h         | (cylindrical) vegettaion height   [m]      =0 for bare soil
+% d         | (cylindrical) vegetation diameter [m]      =0 for bare soil
+% -------------------------------------------------------------------------
+
+    """
+
+    # Define constanst
+    diff_w = 0.282e-4   # [m2 s-1]    water vapor diffusion coefficient in air
+    nu = 15.11e-6   # [m2 s-1]    kinmeatic visocosity of air
+    lambda_e = 2450e3   # [J/kg]      Latent heat of vaporization
+
+    # ..[Haghighi2015]
+    a_r = 3.
+    a_s = 5.
+    k = 0.1
+    gamma = 150.
+    f_alpha = 22.  # [Haghighi2013]_
+
+    u, h_c, zm, z0_soil, f_cover, w_c, theta, theta_res, phi, ps, n = map(
+        np.asarray, (u, h_c, zm, z0_soil, f_cover, w_c, theta, theta_res, phi, ps, n))
+
+    f_theta = ((1. / np.sqrt(np.pi * (theta - theta_res)))
+               * (np.sqrt(np.pi / (4 * (theta - theta_res))) - 1))
+
+    theta = (theta - theta_res) / (phi - theta_res)
+    del theta_res, phi
+
+    k_sat = (0.0077 * n**7.35) / (24. * 3600.)  # [m s-1]
+    m = 1. - 1. / n
+    k_eff = (4 * k_sat * np.sqrt(theta)
+             * (1 - (1 - theta**(1 / m))**m)**2)  # [Haghighi2013]_
+    del k_sat, m, n
+
+    width = h_c * w_c
+    a_veg = (np.pi / 4) * width**2
+    lambda_ = width * h_c * f_cover / a_veg
+
+    h_c[f_cover == 0] = 0
+    lambda_[f_cover == 0] = 0
+
+    z_0sc = z0_soil * (1 + f_cover * ((zm - h_c) / zm - 1))
+    f_r = np.exp(-a_r * lambda_ / (1. - f_cover)**k)
+    f_s = np.exp(-a_s * lambda_ / (1. - f_cover)**k)
+    c_sgc = KARMAN**2 * (np.log((zm - h_c) / z_0sc))**(-2)
+    c_sg = KARMAN**2 * (np.log(zm / z0_soil))**(-2)
+    f_c = 1. + f_cover * (c_sgc / c_sg - 1.)
+    c_rg = gamma * c_sg
+    u_star = (u * np.sqrt(f_r * lambda_ * (1 - f_cover) * c_rg
+              + (f_s * (1 - f_cover) + f_c * f_cover) * c_sg))
+    delta = f_alpha * nu / u_star
+    r_ss = (rho * c_p * ((delta + (ps / 3) * f_theta) / diff_w + 1.73e-5 / k_eff)
+              / lambda_e)     # [Haghighi2013]_
+
+    return np.asarray(r_ss)
 
 def calc_R_x_Choudhury(u_C, F, leaf_width, alpha_prime=3.0):
     ''' Estimates aerodynamic resistance at the canopy boundary layer.
