@@ -1169,7 +1169,7 @@ def calc_Ln(T_A_K, ea, f_cd=1):
         Net longwave radiation (W m-2)
     '''
 
-    Ln = TSEB.rad.sb * f_cd * (0.34 - 0.14 * np.sqrt(ea * 0.1)) * T_A_K ** 4
+    Ln = TSEB.rad.SB * f_cd * (0.34 - 0.14 * np.sqrt(ea * 0.1)) * T_A_K ** 4
 
     return Ln
 
