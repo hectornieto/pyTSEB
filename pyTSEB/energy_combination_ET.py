@@ -1198,3 +1198,43 @@ def wind_profile(u, z_u, z_0M, d, z):
     u_z = u * np.log((z - d) / z_0M) / np.log((z_u - d) / z_0M)
 
     return u_z
+
+
+def fill_and_update_et(k_cs, et, et_ref, gaps):
+    """
+    Fills gaps on daily ET based on previous crop stress coefficient
+    .. math : ET_{a,1} = k_{cs, 0} ET_{ref, 1}
+    .. math : k_{cs, 1} = ET_{a,1} / ET_{ref, 1}
+    Parameters
+    ----------
+    k_cs : ndarray
+        Prior crop stress coefficient
+        .. math : k_{cs, 0} = ET_{a,0} / ET_{ref,0}
+    et : ndarray
+        Daily actual ET
+    et_ref : ndarray
+        Daily reference ET
+    gaps : ndarray bool
+        Boolean array with True where gaps are present
+    Returns
+    -------
+    et_filled : ndarray
+        Daily ET with gaps filled
+    kcs_updated : ndarray
+        Updated crop stress coefficient based on valid `et` observations
+    """
+
+    # Only apply the method on valid reference ET observations, e.g. exclude oceans
+    ref_valid = np.logical_and(np.isfinite(et_ref), et_ref >= 0)
+    valid = np.logical_and(~gaps, ref_valid)
+    no_valid = np.logical_and(gaps, ref_valid)
+    # Fill gaps in daily ET
+    et_filled = et.copy()
+    del et
+    et_filled[no_valid] = k_cs[no_valid] * et_ref[no_valid]
+    kcs_updated = k_cs.copy()
+    del k_cs
+    # Update the K_cs coefficient with valid observations
+    kcs_updated[valid] = et_filled[valid] / et_ref[valid]
+    return et_filled, kcs_updated
+
