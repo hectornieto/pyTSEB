@@ -44,7 +44,7 @@ def penman_monteith(T_A_K,
                     Rst_min=400,
                     leaf_type=TSEB.res.AMPHISTOMATOUS,
                     f_cd=None,
-                    kB=0):
+                    kB=2.3):
     '''Penman Monteith [Allen1998]_ energy combination model.
     Calculates the Penman Monteith one source fluxes using meteorological and crop data.
 
@@ -87,8 +87,11 @@ def penman_monteith(T_A_K,
     leaf_type : int
         1: Hipostomatous leaves (stomata only in one side of the leaf)
         2: Amphistomatous leaves (stomata in both sides of the leaf)
-
-
+    f_cd : float or None
+        cloudiness factor, if a value is set it will comput net Lw based on [Allen1998]_
+    kB : float
+        kB-1 parameter to compute roughness lenght for heat transport, default=2.3
+        
     Returns
     -------
     flag : int
@@ -371,7 +374,8 @@ def shuttleworth_wallace(T_A_K,
     leaf_type : int
         1: Hipostomatous leaves (stomata only in one side of the leaf)
         2: Amphistomatous leaves (stomata in both sides of the leaf)
-
+    kB : float
+        kB-1 parameter to compute roughness lenght for heat transport, default=0
 
     Returns
     -------
@@ -757,6 +761,234 @@ def shuttleworth_wallace(T_A_K,
     return flag, T_S, T_C, vpd_0, Ln_S, Ln_C, LE, H, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A, u_friction, L, n_iterations
 
 
+def penman(T_A_K,
+           u,
+           ea,
+           p,
+           Sn,
+           L_dn,
+           emis,
+           z_0M,
+           d_0,
+           z_u,
+           z_T,
+           calcG_params=[[1], 0.35],
+           const_L=None,
+           f_cd=None,
+           kB=0):
+    '''Penman energy combination model.
+    Calculates the Penman evaporation fluxes using meteorological data.
+
+    Parameters
+    ----------
+    T_A_K : float
+        Air temperature (Kelvin).
+    u : float
+        Wind speed above the canopy (m s-1).
+    ea : float
+        Water vapour pressure above the canopy (mb).
+    p : float
+        Atmospheric pressure (mb), use 1013 mb by default.
+    Sn : float
+        Net shortwave radiation (W m-2).
+    L_dn : float
+        Downwelling longwave radiation (W m-2).
+    emis : float
+        Surface emissivity.
+    z_0M : float
+        Aerodynamic surface roughness length for momentum transfer (m).
+    d_0 : float
+        Zero-plane displacement height (m).
+    z_u : float
+        Height of measurement of windspeed (m).
+    z_T : float
+        Height of measurement of air temperature (m).
+    calcG_params : list[list,float or array], optional
+        Method to calculate soil heat flux,parameters.
+
+            * [[1],G_ratio]: default, estimate G as a ratio of Rn_S, default Gratio=0.35.
+            * [[0],G_constant] : Use a constant G, usually use 0 to ignore the computation of G.
+            * [[2,Amplitude,phase_shift,shape],time] : estimate G from Santanello and Friedl with G_param list of parameters (see :func:`~TSEB.calc_G_time_diff`).
+    const_L : float or None, optional
+        If included, its value will be used to force the Moning-Obukhov stability length.
+    f_cd : float or None
+        cloudiness factor, if a value is set it will comput net Lw based on [Allen1998]_
+    kB : float
+        kB-1 parameter to compute roughness lenght for heat transport, default=2.3
+
+    Returns
+    -------
+    flag : int
+        Quality flag, see Appendix for description.
+    L_n : float
+        Net longwave radiation (W m-2)
+    LE : float
+        Latent heat flux (W m-2).
+    H : float
+        Sensible heat flux (W m-2).
+    G : float
+        Soil heat flux (W m-2).
+    R_A : float
+        Aerodynamic resistance to heat transport (s m-1).
+    u_friction : float
+        Friction velocity (m s-1).
+    L : float
+        Monin-Obuhkov length (m).
+    n_iterations : int
+        number of iterations until convergence of L.
+
+    References
+    ----------
+    .. [Monteith2008] Monteith, JL, Unsworth MH, Principles of Environmental
+    Physics, 2008. ISBN 978-0-12-505103-5
+
+    '''
+
+    # Convert float scalars into numpy arrays and check parameters size
+    T_A_K = np.asarray(T_A_K)
+    [u,
+     ea,
+     p,
+     Sn,
+     L_dn,
+     emis,
+     z_0M,
+     d_0,
+     z_u,
+     z_T,
+     calcG_array] = map(TSEB._check_default_parameter_size,
+                      [u,
+                       ea,
+                       p,
+                       Sn,
+                       L_dn,
+                       emis,
+                       z_0M,
+                       d_0,
+                       z_u,
+                       z_T,
+                       calcG_params[1]],
+                      [T_A_K] * 11)
+
+    # Create the output variables
+    [flag, Ln, LE, H, G, R_A, iterations] = [np.zeros(T_A_K.shape) + np.NaN for i in
+                                             range(7)]
+
+    # Calculate the general parameters
+    rho_a = TSEB.met.calc_rho(p, ea, T_A_K)  # Air density
+    Cp = TSEB.met.calc_c_p(p, ea)  # Heat capacity of air
+    # slope of saturation water vapour pressure in mb K-1
+    delta = 10. * TSEB.met.calc_delta_vapor_pressure(T_A_K)
+    lambda_ = TSEB.met.calc_lambda(T_A_K)  # latent heat of vaporization MJ kg-1
+    psicr = TSEB.met.calc_psicr(Cp, p, lambda_)  # Psicrometric constant (mb K-1)
+    es = TSEB.met.calc_vapor_pressure(T_A_K)  # saturation water vapour pressure in mb
+    z_0H = TSEB.res.calc_z_0H(z_0M, kB=kB)  # Roughness length for heat transport
+    r_r = TSEB.res.calc_r_r(p, ea, T_A_K)  # Resitance to radiative transfer
+    vpd = es - ea
+
+    # iteration of the Monin-Obukhov length
+    if const_L is None:
+        # Initially assume stable atmospheric conditions and set variables for
+        L = np.asarray(np.zeros(T_A_K.shape) + np.inf)
+        max_iterations = ITERATIONS
+    else:  # We force Monin-Obukhov lenght to the provided array/value
+        L = np.asarray(np.ones(T_A_K.shape) * const_L)
+        max_iterations = 1  # No iteration
+    u_friction = TSEB.MO.calc_u_star(u, z_u, L, d_0, z_0M)
+    u_friction = np.asarray(np.maximum(TSEB.U_FRICTION_MIN, u_friction))
+    L_queue = deque([np.array(L)], 6)
+    L_converged = np.asarray(np.zeros(T_A_K.shape)).astype(bool)
+    L_diff_max = np.inf
+    zol = np.zeros(T_A_K.shape)
+    T_0_K = T_A_K.copy()
+    # Outer loop for estimating stability.
+    # Stops when difference in consecutives L is below a given threshold
+    start_time = time.time()
+    loop_time = time.time()
+    for n_iterations in range(max_iterations):
+        i = ~L_converged
+        if np.all(L_converged):
+            if L_converged.size == 0:
+                print("Finished iterations with no valid solution")
+            else:
+                print("Finished interations with a max. L diff: " + str(L_diff_max))
+            break
+        current_time = time.time()
+        loop_duration = current_time - loop_time
+        loop_time = current_time
+        total_duration = loop_time - start_time
+        print("Iteration: %d, non-converged pixels: %d, max L diff: %f, total time: %f, loop time: %f" %
+              (n_iterations, np.sum(i), L_diff_max, total_duration, loop_duration))
+
+        iterations[i] = n_iterations
+        flag[i] = 0
+
+        T_0_old = np.zeros(T_0_K.shape)
+        for nn_interations in range(max_iterations):
+            if f_cd is None:
+                Ln = emis * (L_dn - TSEB.met.calc_stephan_boltzmann(T_0_K))
+            else:
+                # As the original equation in FAO56 uses net outgoing radiation
+                Ln = - calc_Ln(T_A_K, ea, f_cd=f_cd)
+
+            Rn = np.asarray(Sn + Ln)
+            # Compute Soil Heat Flux
+            G[i] = TSEB.calc_G([calcG_params[0], calcG_array], Rn, i)
+            # Calculate aerodynamic resistances
+            R_A[i] = TSEB.res.calc_R_A(z_T[i], u_friction[i], L[i], d_0[i], z_0H[i])
+
+            # Apply Penman Combination equation
+            LE[i] = le_penman(Rn[i], G[[i]], vpd[i], R_A[i], r_r[i], delta[i],
+                              rho_a[i], Cp[i], psicr[i])
+            H[i] = Rn[i] - G[i] - LE[i]
+
+            # Recomputue aerodynamic temperature
+            T_0_K[i] = calc_T(H[i], T_A_K[i], R_A[i], rho_a[i], Cp[i])
+            if np.all(np.abs(T_0_K - T_0_old) < T_DIFF_THRES):
+                break
+            else:
+                T_0_old = T_0_K.copy()
+
+        # Now L can be recalculated and the difference between iterations
+        # derived
+        if const_L is None:
+            L[i] = TSEB.MO.calc_L(
+                u_friction[i],
+                T_A_K[i],
+                rho_a[i],
+                Cp[i],
+                H[i],
+                LE[i])
+            # Check stability
+            zol[i] = z_0M[i] / L[i]
+            stable = np.logical_and(i, zol > STABILITY_THRES)
+            L[stable] = 1e36
+            # Calculate again the friction velocity with the new stability
+            # correctios
+            u_friction[i] = TSEB.MO.calc_u_star(u[i], z_u[i], L[i], d_0[i], z_0M[i])
+            u_friction = np.asarray(np.maximum(TSEB.U_FRICTION_MIN, u_friction))
+            # We check convergence against the value of L from previous iteration but as well
+            # against values from 2 or 3 iterations back. This is to catch situations (not
+            # infrequent) where L oscillates between 2 or 3 steady state values.
+            L_new = L.copy()
+            L_new[L_new == 0] = 1e-36
+            L_queue.appendleft(L_new)
+            L_converged[i] = TSEB._L_diff(L_queue[0][i], L_queue[1][i]) < TSEB.L_thres
+            L_diff_max = np.max(TSEB._L_diff(L_queue[0][i], L_queue[1][i]))
+            if len(L_queue) >= 4:
+                L_converged[i] = np.logical_and(TSEB._L_diff(L_queue[0][i], L_queue[2][i]) < TSEB.L_thres,
+                                                TSEB._L_diff(L_queue[1][i], L_queue[3][i]) < TSEB.L_thres)
+            if len(L_queue) == 6:
+                L_converged[i] = np.logical_and.reduce((TSEB._L_diff(L_queue[0][i], L_queue[3][i]) < TSEB.L_thres,
+                                                        TSEB._L_diff(L_queue[1][i], L_queue[4][i]) < TSEB.L_thres,
+                                                        TSEB._L_diff(L_queue[2][i], L_queue[5][i]) < TSEB.L_thres))
+
+    flag, Ln, LE, H, G, R_A, u_friction, L, n_iterations = map(
+        np.asarray, (flag, Ln, LE, H, G, R_A, u_friction, L, n_iterations))
+
+    return flag, Ln, LE, H, G, R_A, u_friction, L, n_iterations
+
+
 def pet_asce(T_A_K, u, ea, p, Sdn, z_u, z_T, f_cd=1, reference=TALL_REFERENCE,
              is_daily=True):
     '''Calcultaes the latent heat flux for well irrigated and cold pixel using
@@ -916,6 +1148,14 @@ def le_penman_monteith(r_n, g_flux, vpd, r_a, r_c, delta, rho, cp, psicr):
     r_eff = r_c / r_a
     le = ((delta * (r_n - g_flux) + rho * cp * vpd / r_a)
           / (delta + psicr * (1. + r_eff)))
+    return le
+
+def le_penman(r_n, g_flux, vpd, r_a, r_r, delta, rho, cp, psicr):
+
+    r_hr = r_a + r_r
+    psicr_star = psicr * r_a / r_hr
+    le = ((delta * (r_n - g_flux) + rho * cp * vpd / r_hr)
+          / (delta + psicr_star))
     return le
 
 
