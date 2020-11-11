@@ -63,6 +63,7 @@ import numpy as np
 from scipy.special import gamma as gamma_func
 import pyTSEB.MO_similarity as MO
 import pyTSEB.meteo_utils as met
+import pyTSEB.net_radiation as rad
 
 # ==============================================================================
 # List of constants used in TSEB model and sub-routines
@@ -760,6 +761,36 @@ def calc_R_x_Norman(LAI, leaf_width, u_d_zm, params=None):
     return np.asarray(R_x)
 
 
+def calc_r_r(p, ea, t_k):
+    """ Calculates the resistance to radiative transfer
+
+    Parameters
+    ----------
+    p : float or array
+        Surface atmospheric pressure (mb)
+    ea : float or array
+        Vapour pressure (mb).
+    t_k : float or array
+        surface temperature (K)
+
+    Returns
+    -------
+    r_r : float or array
+        Resistance to radiative transfer (s m-1)
+
+    References
+    ----------
+    .. [Monteith2008] Monteith, JL, Unsworth MH, Principles of Environmental
+    Physics, 2008. ISBN 978-0-12-505103-5
+
+    """
+
+    rho = met.calc_rho(p, ea, t_k)
+    cp = met.calc_c_p(p, ea)
+    r_r = rho * cp / (4. * rad.SB * t_k**3)  # Eq. 4.7 of [Monteith2008]_
+    return r_r
+
+
 def calc_stomatal_resistance_TSEB(
         LE_C,
         LE,
@@ -1047,3 +1078,4 @@ def raupach(lambda_):
         (1. - np.exp(-np.sqrt(15.0 * lambda_[i]))) / np.sqrt(15.0 * lambda_[i])
 
     return np.asarray(z0M_factor), np.asarray(d_factor)
+
