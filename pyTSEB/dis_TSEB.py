@@ -6,7 +6,7 @@ Created on Mon Mar 26 11:10:34 2018
 @author: hector
 """
 import numpy as np
-import gdal
+from osgeo import gdal
 
 from scipy.ndimage.filters import gaussian_filter
 from scipy.signal import convolve2d
