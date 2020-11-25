@@ -1111,6 +1111,17 @@ class PyTSEB(object):
         roi_proj = roi_layer.GetSpatialRef()
         raster_proj = osr.SpatialReference()
         raster_proj.ImportFromWkt(raster_proj_wkt)
+        try:
+            # For GDAL 3 indicate the "legacy" axis order
+            # https://gdal.org/tutorials/osr_api_tut.html#crs-and-axis-order
+            # https://github.com/OSGeo/gdal/issues/1546
+            roi_proj = roi_proj.Clone()
+            roi_proj.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+            raster_proj = raster_proj.Clone()
+            raster_proj.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+        except AttributeError:
+            # For GDAL 2 do nothing
+            pass
         transform = osr.CoordinateTransformation(roi_proj, raster_proj)
         point_UL = ogr.CreateGeometryFromWkt("POINT ({} {})"
                                              .format(min(roi_extent[0], roi_extent[1]),
