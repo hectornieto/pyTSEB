@@ -864,22 +864,29 @@ class PyTSEB(object):
             driver_name = "VRT"
             opt = []
         else:
-            driver_name = "GTiff"
-            opt = []
-        if driver_name in ["GTiff", "netCDF"]:
-            # Save the data using GDAL
+            driver_name = "COG"
+            opt = ['COMPRESS=DEFLATE', 'PREDICTOR=YES', 'BIGTIFF=IF_SAFER']
+        if driver_name in ["COG", "netCDF"]:
+            # Save the data using GDAL by first creating a MEM layer and later using Translate
             rows, cols = np.shape(output['H1'])
-            driver = gdal.GetDriverByName(driver_name)
+            driver = gdal.GetDriverByName("MEM")
             nbands = len(fields)
-            ds = driver.Create(outfile, cols, rows, nbands, gdal.GDT_Float32, opt)
+            ds = driver.Create("MEM", cols, rows, nbands, gdal.GDT_Float32)
             ds.SetGeoTransform(self.geo)
             ds.SetProjection(self.prj)
             for i, field in enumerate(fields):
                 band = ds.GetRasterBand(i + 1)
-                band.SetNoDataValue(np.NaN)
                 band.WriteArray(output[field])
-                band.FlushCache()
-            ds.FlushCache()
+                band.SetStatistics(*band.ComputeStatistics(0))
+            out_ds = gdal.Translate(outfile, ds, format=driver_name, creationOptions=opt,
+                                    noData=None)
+            # If GDAL drivers for other formats do not exist then default to GeoTiff
+            if out_ds is None:
+                print("Warning: Selected GDAL driver is not supported! Saving as GeoTiff!")
+                driver_name = "GTiff"
+                opt = ['COMPRESS=DEFLATE', 'PREDICTOR=1', 'BIGTIFF=IF_SAFER']
+                gdal.Translate(outfile, ds, format=driver_name, creationOptions=opt, noData=None)
+            out_ds = None
             ds = None
             # In case of netCDF format use netCDF4 module to assign proper names
             # to variables (GDAL can't do this). Also it seems that GDAL has
@@ -901,16 +908,23 @@ class PyTSEB(object):
             out_files = []
             rows, cols = np.shape(output['H1'])
             for i, field in enumerate(fields):
-                driver = gdal.GetDriverByName("GTiff")
+                driver = gdal.GetDriverByName("MEM")
                 out_path = join(out_dir, field + ".tif")
-                ds = driver.Create(out_path, cols, rows, 1, gdal.GDT_Float32, opt)
+                ds = driver.Create("MEM", cols, rows, 1, gdal.GDT_Float32)
                 ds.SetGeoTransform(self.geo)
                 ds.SetProjection(self.prj)
                 band = ds.GetRasterBand(1)
-                band.SetNoDataValue(np.NaN)
                 band.WriteArray(output[field])
-                band.FlushCache()
-                ds.FlushCache()
+                opt = ['COMPRESS=DEFLATE', 'PREDICTOR=YES', 'BIGTIFF=IF_SAFER']
+                out_ds = gdal.Translate(out_path, ds, format="COG", creationOptions=opt,
+                                        noData=None, stats=True)
+                # If GDAL drivers for other formats do not exist then default to GeoTiff
+                if out_ds is None:
+                    opt = ['COMPRESS=DEFLATE', 'PREDICTOR=1', 'BIGTIFF=IF_SAFER']
+                    gdal.Translate(out_path, ds, format="GTiff", creationOptions=opt, noData=None,
+                                   stats=True)
+                out_ds = None
+                ds = None
                 out_files.extend([out_path])
 
             # Create the Virtual Raster Table
