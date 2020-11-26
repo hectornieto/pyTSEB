@@ -907,9 +907,10 @@ class PyTSEB(object):
                 mkdir(out_dir)
             out_files = []
             rows, cols = np.shape(output['H1'])
+            outfile_tif = (splitext(basename(outfile))[0]).replace("_ancillary", "")
             for i, field in enumerate(fields):
                 driver = gdal.GetDriverByName("MEM")
-                out_path = join(out_dir, splitext(basename(outfile))[0] + "_" + field + ".tif")
+                out_path = join(out_dir, f"{outfile_tif}_{field}.tif")
                 ds = driver.Create("MEM", cols, rows, 1, gdal.GDT_Float32)
                 ds.SetGeoTransform(self.geo)
                 ds.SetProjection(self.prj)
