@@ -99,7 +99,7 @@ R_u = 0.0083144
 
 CM_a = 0.01  # Choudhury and Monteith 1988 leaf drag coefficient
 KN_b = 0.012  # Value propoesd in Kustas et al 1999
-KN_c = 0.0025  # Coefficient from Norman et al. 1995
+KN_c = 0.0038  # Coefficient from Kustas et al. 2016
 KN_C_dash = 90.0  # value proposed in Norman et al. 1995
 
 

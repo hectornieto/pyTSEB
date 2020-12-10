@@ -65,7 +65,7 @@ w_C=1 # Canopy width to height ratio
 #==============================================================================
 resistance_form=0   # Resistance formulations: 0 - Kustas & Norman 1999; 1 - Choudhury & Monteih 1998; 2 - McNaughton & Van der Hurk 1995
 KN_b=0.012          # Kustas & Norman formulation parameter
-KN_c=0.0025         # Kustas & Norman formulation parameter
+KN_c=0.0038         # Kustas & Norman formulation parameter
 KN_C_dash=90       # Kustas & Norman formulation parameter
 
 #==============================================================================

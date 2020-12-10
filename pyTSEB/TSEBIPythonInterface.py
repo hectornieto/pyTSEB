@@ -60,7 +60,7 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
         # Resistance options
         self.res = 0
         self.KN_b = 0.012
-        self.KN_c = 0.0025
+        self.KN_c = 0.0038
         self.KN_C_dash = 90.0
         # RowCrop calculation
         self.row = False
