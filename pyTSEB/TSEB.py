@@ -615,7 +615,7 @@ def TSEB_PT(Tr_K,
     '''
 
     # Convert input float scalars to arrays and parameters size
-    Tr_K = np.asarray(Tr_K)
+    Tr_K = np.asarray(Tr_K, dtype=np.float32)
     (vza,
      T_A_K,
      u,
@@ -670,15 +670,15 @@ def TSEB_PT(Tr_K,
     # calcG_params[1] = None
     # Create the output variables
     [Ln_S, Ln_C, H, LE, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A, delta_Rn,
-     Rn_S, iterations] = [np.zeros(Tr_K.shape)+np.NaN for i in range(15)]
+     Rn_S, iterations] = [np.zeros(Tr_K.shape, np.float32)+np.NaN for i in range(15)]
 
     # iteration of the Monin-Obukhov length
     if const_L is None:
         # Initially assume stable atmospheric conditions and set variables for
-        L = np.asarray(np.zeros(Tr_K.shape) + np.inf)
+        L = np.asarray(np.zeros(Tr_K.shape, np.float32) + np.inf, dtype=np.float32)
         max_iterations = ITERATIONS
     else:  # We force Monin-Obukhov lenght to the provided array/value
-        L = np.asarray(np.ones(Tr_K.shape) * const_L)
+        L = np.asarray(np.ones(Tr_K.shape, np.float32) * const_L, dtype=np.float32)
         max_iterations = 1  # No iteration
     # Calculate the general parameters
     rho = met.calc_rho(p, ea, T_A_K)  # Air density
@@ -687,21 +687,21 @@ def TSEB_PT(Tr_K,
 
     # Calculate LAI dependent parameters for dataset where LAI > 0
     omega0 = CI.calc_omega0_Kustas(LAI, f_c, x_LAD=x_LAD, isLAIeff=True)
-    F = np.asarray(LAI / f_c)  # Real LAI
+    F = np.asarray(LAI / f_c, dtype=np.float32)  # Real LAI
     # Fraction of vegetation observed by the sensor
     f_theta = calc_F_theta_campbell(vza, F, w_C=w_C, Omega0=omega0, x_LAD=x_LAD)
     del vza, ea
     # Initially assume stable atmospheric conditions and set variables for
     # iteration of the Monin-Obukhov length
     u_friction = MO.calc_u_star(u, z_u, L, d_0, z_0M)
-    u_friction = np.asarray(np.maximum(U_FRICTION_MIN, u_friction))
-    L_queue = deque([np.array(L)], 6)
-    L_converged = np.asarray(np.zeros(Tr_K.shape)).astype(bool)
+    u_friction = np.asarray(np.maximum(U_FRICTION_MIN, u_friction), dtype=np.float32)
+    L_queue = deque([np.array(L, np.float32)], 6)
+    L_converged = np.asarray(np.zeros(Tr_K.shape), dtype=bool)
     L_diff_max = np.inf
 
     # First assume that canopy temperature equals the minumum of Air or
     # radiometric T
-    T_C = np.asarray(np.minimum(Tr_K, T_A_K))
+    T_C = np.asarray(np.minimum(Tr_K, T_A_K), dtype=np.float32)
     flag, T_S = calc_T_S(Tr_K, T_C, f_theta)
     T_AC = T_A_K.copy()
 
@@ -730,7 +730,7 @@ def TSEB_PT(Tr_K,
         # canopy transpiration.
         flag[np.logical_and(~L_converged, flag != F_INVALID)] = F_ALL_FLUXES
         LE_S[np.logical_and(~L_converged, flag != F_INVALID)] = -1
-        alpha_PT_rec = np.asarray(alpha_PT + 0.1)
+        alpha_PT_rec = np.asarray(alpha_PT + 0.1, dtype=np.float32)
         while np.any(LE_S[i] < 0):
             i = np.logical_and.reduce((LE_S < 0, ~L_converged, flag != F_INVALID))
 
@@ -827,8 +827,8 @@ def TSEB_PT(Tr_K,
             LE_S[noT] = 0
 
             # Calculate total fluxes
-            H[i] = np.asarray(H_C[i] + H_S[i])
-            LE[i] = np.asarray(LE_C[i] + LE_S[i])
+            H[i] = np.asarray(H_C[i] + H_S[i], dtype=np.float32)
+            LE[i] = np.asarray(LE_C[i] + LE_S[i], dtype=np.float32)
             # Now L can be recalculated and the difference between iterations
             # derived
             if const_L is None:
@@ -843,13 +843,13 @@ def TSEB_PT(Tr_K,
                 # correctios
                 u_friction[i] = MO.calc_u_star(
                     u[i], z_u[i], L[i], d_0[i], z_0M[i])
-                u_friction[i] = np.asarray(np.maximum(U_FRICTION_MIN, u_friction[i]))
+                u_friction[i] = np.asarray(np.maximum(U_FRICTION_MIN, u_friction[i]), dtype=np.float32)
 
         if const_L is None:
             # We check convergence against the value of L from previous iteration but as well
             # against values from 2 or 3 iterations back. This is to catch situations (not
             # infrequent) where L oscillates between 2 or 3 steady state values.
-            L_new = np.array(L)
+            L_new = np.array(L, np.float32)
             L_new[L_new == 0] = 1e-36
             L_queue.appendleft(L_new)
             i = np.logical_and(~L_converged, flag != F_INVALID)
@@ -911,7 +911,7 @@ def TSEB_PT(Tr_K,
 
 
 def _L_diff(L, L_old):
-    L_diff = np.asarray(np.fabs(L - L_old) / np.fabs(L_old))
+    L_diff = np.asarray(np.fabs(L - L_old) / np.fabs(L_old), dtype=np.float32)
     L_diff[np.isnan(L_diff)] = float('inf')
     return L_diff
 
@@ -1628,7 +1628,7 @@ def calc_F_theta_campbell(theta, F, w_C=1, Omega0=1, x_LAD=1):
     # Eq. 15.4 of Campbell and Norman (1998)
     K_be = rad.calc_K_be_Campbell(theta, x_LAD)
     ftheta = 1.0 - np.exp(-K_be * OmegaTheta * F)
-    return np.asarray(ftheta)
+    return np.asarray(ftheta, dtype=np.float32)
 
 
 def calc_G(calcG_params, Rn_S, i=None):
@@ -1688,10 +1688,10 @@ def calc_G_time_diff(R_n, G_param=[12.0, 0.35, 3.0, 24.0]):
     B = G_param[3]
     G_ratio = A * np.cos(2.0 * np.pi * (time + phase_shift) / B)
     G = R_n * G_ratio
-    return np.asarray(G)
+    return np.asarray(G, dtype=np.float32)
 
 
-def calc_G_time_diff_sigmoid(R_n, G_param=[12, 0, 0.35, 10., 14., 1., 1.]):
+def calc_G_time_diff_sigmoid(R_n, G_param=[12, 0, 0.35, 10.0, 14.0, 1.0, 1.0]):
     ''' Estimates Soil Heat Flux as function of time and net radiation using an asymmetric sigmoid
     function
 
@@ -1728,7 +1728,7 @@ def calc_G_time_diff_sigmoid(R_n, G_param=[12, 0, 0.35, 10., 14., 1., 1.]):
                * 0.5 * (np.tanh((time - phase_shift_0) / shape_0)
                - np.tanh((time - phase_shift_1) / shape_1)))
     G = R_n * G_ratio
-    return np.asarray(G)
+    return np.asarray(G, dtype=np.float32)
 
 
 def calc_G_ratio(Rn_S, G_ratio=0.35):
@@ -1756,7 +1756,7 @@ def calc_G_ratio(Rn_S, G_ratio=0.35):
     '''
 
     G = G_ratio * Rn_S
-    return np.asarray(G)
+    return np.asarray(G, dtype=np.float32)
 
 
 def calc_H_C(T_C, T_A, R_A, rho, c_p):
@@ -1781,7 +1781,7 @@ def calc_H_C(T_C, T_A, R_A, rho, c_p):
         Canopy sensible heat flux (W m-2).'''
 
     H_C = rho * c_p * (T_C - T_A) / R_A
-    return np.asarray(H_C)
+    return np.asarray(H_C, dtype=np.float32)
 
 
 def calc_H_C_PT(delta_R_ni, f_g, T_A_K, P, c_p, alpha):
@@ -1821,7 +1821,7 @@ def calc_H_C_PT(delta_R_ni, f_g, T_A_K, P, c_p, alpha):
     gama = met.calc_psicr(c_p, P, Lambda)
     s_gama = s / (s + gama)
     H_C = delta_R_ni * (1.0 - alpha * f_g * s_gama)
-    return np.asarray(H_C)
+    return np.asarray(H_C, dtype=np.float32)
 
 
 def calc_H_DTD_parallel(
@@ -1836,7 +1836,7 @@ def calc_H_DTD_parallel(
         R_A1,
         R_AC1,
         H_C1):
-    """Calculates the DTD total sensible heat flux at time 1 with resistances in parallel.
+    '''Calculates the DTD total sensible heat flux at time 1 with resistances in parallel.
 
     Parameters
     ----------
@@ -1875,12 +1875,12 @@ def calc_H_DTD_parallel(
         estimate surface energy fluxes with day-night MODIS observations,
         Hydrol. Earth Syst. Sci., 17, 2809-2825,
         http://dx.doi.org/10.5194/hess-17-2809-2013.
-    """
+    '''
 
     # Ignore night fluxes
     H = (rho * c_p * (((T_R1 - T_R0) - (T_A1 - T_A0)) / ((1.0 - f_theta1) * (R_A1 + R_S1)))
          + H_C1 * (1.0 - ((f_theta1 * R_AC1) / ((1.0 - f_theta1) * (R_A1 + R_S1)))))
-    return np.asarray(H)
+    return np.asarray(H, dtype=np.float32)
 
 
 def calc_H_DTD_series(
@@ -1895,7 +1895,7 @@ def calc_H_DTD_series(
         R_A,
         R_x,
         H_C):
-    """Calculates the DTD total sensible heat flux at time 1 with resistances in series
+    '''Calculates the DTD total sensible heat flux at time 1 with resistances in series
 
     Parameters
     ----------
@@ -1933,11 +1933,11 @@ def calc_H_DTD_series(
         Remotely sensed land-surface energy fluxes at sub-field scale in heterogeneous
         agricultural landscape and coniferous plantation, Biogeosciences, 11, 5021-5046,
         http://dx.doi.org/10.5194/bg-11-5021-2014.
-    """
+    '''
 
     H = (rho * c_p * ((T_R1 - T_R0) - (T_A1 - T_A0)) / ((1.0 - f_theta) * R_S + R_A)
          + H_C * ((1.0 - f_theta) * R_S - f_theta * R_x) / ((1.0 - f_theta) * R_S + R_A))
-    return np.asarray(H)
+    return np.asarray(H, dtype=np.float32)
 
 
 def calc_H_S(T_S, T_A, R_A, R_S, rho, c_p):
@@ -1969,7 +1969,7 @@ def calc_H_S(T_S, T_A, R_A, R_S, rho, c_p):
     '''
 
     H_S = rho * c_p * ((T_S - T_A) / (R_S + R_A))
-    return np.asarray(H_S)
+    return np.asarray(H_S, dtype=np.float32)
 
 
 def calc_T_C(T_R, T_S, f_theta):
@@ -1998,7 +1998,7 @@ def calc_T_C(T_R, T_S, f_theta):
 
     # Convert input scalars to numpy array
     (T_R, T_S, f_theta) = map(np.asarray, (T_R, T_S, f_theta))
-    T_temp = np.asarray(T_R**4 - (1.0 - f_theta) * T_S**4)
+    T_temp = np.asarray(T_R ** 4 - (1.0 - f_theta) * T_S**4)
     T_C = np.zeros(T_R.shape)
     flag = np.zeros(T_R.shape) + F_ALL_FLUXES
 
@@ -2009,7 +2009,7 @@ def calc_T_C(T_R, T_S, f_theta):
     T_C[T_temp < 0] = 1e-6
     flag[T_temp < 0] = F_INVALID
 
-    return np.asarray(flag), np.asarray(T_C)
+    return np.asarray(flag), np.asarray(T_C, dtype=np.float32)
 
 
 def calc_T_C_series(Tr_K, T_A_K, R_A, R_x, R_S, f_theta, H_C, rho, c_p):
@@ -2061,7 +2061,7 @@ def calc_T_C_series(Tr_K, T_A_K, R_A, R_x, R_S, f_theta, H_C, rho, c_p):
                  + 4.0 * f_theta * T_C_lin**3)))
     # get canopy temperature in Kelvin
     T_C = T_C_lin + delta_T_C
-    return np.asarray(T_C)
+    return np.asarray(T_C, dtype=np.float32)
 
 
 def calc_T_CS_Norman(F, vza_n, vza_f, T_n, T_f, w_C=1, x_LAD=1, omega0=1):
@@ -2109,7 +2109,7 @@ def calc_T_CS_Norman(F, vza_n, vza_f, T_n, T_f, w_C=1, x_LAD=1, omega0=1):
     # Solve the sytem of two unknowns and two equations
     T_S_4 = np.asarray((f_theta_f * T_n**4 - f_theta_n * T_f**4)
                        / (f_theta_f - f_theta_n))
-    T_C_4 = np.asarray((T_n**4 - (1.0 - f_theta_n) * T_S_4) / f_theta_n)
+    T_C_4 = np.asarray((T_n ** 4 - (1.0 - f_theta_n) * T_S_4) / f_theta_n)
 
     T_C_K = np.zeros(T_n.shape)
     T_S_K = np.zeros(T_n.shape)
@@ -2123,7 +2123,7 @@ def calc_T_CS_Norman(F, vza_n, vza_f, T_n, T_f, w_C=1, x_LAD=1, omega0=1):
     T_C_K[~i] = float('nan')
     T_S_K[~i] = float('nan')
 
-    return np.asarray(T_C_K), np.asarray(T_S_K)
+    return np.asarray(T_C_K, dtype=np.float32), np.asarray(T_S_K, dtype=np.float32)
 
 
 def calc_T_CS_4SAIL(
@@ -2232,7 +2232,7 @@ def calc_T_CS_4SAIL(
     # Invert Stephan Boltzmann to obtain vegetation and soil temperatures
     T_C_K = (H_v / SB)**0.25
     T_S_K = (H_S / SB)**0.25
-    return np.asarray(T_C_K), np.asarray(T_S_K)
+    return np.asarray(T_C_K, dtype=np.float32), np.asarray(T_S_K, dtype=np.float32)
 
 
 def calc_4SAIL_emission_param(
@@ -2323,7 +2323,7 @@ def calc_4SAIL_emission_param(
     gamma_d = 1. - rdd - tdd
     gamma_o = 1. - rdo - tdo - too
     # Eq. 13 in [Verhoef2007]_
-    dn = 1.0 - rddt - rdd
+    dn = 1. - rddt - rdd
     emiss_o = 1. - rdot
     emiss_d = 1. - rddt
     rdot_star = rdo + (tdd * (rddt * tdo + rdot * too) / dn)
@@ -2369,8 +2369,8 @@ def calc_T_S(T_R, T_C, f_theta):
     # Convert the input scalars to numpy arrays
     T_R, T_C, f_theta = map(np.asarray, (T_R, T_C, f_theta))
     T_temp = T_R**4 - f_theta * T_C**4
-    T_S = np.zeros(T_R.shape)
-    flag = np.zeros(T_R.shape) + F_ALL_FLUXES
+    T_S = np.zeros(T_R.shape, np.float32)
+    flag = np.zeros(T_R.shape, np.int32) + F_ALL_FLUXES
 
     # Succesfull inversion
     T_S[T_temp >= 0] = (T_temp[T_temp >= 0]
@@ -2380,7 +2380,7 @@ def calc_T_S(T_R, T_C, f_theta):
     T_S[np.logical_or(T_temp < 0, np.isnan(T_temp))] = 1e-6
     flag[np.logical_or(T_temp < 0, np.isnan(T_temp))] = F_INVALID
 
-    return np.asarray(flag), np.asarray(T_S)
+    return np.asarray(flag, dtype=np.int32), np.asarray(T_S, dtype=np.float32)
 
 
 def calc_T_S_4SAIL(T_R, T_C, rdot_star, emiss_v_eff, emiss_s_eff, L_dn=0):
@@ -2422,7 +2422,7 @@ def calc_T_S_4SAIL(T_R, T_C, rdot_star, emiss_v_eff, emiss_s_eff, L_dn=0):
     T_S[Hs < 0] = 1e-6
     flag[Hs < 0] = F_INVALID
 
-    return np.asarray(flag), np.asarray(T_S)
+    return np.asarray(flag), np.asarray(T_S, dtype=np.float32)
 
 
 def calc_T_S_series(Tr_K, T_A_K, R_A, R_x, R_S, f_theta, H_S, rho, c_p):
@@ -2476,21 +2476,21 @@ def calc_T_S_series(Tr_K, T_A_K, R_A, R_x, R_S, f_theta, H_S, rho, c_p):
     # Eq. A.18 Norman 1995
     T_AC = T_AC_lin + Delta_T_AC
     T_S = T_AC + H_S * R_S / (rho * c_p)
-    return np.asarray(T_S), np.asarray(T_AC)
+    return np.asarray(T_S, dtype=np.float32), np.asarray(T_AC, dtype=np.float32)
 
 
 def _check_default_parameter_size(parameter, input_array):
 
-    parameter = np.asarray(parameter)
+    parameter = np.asarray(parameter, dtype=np.float32)
     if parameter.size == 1:
         parameter = np.ones(input_array.shape) * parameter
-        return np.asarray(parameter)
+        return np.asarray(parameter, dtype=np.float32)
     elif parameter.shape != input_array.shape:
         raise ValueError(
             'dimension mismatch between parameter array and input array with shapes %s and %s' %
             (parameter.shape, input_array.shape))
     else:
-        return np.asarray(parameter)
+        return np.asarray(parameter, dtype=np.float32)
 
 
 def calc_resistances(res_form, res_types):
@@ -2639,8 +2639,8 @@ def calc_resistances(res_form, res_types):
             R_S = res.calc_R_S_Haghighi(u, h_C, z_u, rho, c_p, z0_soil=z0_soil, f_cover=f_cover,
                                         w_C=w_C)
 
-    R_A = np.asarray(np.maximum(1e-3, R_A))
-    R_x = np.asarray(np.maximum(1e-3, R_x))
-    R_S = np.asarray(np.maximum(1e-3, R_S))
+    R_A = np.asarray(np.maximum(1e-3, R_A), dtype=np.float32)
+    R_x = np.asarray(np.maximum(1e-3, R_x), dtype=np.float32)
+    R_S = np.asarray(np.maximum(1e-3, R_S), dtype=np.float32)
 
     return R_A, R_x, R_S
