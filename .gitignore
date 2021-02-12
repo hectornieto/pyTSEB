@@ -67,8 +67,11 @@ target/
 
 # Auxiliary image files
 *.tif.*
-Output/*.tif.*
 Input/*.tif.*
+
+# Ignore output files
+Output/
+!Output/ExampleTableOutput.txt
 
 # Jupyter Notebooks Checkpoints
 .ipynb_checkpoints/
@@ -76,5 +79,7 @@ Input/*.tif.*
 #Ipython Notebook
 .ipynb_checkpoints
 
-.idea*
+# PyCharm
+.idea/*
+
 

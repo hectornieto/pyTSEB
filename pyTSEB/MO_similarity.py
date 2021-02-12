@@ -24,7 +24,7 @@ Modified on Sep 13 2016
 DESCRIPTION
 ===========
 This package contains the main routines for estimating variables related to the
- Monin-Obukhov (MO) Similarity Theory, such as  MO length, adiabatic correctors 
+ Monin-Obukhov (MO) Similarity Theory, such as  MO length, adiabatic correctors
 for heat and momentum transport. It requires the following package.
 
 * :doc:`meteo_utils` for the estimation of meteorological variables.
@@ -50,16 +50,88 @@ import numpy as np
 
 import pyTSEB.meteo_utils as met
 
-#==============================================================================
+# ==============================================================================
 # List of constants used in MO similarity
-#==============================================================================
+# ==============================================================================
 # von Karman's constant
-k = 0.4
+KARMAN = 0.41
 # acceleration of gravity (m s-2)
-gravity = 9.8
+GRAVITY = 9.8
 
+UNSTABLE_THRES = None
+STABLE_THRES = None
 
 def calc_L(ustar, T_A_K, rho, c_p, H, LE):
+    '''Calculates the Monin-Obukhov length.
+
+    Parameters
+    ----------
+    ustar : float
+        friction velocity (m s-1).
+    T_A_K : float
+        air temperature (Kelvin).
+    rho : float
+        air density (kg m-3).
+    c_p : float
+        Heat capacity of air at constant pressure (J kg-1 K-1).
+    H : float
+        sensible heat flux (W m-2).
+    LE : float
+        latent heat flux (W m-2).
+
+    Returns
+    -------
+    L : float
+        Obukhov stability length (m).
+
+    References
+    ----------
+    .. [Brutsaert2005] Brutsaert, W. (2005). Hydrology: an introduction (Vol. 61, No. 8).
+        Cambridge: Cambridge University Press.'''
+
+    l_mo = calc_mo_length_hv(ustar, T_A_K, rho, c_p, H, LE)
+    return np.asarray(l_mo)
+
+
+def calc_mo_length(ustar, T_A_K, rho, c_p, H):
+    '''Calculates the Monin-Obukhov length.
+
+    Parameters
+    ----------
+    ustar : float
+        friction velocity (m s-1).
+    T_A_K : float
+        air temperature (Kelvin).
+    rho : float
+        air density (kg m-3).
+    c_p : float
+        Heat capacity of air at constant pressure (J kg-1 K-1).
+    H : float
+        sensible heat flux (W m-2).
+    LE : float
+        latent heat flux (W m-2).
+
+    Returns
+    -------
+    L : float
+        Obukhov stability length (m).
+
+    References
+    ----------
+    .. [Brutsaert2005] Brutsaert, W. (2005). Hydrology: an introduction (Vol. 61, No. 8).
+        Cambridge: Cambridge University Press.'''
+
+    # Convert input scalars to numpy arrays
+    ustar, T_A_K, rho, c_p, H = map(
+        np.asarray, (ustar, T_A_K, rho, c_p, H))
+
+    L = np.asarray(np.ones(ustar.shape) * float('inf'))
+    i = H != 0
+    L[i] = - c_p[i] * T_A_K[i] * rho[i] * ustar[i]**3 / (KARMAN * GRAVITY * H[i])
+    return np.asarray(L)
+
+
+def calc_mo_length_hv(ustar, T_A_K, rho, c_p, H, LE):
     '''Calculates the Monin-Obukhov length.
 
     Parameters
@@ -93,16 +165,16 @@ def calc_L(ustar, T_A_K, rho, c_p, H, LE):
     # first convert latent heat into rate of surface evaporation (kg m-2 s-1)
     Lambda = met.calc_lambda(T_A_K)  # in J kg-1
     E = LE / Lambda
-
+    del LE, Lambda
     # Virtual sensible heat flux
     Hv = H + (0.61 * T_A_K * c_p * E)
+    del H, E
 
     L = np.asarray(np.ones(ustar.shape) * float('inf'))
     i = Hv != 0
-    L_const = np.asarray(k * gravity / T_A_K)
+    L_const = np.asarray(KARMAN * GRAVITY / T_A_K)
     L[i] = -ustar[i]**3 / (L_const[i] * (Hv[i] / (rho[i] * c_p[i])))
     return np.asarray(L)
-
 
 def calc_Psi_H(zoL):
     ''' Calculates the adiabatic correction factor for heat transport.
@@ -122,23 +194,51 @@ def calc_Psi_H(zoL):
     .. [Brutsaert2005] Brutsaert, W. (2005). Hydrology: an introduction (Vol. 61, No. 8).
         Cambridge: Cambridge University Press.
     '''
+    # Avoid free convection situations
+    if UNSTABLE_THRES is not None or STABLE_THRES is not None:
+        zoL = np.clip(zoL, UNSTABLE_THRES, STABLE_THRES)
+    Psi_H = psi_h_brutsaert(zoL)
+    return np.asarray(Psi_H)
 
+def psi_h_dyer(zol):
+
+    gamma = 16
+    beta = 5
     # Convert input scalars to numpy array
-    zoL = np.asarray(zoL)
-    Psi_H = np.zeros(zoL.shape)
+    zol = np.asarray(zol)
+    psi_h = np.zeros(zol.shape)
+    finite = np.isfinite(zol)
     # for stable and netural (zoL = 0 -> Psi_H = 0) conditions
-    i = zoL >= 0.0
+    i = np.logical_and(finite, zol >= 0.0)
+    psi_h[i] = -beta * zol[i]
+    # for unstable conditions
+    i = np.logical_and(finite, zol < 0.0)
+    x = (1 - gamma * zol[i])**0.25
+    psi_h[i] = 2 * np.log((1 + x**2) / 2)
+    return psi_h
+
+
+def psi_h_brutsaert(zol):
+    # Convert input scalars to numpy array
+    zol = np.asarray(zol)
+    psi_h = np.zeros(zol.shape)
+    finite = np.isfinite(zol)
+
+    # for stable and netural (zoL = 0 -> Psi_H = 0) conditions
+    i = np.logical_and(finite, zol >= 0.0)
     a = 6.1
     b = 2.5
-    Psi_H[i] = -a * np.log(zoL[i] + (1.0 + zoL[i]**b)**(1. / b))
+    psi_h[i] = -a * np.log(zol[i] + (1.0 + zol[i]**b)**(1. / b))
+    
     # for unstable conditions
-    i = zoL < 0.0    
-    y = -zoL[i]
+    i = np.logical_and(finite, zol < 0.0)
+    y = -zol[i]
+    del zol
     c = 0.33
     d = 0.057
     n = 0.78
-    Psi_H[i] = ((1.0 - d) / n) * np.log((c + y**n) / c)
-    return np.asarray(Psi_H)
+    psi_h[i] = ((1.0 - d) / n) * np.log((c + y**n) / c)
+    return psi_h
 
 
 def calc_Psi_M(zoL):
@@ -159,30 +259,58 @@ def calc_Psi_M(zoL):
     .. [Brutsaert2005] Brutsaert, W. (2005). Hydrology: an introduction (Vol. 61, No. 8).
         Cambridge: Cambridge University Press.
     '''
+    # Avoid free convection situations
+    if UNSTABLE_THRES is not None or STABLE_THRES is not None:
+        zoL = np.clip(zoL, UNSTABLE_THRES, STABLE_THRES)
+    Psi_M = psi_m_brutsaert(zoL)
+    return np.asarray(Psi_M)
 
+
+def psi_m_dyer(zol):
+    gamma = 16
+    beta = 5
     # Convert input scalars to numpy array
-    zoL = np.asarray(zoL)
-
-    Psi_M = np.zeros(zoL.shape)
+    zol = np.asarray(zol)
+    finite = np.isfinite(zol)
+    psi_m = np.zeros(zol.shape)
     # for stable and netural (zoL = 0 -> Psi_M = 0) conditions
-    i = zoL >= 0.0    
-    a = 6.1
-    b = 2.5    
-    Psi_M[i] = -a * np.log(zoL[i] + (1.0 + zoL[i]**b)**(1.0 / b))
+    i = np.logical_and(finite, zol >= 0.0)
+    psi_m[i] = -beta * zol[i]
     # for unstable conditions
-    i = zoL < 0
-    y = -zoL[i]
+    i = np.logical_and(finite, zol < 0.0)
+    x = (1 - gamma * zol[i]) ** 0.25
+    psi_m[i] = np.log((1 + x ** 2) / 2) + 2 * np.log((1 + x) / 2) \
+               - 2 * np.arctan(x) + np.pi / 2.
+
+    return psi_m
+
+
+def psi_m_brutsaert(zol):
+    # Convert input scalars to numpy array
+    zol = np.asarray(zol)
+    finite = np.isfinite(zol)
+    psi_m = np.zeros(zol.shape)
+    # for stable and netural (zoL = 0 -> Psi_M = 0) conditions
+    i = np.logical_and(finite, zol >= 0.0)
+    a = 6.1
+    b = 2.5
+    psi_m[i] = -a * np.log(zol[i] + (1.0 + zol[i]**b)**(1.0 / b))
+    # for unstable conditions
+    i = np.logical_and(finite, zol < 0)
+    y = -zol[i]
+    del zol
     a = 0.33
     b = 0.41
     x = np.asarray((y / a)**0.333333)
-    Psi_0 = -np.log(a) + 3**0.5 * b * a**0.333333 * np.pi / 6.0
-    y = np.minimum(y, b**-3) 
-    Psi_M[i] = (np.log(a + y) - 3.0 * b * y**0.333333 +
+
+    psi_0 = -np.log(a) + 3**0.5 * b * a**0.333333 * np.pi / 6.0
+    y = np.minimum(y, b**-3)
+    psi_m[i] = (np.log(a + y) - 3.0 * b * y**0.333333 +
                 (b * a**0.333333) / 2.0 * np.log((1.0 + x)**2 / (1.0 - x + x**2)) +
                 3.0**0.5 * b * a**0.333333 * np.arctan((2.0 * x - 1.0) / 3**0.5) +
-                Psi_0)
-    return np.asarray(Psi_M)
+                psi_0)
 
+    return psi_m
 
 def calc_richardson(u, z_u, d_0, T_R0, T_R1, T_A0, T_A1):
     '''Richardson number.
@@ -221,9 +349,10 @@ def calc_richardson(u, z_u, d_0, T_R0, T_R1, T_A0, T_A1):
     '''
 
     # See eq (2) from Louis 1979
-    Ri = -(gravity * (z_u - d_0) / T_A1) * \
+    Ri = -(GRAVITY * (z_u - d_0) / T_A1) * \
           (((T_R1 - T_R0) - (T_A1 - T_A0)) / u**2) # equation (12) [Norman2000]
     return np.asarray(Ri)
+
 
 def calc_u_star(u, z_u, L, d_0, z_0M):
     '''Friction velocity.
@@ -249,10 +378,11 @@ def calc_u_star(u, z_u, L, d_0, z_0M):
 
     # Covert input scalars to numpy arrays
     u, z_u, L, d_0, z_0M = map(np.asarray, (u, z_u, L, d_0, z_0M))
-    
+
     # calculate correction factors in other conditions
     L[L == 0.0] = 1e-36
     Psi_M = calc_Psi_M((z_u - d_0) / L)
     Psi_M0 = calc_Psi_M(z_0M / L)
-    u_star = u * k / (np.log((z_u - d_0) / z_0M) - Psi_M + Psi_M0)
+    del L
+    u_star = u * KARMAN / (np.log((z_u - d_0) / z_0M) - Psi_M + Psi_M0)
     return np.asarray(u_star)

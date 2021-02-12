@@ -149,12 +149,16 @@ class PyTSEB(object):
             self.subset = []
             if "subset" in self.p:
                 self.subset, self.geo = self._get_subset(self.p["subset"], self.prj, self.geo)
-                if self.subset[1]+self.subset[3] > dims[0] or\
-                   self.subset[0]+self.subset[2] > dims[1]:
-                    print("ERROR: Requested subset extends beyond the data extent.")
+                if self.subset[3] <= 0 or self.subset[2] <= 0 or\
+                   self.subset[0] >= dims[1] or self.subset[1] >= dims[0]:
+                    print("ERROR: Requested subset does not intersect the data extent.")
                     return
-                else:
-                    dims = (self.subset[3], self.subset[2])
+                if self.subset[1] + self.subset[3] > dims[0] or\
+                   self.subset[0] + self.subset[2] > dims[1]:
+                    print("WARNING: Requested subset extends beyond the data extent.")
+                    self.subset[3] = min(self.subset[3],  dims[0] - self.subset[1])
+                    self.subset[2] = min(self.subset[2],  dims[1] - self.subset[0])
+                dims = (self.subset[3], self.subset[2])
         except KeyError:
             print('Error reading ' + input_fields[field])
             fid = None
@@ -166,15 +170,15 @@ class PyTSEB(object):
             if field in ["lat", "lon", "stdlon", "DOY", "time"]:
                 success, temp_data[field] = self._set_param_array(field, dims)
             elif field == "input_mask":
-                    if self.p['input_mask'] == '0':
-                        # Create mask from landcover array
-                        mask = np.ones(dims)
-                        mask[np.logical_or.reduce((in_data['landcover'] == res.WATER,
-                                                   in_data['landcover'] == res.URBAN,
-                                                   in_data['landcover'] == res.SNOW))] = 0
-                        success = True
-                    else:
-                        success, mask = self._set_param_array(field, dims)
+                if self.p['input_mask'] == '0':
+                    # Create mask from landcover array
+                    mask = np.ones(dims)
+                    mask[np.logical_or.reduce((in_data['landcover'] == res.WATER,
+                                               in_data['landcover'] == res.URBAN,
+                                               in_data['landcover'] == res.SNOW))] = 0
+                    success = True
+                else:
+                    success, mask = self._set_param_array(field, dims)
             elif field in ['KN_b', 'KN_c', 'KN_c_dash']:
                 success, res_params[field] = self._set_param_array(field, dims)
             elif field == "G":
@@ -202,6 +206,7 @@ class PyTSEB(object):
             if not success:
                 # Some fields are optional is some circumstances or can be calculated if missing.
                 if field in ["SZA", "SAA"]:
+                    print("Estimating missing %s parameter" % field)
                     try:
                         in_data['SZA'], in_data['SAA'] = met.calc_sun_angles(temp_data["lat"],
                                                                              temp_data["lon"],
@@ -209,40 +214,48 @@ class PyTSEB(object):
                                                                              temp_data["DOY"],
                                                                              temp_data["time"])
                     except KeyError as e:
-                        print("ERROR: Cannot calculate or read "+input_fields[field] +
-                              ". "+field+" or parameter "+str(e)+" are missing.")
+                        print("ERROR: Cannot calculate or read {}. {} or parameter {} are missing."
+                              .format(input_fields[field], field, e))
                         return
                 elif field == "p":
+                    print("Estimating missing %s parameter" % field)
                     try:
                         in_data["p"] = met.calc_pressure(in_data["alt"])
                     except KeyError as e:
-                        print("ERROR: Cannot calculate or read "+input_fields[field] +
-                              ". "+field+" or parameter "+str(e)+" are missing.")
+                        print("ERROR: Cannot calculate or read {}. {} or parameter {} are missing."
+                              .format(input_fields[field], field, e))
                         return
                 elif field == "L_dn":
+                    print("Estimating missing %s parameter" % field)
                     try:
                         in_data['L_dn'] = rad.calc_longwave_irradiance(in_data['ea'],
                                                                        in_data['T_A1'],
                                                                        in_data['p'],
                                                                        in_data['z_T'])
                     except KeyError as e:
-                        print("ERROR: Cannot calculate or read "+input_fields[field] +
-                              ". "+field+" or parameter "+str(e)+" are missing.")
+                        print("ERROR: Cannot calculate or read {}. {} or parameter {} are missing."
+                              .format(input_fields[field], field, e))
                         return
-                elif (field in ['KN_b', 'KN_c', 'KN_c_dash'] and
-                      self.resistance_form != TSEB.KUSTAS_NORMAN_1999):
-                    print("ERROR: Cannot read"+input_fields[field] + ".")
+                elif (field in ['KN_b', 'KN_c', 'KN_c_dash']
+                      and self.resistance_form != TSEB.KUSTAS_NORMAN_1999):
+                    print("ERROR: Cannot read {}.".format(input_fields[field]))
                     return
                 elif field == "input_mask":
                     print("Please set input_mask=0 for processing the whole image.")
                     return
-                elif field in ["alt", "lat", "lon", "stdlon", "DOY", "time", 'S_dn_24']:
+                elif field == "S_dn_24":
+                    print("Provide a valid S_dn_24 (Daily shortwave irradiance) "
+                          "value if you want to estimate daily ET")
+                elif field in ["alt", "lat", "lon", "stdlon", "DOY", "time"]:
+                    print("WARNING!: Non-critical parameter %s "
+                          "is invalid or missing..."%field)
                     pass
                 else:
-                    print('ERROR: file read ' + field +
-                          '\n Please type a valid file name or a numeric value for ' +
-                          input_fields[field])
+                    print('ERROR: file read {}'.format(field))
+                    print('Please type a valid filename or a numeric value for '
+                          .format(input_fields[field]))
                     return
+
         temp_data = None
 
         # ======================================
@@ -310,7 +323,9 @@ class PyTSEB(object):
         # Process the input
 
         # Read input data from CSV file
-        in_data = pd.read_csv(self.p['input_file'], delim_whitespace=True)
+        in_data = pd.read_csv(self.p['input_file'],
+                              delim_whitespace=True,
+                              index_col=False)
         in_data.index = compose_date(
             years=in_data['year'],
             days=in_data['DOY'],
@@ -398,7 +413,7 @@ class PyTSEB(object):
         # ======================================
         # Run the chosen model
 
-        out_data = self.run(in_data)
+        out_data = self.run(in_data.to_records(index=False))
         out_data = pd.DataFrame(data=np.stack(out_data.values()).T,
                                 index=in_data.index,
                                 columns=out_data.keys())
@@ -581,10 +596,10 @@ class PyTSEB(object):
         # Clumping index
         omega0, Omega = np.zeros(in_data['LAI'].shape), np.zeros(in_data['LAI'].shape)
         omega0[i] = CI.calc_omega0_Kustas(
-                        in_data['LAI'][i],
-                        in_data['f_c'][i],
-                        x_LAD=in_data['x_LAD'][i],
-                        isLAIeff=True)
+            in_data['LAI'][i],
+            in_data['f_c'][i],
+            x_LAD=in_data['x_LAD'][i],
+            isLAIeff=True)
         if self.p['calc_row'][0] == 0:  # randomly placed canopies
             Omega[i] = CI.calc_omega_Kustas(
                 omega0[i], in_data['SZA'][i], w_C=in_data['w_C'][i])
@@ -651,15 +666,14 @@ class PyTSEB(object):
                                                {k: model_params["resistance_form"][1][k][i]
                                                    for k in model_params["resistance_form"][1]}],
                               Rst_min=100,
-                              R_ss=500,
-                              environmental_factors=in_data['f_g'][i])
+                              R_ss=500)
 
             out_data['CWSI'][i] = 1.0 - (out_data['LE_C1'][i] / out_data['LE_C_0'][i])
 
         
         if self.calc_daily_ET:
             out_data['ET_day'] = met.flux_2_evaporation(in_data['S_dn_24'] * out_data['LE1'] / in_data['S_dn'], 
-                                                        T_K=20+273.15, 
+                                                        t_k=20+273.15, 
                                                         time_domain=24)
             
         
@@ -688,36 +702,36 @@ class PyTSEB(object):
          out_data['LE_C1'][i], out_data['H_C1'][i], out_data['LE_S1'][i],
          out_data['H_S1'][i], out_data['G1'][i], out_data['R_S1'][i],
          out_data['R_x1'][i], out_data['R_A1'][i], out_data['u_friction'][i],
-         out_data['L'][i], out_data['n_iterations'][i]] = \
-                 TSEB.TSEB_PT(in_data['T_R1'][i],
-                              in_data['VZA'][i],
-                              in_data['T_A1'][i],
-                              in_data['u'][i],
-                              in_data['ea'][i],
-                              in_data['p'][i],
-                              out_data['Sn_C1'][i],
-                              out_data['Sn_S1'][i],
-                              in_data['L_dn'][i],
-                              in_data['LAI'][i],
-                              in_data['h_C'][i],
-                              in_data['emis_C'][i],
-                              in_data['emis_S'][i],
-                              out_data['z_0M'][i],
-                              out_data['d_0'][i],
-                              in_data['z_u'][i],
-                              in_data['z_T'][i],
-                              f_c=in_data['f_c'][i],
-                              f_g=in_data['f_g'][i],
-                              w_C=in_data['w_C'][i],
-                              leaf_width=in_data['leaf_width'][i],
-                              z0_soil=in_data['z0_soil'][i],
-                              alpha_PT=in_data['alpha_PT'][i],
-                              x_LAD=in_data['x_LAD'][i],
-                              calcG_params=[model_params["calcG_params"][0],
-                                            model_params["calcG_params"][1][i]],
-                              resistance_form=[model_params["resistance_form"][0],
-                                               {k: model_params["resistance_form"][1][k][i]
-                                                   for k in model_params["resistance_form"][1]}])
+         out_data['L'][i], out_data['n_iterations'][i]] = TSEB.TSEB_PT(
+            in_data['T_R1'][i],
+            in_data['VZA'][i],
+            in_data['T_A1'][i],
+            in_data['u'][i],
+            in_data['ea'][i],
+            in_data['p'][i],
+            out_data['Sn_C1'][i],
+            out_data['Sn_S1'][i],
+            in_data['L_dn'][i],
+            in_data['LAI'][i],
+            in_data['h_C'][i],
+            in_data['emis_C'][i],
+            in_data['emis_S'][i],
+            out_data['z_0M'][i],
+            out_data['d_0'][i],
+            in_data['z_u'][i],
+            in_data['z_T'][i],
+            f_c=in_data['f_c'][i],
+            f_g=in_data['f_g'][i],
+            w_C=in_data['w_C'][i],
+            leaf_width=in_data['leaf_width'][i],
+            z0_soil=in_data['z0_soil'][i],
+            alpha_PT=in_data['alpha_PT'][i],
+            x_LAD=in_data['x_LAD'][i],
+            calcG_params=[model_params["calcG_params"][0],
+                          model_params["calcG_params"][1][i]],
+            resistance_form=[model_params["resistance_form"][0],
+                             {k: model_params["resistance_form"][1][k][i]
+                             for k in model_params["resistance_form"][1]}])
 
     def _call_flux_model_soil(self, in_data, out_data, model_params, i):
         ''' Call a OSEB model to calculate soil fluxes for data points containing no vegetation.
@@ -812,6 +826,7 @@ class PyTSEB(object):
                 else:
                     array = fid.GetRasterBand(band).ReadAsArray()
             except AttributeError:
+                print("%s image not present for parameter %s"%(inputString, parameter))
                 success = False
             finally:
                 fid = None
@@ -843,27 +858,35 @@ class PyTSEB(object):
         ext = splitext(outfile)[1]
         if ext.lower() == ".nc":
             driver_name = "netCDF"
-            opt = ["FORMAT=NC2"]
+            opt = ["FORMAT=NC4"]
+            opt = []
         elif ext.lower() == ".vrt":
             driver_name = "VRT"
             opt = []
         else:
-            driver_name = "GTiff"
-            opt = []
-        if driver_name in ["GTiff", "netCDF"]:
-            # Save the data using GDAL
+            driver_name = "COG"
+            opt = ['COMPRESS=DEFLATE', 'PREDICTOR=YES', 'BIGTIFF=IF_SAFER']
+        if driver_name in ["COG", "netCDF"]:
+            # Save the data using GDAL by first creating a MEM layer and later using Translate
             rows, cols = np.shape(output['H1'])
-            driver = gdal.GetDriverByName(driver_name)
+            driver = gdal.GetDriverByName("MEM")
             nbands = len(fields)
-            ds = driver.Create(outfile, cols, rows, nbands, gdal.GDT_Float32, opt)
+            ds = driver.Create("MEM", cols, rows, nbands, gdal.GDT_Float32)
             ds.SetGeoTransform(self.geo)
             ds.SetProjection(self.prj)
             for i, field in enumerate(fields):
                 band = ds.GetRasterBand(i + 1)
-                band.SetNoDataValue(np.NaN)
                 band.WriteArray(output[field])
-                band.FlushCache()
-            ds.FlushCache()
+                band.SetStatistics(*band.ComputeStatistics(0))
+            out_ds = gdal.Translate(outfile, ds, format=driver_name, creationOptions=opt,
+                                    noData=None)
+            # If GDAL drivers for other formats do not exist then default to GeoTiff
+            if out_ds is None:
+                print("Warning: Selected GDAL driver is not supported! Saving as GeoTiff!")
+                driver_name = "GTiff"
+                opt = ['COMPRESS=DEFLATE', 'PREDICTOR=1', 'BIGTIFF=IF_SAFER']
+                gdal.Translate(outfile, ds, format=driver_name, creationOptions=opt, noData=None)
+            out_ds = None
             ds = None
             # In case of netCDF format use netCDF4 module to assign proper names
             # to variables (GDAL can't do this). Also it seems that GDAL has
@@ -872,7 +895,7 @@ class PyTSEB(object):
                 ds = Dataset(outfile, 'a')
                 grid_mapping = ds["Band1"].grid_mapping
                 for i, field in enumerate(fields):
-                    ds.renameVariable("Band"+str(i+1), field)
+                    ds.renameVariable('Band{}'.format(i + 1), field)
                     ds[field].grid_mapping = grid_mapping
                 ds.close()
 
@@ -884,17 +907,25 @@ class PyTSEB(object):
                 mkdir(out_dir)
             out_files = []
             rows, cols = np.shape(output['H1'])
+            outfile_tif = (splitext(basename(outfile))[0]).replace("_ancillary", "")
             for i, field in enumerate(fields):
-                driver = gdal.GetDriverByName("GTiff")
-                out_path = join(out_dir, field + ".tif")
-                ds = driver.Create(out_path, cols, rows, 1, gdal.GDT_Float32, opt)
+                driver = gdal.GetDriverByName("MEM")
+                out_path = join(out_dir, f"{outfile_tif}_{field}.tif")
+                ds = driver.Create("MEM", cols, rows, 1, gdal.GDT_Float32)
                 ds.SetGeoTransform(self.geo)
                 ds.SetProjection(self.prj)
                 band = ds.GetRasterBand(1)
-                band.SetNoDataValue(np.NaN)
                 band.WriteArray(output[field])
-                band.FlushCache()
-                ds.FlushCache()
+                opt = ['COMPRESS=DEFLATE', 'PREDICTOR=YES', 'BIGTIFF=IF_SAFER']
+                out_ds = gdal.Translate(out_path, ds, format="COG", creationOptions=opt,
+                                        noData=None, stats=True)
+                # If GDAL drivers for other formats do not exist then default to GeoTiff
+                if out_ds is None:
+                    opt = ['COMPRESS=DEFLATE', 'PREDICTOR=1', 'BIGTIFF=IF_SAFER']
+                    gdal.Translate(out_path, ds, format="GTiff", creationOptions=opt, noData=None,
+                                   stats=True)
+                out_ds = None
+                ds = None
                 out_files.extend([out_path])
 
             # Create the Virtual Raster Table
@@ -939,9 +970,12 @@ class PyTSEB(object):
             ('T_S1', S_A),  # soil temperature at time t1 (deg C)
             ('T_AC1', S_N),  # air temperature at the canopy interface at time t1 (deg C)
             # resistances
-            ('R_A1', S_A),  # resistance to heat transport in the surface layer (s/m) at time t1
-            ('R_x1', S_A),  # resistance to heat transport in the canopy surface layer (s/m) at time t1
-            ('R_S1', S_A),  # resistance to heat transport from the soil surface (s/m) at time t1 fluxes
+            # resistance to heat transport in the surface layer (s/m) at time t1
+            ('R_A1', S_A),
+            # resistance to heat transport in the canopy surface layer (s/m) at time t1
+            ('R_x1', S_A),
+            # resistance to heat transport from the soil surface (s/m) at time t1 fluxes
+            ('R_S1', S_A),
             # miscaleneous
             ('albedo1', S_N),    # surface albedo (Rs_out/Rs_in)
             ('omega0', S_N),  # nadir view vegetation clumping factor
@@ -1092,15 +1126,26 @@ class PyTSEB(object):
         roi_proj = roi_layer.GetSpatialRef()
         raster_proj = osr.SpatialReference()
         raster_proj.ImportFromWkt(raster_proj_wkt)
+        try:
+            # For GDAL 3 indicate the "legacy" axis order
+            # https://gdal.org/tutorials/osr_api_tut.html#crs-and-axis-order
+            # https://github.com/OSGeo/gdal/issues/1546
+            roi_proj = roi_proj.Clone()
+            roi_proj.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+            raster_proj = raster_proj.Clone()
+            raster_proj.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+        except AttributeError:
+            # For GDAL 2 do nothing
+            pass
         transform = osr.CoordinateTransformation(roi_proj, raster_proj)
-        point_UL = ogr.CreateGeometryFromWkt("POINT (" +
-                                             str(min(roi_extent[0], roi_extent[1])) + " " +
-                                             str(max(roi_extent[2], roi_extent[3])) + ")")
+        point_UL = ogr.CreateGeometryFromWkt("POINT ({} {})"
+                                             .format(min(roi_extent[0], roi_extent[1]),
+                                                     max(roi_extent[2], roi_extent[3])))
         point_UL.Transform(transform)
         point_UL = point_UL.GetPoint()
-        point_LR = ogr.CreateGeometryFromWkt("POINT (" +
-                                             str(max(roi_extent[0], roi_extent[1])) + " " +
-                                             str(min(roi_extent[2], roi_extent[3])) + ")")
+        point_LR = ogr.CreateGeometryFromWkt("POINT ({} {})"
+                                             .format(max(roi_extent[0], roi_extent[1]),
+                                                     min(roi_extent[2], roi_extent[3])))
         point_LR.Transform(transform)
         point_LR = point_LR.GetPoint()
 
@@ -1114,8 +1159,7 @@ class PyTSEB(object):
                     int(round((point_LR[0] - ulX) / pixel_size))]
 
         # Get projected extent
-        point_proj_UL = (ulX + pixel_UL[1]*pixel_size, ulY - pixel_UL[0]*pixel_size)
-        point_proj_LR = (ulX + pixel_LR[1]*pixel_size, ulY - pixel_LR[0]*pixel_size)
+        point_proj_UL = (ulX + pixel_UL[1] * pixel_size, ulY - pixel_UL[0] * pixel_size)
 
         # Convert to xoff, yoff, xcount, ycount as required by GDAL ReadAsArray()
         subset_pix = [pixel_UL[1], pixel_UL[0],
@@ -1178,6 +1222,7 @@ class PyDTD(PyTSEB):
                             'S_dn',
                             'LAI',
                             'h_C')
+
         return required_columns
 
     def _call_flux_model_veg(self, in_data, out_data, model_params, i):
@@ -1198,42 +1243,42 @@ class PyDTD(PyTSEB):
         '''
 
         [out_data['flag'][i], out_data['T_S1'][i], out_data['T_C1'][i],
-         out_data['T_AC1'][i], out_data['Ln_S1'][i], out_data['Ln_C1'][i],
-         out_data['LE_C1'][i], out_data['H_C1'][i], out_data['LE_S1'][i],
-         out_data['H_S1'][i], out_data['G1'][i], out_data['R_S1'][i],
-         out_data['R_x1'][i], out_data['R_A1'][i], out_data['u_friction'][i],
-         out_data['L'][i], out_data['Ri'], out_data['n_iterations'][i]] = \
-                 TSEB.DTD(in_data['T_R0'][i],
-                          in_data['T_R1'][i],
-                          in_data['VZA'][i],
-                          in_data['T_A0'][i],
-                          in_data['T_A1'][i],
-                          in_data['u'][i],
-                          in_data['ea'][i],
-                          in_data['p'][i],
-                          out_data['Sn_C1'][i],
-                          out_data['Sn_S1'][i],
-                          in_data['L_dn'][i],
-                          in_data['LAI'][i],
-                          in_data['h_C'][i],
-                          in_data['emis_C'][i],
-                          in_data['emis_S'][i],
-                          out_data['z_0M'][i],
-                          out_data['d_0'][i],
-                          in_data['z_u'][i],
-                          in_data['z_T'][i],
-                          f_c=in_data['f_c'][i],
-                          w_C=in_data['w_C'][i],
-                          f_g=in_data['f_g'][i],
-                          leaf_width=in_data['leaf_width'][i],
-                          z0_soil=in_data['z0_soil'][i],
-                          alpha_PT=in_data['alpha_PT'][i],
-                          x_LAD=in_data['x_LAD'][i],
-                          calcG_params=[model_params["calcG_params"][0],
-                                        model_params["calcG_params"][1][i]],
-                          resistance_form=[model_params["resistance_form"][0],
-                                           {k: model_params["resistance_form"][1][k][i]
-                                               for k in model_params["resistance_form"][1]}])
+            out_data['T_AC1'][i], out_data['Ln_S1'][i], out_data['Ln_C1'][i],
+            out_data['LE_C1'][i], out_data['H_C1'][i], out_data['LE_S1'][i],
+            out_data['H_S1'][i], out_data['G1'][i], out_data['R_S1'][i],
+            out_data['R_x1'][i], out_data['R_A1'][i], out_data['u_friction'][i],
+            out_data['L'][i], out_data['Ri'], out_data['n_iterations'][i]] = TSEB.DTD(
+                in_data['T_R0'][i],
+                in_data['T_R1'][i],
+                in_data['VZA'][i],
+                in_data['T_A0'][i],
+                in_data['T_A1'][i],
+                in_data['u'][i],
+                in_data['ea'][i],
+                in_data['p'][i],
+                out_data['Sn_C1'][i],
+                out_data['Sn_S1'][i],
+                in_data['L_dn'][i],
+                in_data['LAI'][i],
+                in_data['h_C'][i],
+                in_data['emis_C'][i],
+                in_data['emis_S'][i],
+                out_data['z_0M'][i],
+                out_data['d_0'][i],
+                in_data['z_u'][i],
+                in_data['z_T'][i],
+                f_c=in_data['f_c'][i],
+                w_C=in_data['w_C'][i],
+                f_g=in_data['f_g'][i],
+                leaf_width=in_data['leaf_width'][i],
+                z0_soil=in_data['z0_soil'][i],
+                alpha_PT=in_data['alpha_PT'][i],
+                x_LAD=in_data['x_LAD'][i],
+                calcG_params=[model_params["calcG_params"][0],
+                              model_params["calcG_params"][1][i]],
+                resistance_form=[model_params["resistance_form"][0],
+                                 {k: model_params["resistance_form"][1][k][i]
+                                  for k in model_params["resistance_form"][1]}])
 
     def _call_flux_model_soil(self, in_data, out_data, model_params, i):
         ''' Call a OSEB model to calculate soil fluxes for data points containing no vegetation.
@@ -1379,36 +1424,36 @@ class PyTSEB2T(PyTSEB):
          out_data['Ln_C1'][i], out_data['LE_C1'][i], out_data['H_C1'][i],
          out_data['LE_S1'][i], out_data['H_S1'][i], out_data['G1'][i],
          out_data['R_S1'][i], out_data['R_x1'][i], out_data['R_A1'][i],
-         out_data['u_friction'][i], out_data['L'][i], out_data['n_iterations'][i]] = \
-                 TSEB.TSEB_2T(in_data['T_C'][i],
-                              in_data['T_S'][i],
-                              in_data['T_A1'][i],
-                              in_data['u'][i],
-                              in_data['ea'][i],
-                              in_data['p'][i],
-                              out_data['Sn_C1'][i],
-                              out_data['Sn_S1'][i],
-                              in_data['L_dn'][i],
-                              in_data['LAI'][i],
-                              in_data['h_C'][i],
-                              in_data['emis_C'][i],
-                              in_data['emis_S'][i],
-                              out_data['z_0M'][i],
-                              out_data['d_0'][i],
-                              in_data['z_u'][i],
-                              in_data['z_T'][i],
-                              f_c=in_data['f_c'][i],
-                              f_g=in_data['f_g'][i],
-                              w_C=in_data['w_C'][i],
-                              leaf_width=in_data['leaf_width'][i],
-                              z0_soil=in_data['z0_soil'][i],
-                              alpha_PT=in_data['alpha_PT'][i],
-                              x_LAD=in_data['x_LAD'][i],
-                              calcG_params=[model_params["calcG_params"][0],
-                                            model_params["calcG_params"][1][i]],
-                              resistance_form=[model_params["resistance_form"][0],
-                                               {k: model_params["resistance_form"][1][k][i]
-                                                   for k in model_params["resistance_form"][1]}])
+         out_data['u_friction'][i], out_data['L'][i], out_data['n_iterations'][i]] = TSEB.TSEB_2T(
+             in_data['T_C'][i],
+             in_data['T_S'][i],
+             in_data['T_A1'][i],
+             in_data['u'][i],
+             in_data['ea'][i],
+             in_data['p'][i],
+             out_data['Sn_C1'][i],
+             out_data['Sn_S1'][i],
+             in_data['L_dn'][i],
+             in_data['LAI'][i],
+             in_data['h_C'][i],
+             in_data['emis_C'][i],
+             in_data['emis_S'][i],
+             out_data['z_0M'][i],
+             out_data['d_0'][i],
+             in_data['z_u'][i],
+             in_data['z_T'][i],
+             f_c=in_data['f_c'][i],
+             f_g=in_data['f_g'][i],
+             w_C=in_data['w_C'][i],
+             leaf_width=in_data['leaf_width'][i],
+             z0_soil=in_data['z0_soil'][i],
+             alpha_PT=in_data['alpha_PT'][i],
+             x_LAD=in_data['x_LAD'][i],
+             calcG_params=[model_params["calcG_params"][0],
+                           model_params["calcG_params"][1][i]],
+             resistance_form=[model_params["resistance_form"][0],
+                              {k: model_params["resistance_form"][1][k][i]
+                              for k in model_params["resistance_form"][1]}])
 
     def _call_flux_model_soil(self, in_data, out_data, model_params, i):
         ''' Call a OSEB model to calculate soil fluxes for data points containing no vegetation.
@@ -1584,34 +1629,35 @@ class PydisTSEB(PyTSEB):
          out_data['n_iterations'],
          out_data['T_offset'],
          out_data['counter'],
-         out_data['T_offset_orig']] = dis_TSEB.dis_TSEB(in_data['flux_LR'],
-                                                        in_data['scale'],
-                                                        in_data['T_R1'],
-                                                        in_data['VZA'],
-                                                        in_data['T_A1'],
-                                                        in_data['u'],
-                                                        in_data['ea'],
-                                                        in_data['p'],
-                                                        out_data['Sn_C1'],
-                                                        out_data['Sn_S1'],
-                                                        in_data['L_dn'],
-                                                        in_data['LAI'],
-                                                        in_data['h_C'],
-                                                        in_data['emis_C'],
-                                                        in_data['emis_S'],
-                                                        out_data['z_0M'],
-                                                        out_data['d_0'],
-                                                        in_data['z_u'],
-                                                        in_data['z_T'],
-                                                        UseL=in_data['flux_LR_ancillary'],
-                                                        f_c=in_data['f_c'],
-                                                        f_g=in_data['f_g'],
-                                                        w_C=in_data['w_C'],
-                                                        leaf_width=in_data['leaf_width'],
-                                                        z0_soil=in_data['z0_soil'],
-                                                        alpha_PT=in_data['alpha_PT'],
-                                                        x_LAD=in_data['x_LAD'],
-                                                        calcG_params=model_params["calcG_params"],
-                                                        resistance_form=model_params["resistance_form"],
-                                                        flux_LR_method=self.flux_LR_method,
-                                                        correct_LST=self.correct_LST)
+         out_data['T_offset_orig']] = dis_TSEB.dis_TSEB(
+             in_data['flux_LR'],
+             in_data['scale'],
+             in_data['T_R1'],
+             in_data['VZA'],
+             in_data['T_A1'],
+             in_data['u'],
+             in_data['ea'],
+             in_data['p'],
+             out_data['Sn_C1'],
+             out_data['Sn_S1'],
+             in_data['L_dn'],
+             in_data['LAI'],
+             in_data['h_C'],
+             in_data['emis_C'],
+             in_data['emis_S'],
+             out_data['z_0M'],
+             out_data['d_0'],
+             in_data['z_u'],
+             in_data['z_T'],
+             UseL=in_data['flux_LR_ancillary'],
+             f_c=in_data['f_c'],
+             f_g=in_data['f_g'],
+             w_C=in_data['w_C'],
+             leaf_width=in_data['leaf_width'],
+             z0_soil=in_data['z0_soil'],
+             alpha_PT=in_data['alpha_PT'],
+             x_LAD=in_data['x_LAD'],
+             calcG_params=model_params["calcG_params"],
+             resistance_form=model_params["resistance_form"],
+             flux_LR_method=self.flux_LR_method,
+             correct_LST=self.correct_LST)
