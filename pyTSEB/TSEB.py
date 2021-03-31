@@ -318,7 +318,7 @@ def TSEB_2T(T_C,
     # calcG_params[1] = None
     # Create the output variables
     [flag, Ln_S, Ln_C, LE_C, H_C, LE_S, H_S, G, R_S, R_x,
-        R_A, iterations] = [np.zeros(T_S.shape)+np.NaN for i in range(12)]
+        R_A, iterations] = [np.zeros(T_S.shape, np.float32)+np.NaN for i in range(12)]
     T_AC = T_A_K.copy()
 
     # iteration of the Monin-Obukhov length
@@ -675,10 +675,10 @@ def TSEB_PT(Tr_K,
     # iteration of the Monin-Obukhov length
     if const_L is None:
         # Initially assume stable atmospheric conditions and set variables for
-        L = np.asarray(np.zeros(Tr_K.shape, np.float32) + np.inf, dtype=np.float32)
+        L = np.zeros(Tr_K.shape) + np.inf
         max_iterations = ITERATIONS
     else:  # We force Monin-Obukhov lenght to the provided array/value
-        L = np.asarray(np.ones(Tr_K.shape, np.float32) * const_L, dtype=np.float32)
+        L = np.ones(Tr_K.shape) * const_L
         max_iterations = 1  # No iteration
     # Calculate the general parameters
     rho = met.calc_rho(p, ea, T_A_K)  # Air density
@@ -696,7 +696,7 @@ def TSEB_PT(Tr_K,
     u_friction = MO.calc_u_star(u, z_u, L, d_0, z_0M)
     u_friction = np.asarray(np.maximum(U_FRICTION_MIN, u_friction), dtype=np.float32)
     L_queue = deque([np.array(L, np.float32)], 6)
-    L_converged = np.asarray(np.zeros(Tr_K.shape), dtype=bool)
+    L_converged = np.zeros(Tr_K.shape, bool)
     L_diff_max = np.inf
 
     # First assume that canopy temperature equals the minumum of Air or
@@ -1133,7 +1133,7 @@ def DTD(Tr_K_0,
     resistance_form = resistance_form[0]
     # Create the output variables
     [flag, T_S, T_C, T_AC, Ln_S, Ln_C, LE_C, H_C, LE_S, H_S, G, R_S, R_x,
-        R_A, H, iterations] = [np.zeros(Tr_K_1.shape) + np.NaN for i in range(16)]
+        R_A, H, iterations] = [np.zeros(Tr_K_1.shape, np.float32) + np.NaN for i in range(16)]
 
     # Calculate the general parameters
     rho = met.calc_rho(p, ea, T_A_K_1)  # Air density
@@ -1480,7 +1480,7 @@ def OSEB(Tr_K,
                          calcG_params[1]],
                         [Tr_K] * 12)
     # Create the output variables
-    [flag, Ln, LE, H, G, R_A] = [np.zeros(Tr_K.shape) + np.NaN for i in range(6)]
+    [flag, Ln, LE, H, G, R_A] = [np.zeros(Tr_K.shape, np.float32) + np.NaN for i in range(6)]
 
     # iteration of the Monin-Obukhov length
     if const_L is None:
