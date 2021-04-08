@@ -172,7 +172,7 @@ class PyTSEB(object):
             elif field == "input_mask":
                 if self.p['input_mask'] == '0':
                     # Create mask from landcover array
-                    mask = np.ones(dims)
+                    mask = np.ones(dims, np.int32)
                     mask[np.logical_or.reduce((in_data['landcover'] == res.WATER,
                                                in_data['landcover'] == res.URBAN,
                                                in_data['landcover'] == res.SNOW))] = 0
@@ -530,12 +530,12 @@ class PyTSEB(object):
                         "resistance_form": [self.resistance_form, self.res_params]}
 
         if mask is None:
-            mask = np.ones(in_data['LAI'].shape)
+            mask = np.ones(in_data['LAI'].shape, np.int32)
 
         # Create the output dictionary
         out_data = dict()
         for field in self._get_output_structure():
-            out_data[field] = np.zeros(in_data['LAI'].shape) + np.NaN
+            out_data[field] = np.zeros(in_data['LAI'].shape, np.float32) + np.NaN
 
         # Esimate diffuse and direct irradiance
         difvis, difnir, fvis, fnir = rad.calc_difuse_ratio(
@@ -591,10 +591,11 @@ class PyTSEB(object):
                                f_c=in_data['f_c'][i])
 
         # Net shortwave radiation for vegetation
-        F = np.zeros(in_data['LAI'].shape)
+        F = np.zeros(in_data['LAI'].shape, np.float32)
         F[i] = in_data['LAI'][i] / in_data['f_c'][i]
         # Clumping index
-        omega0, Omega = np.zeros(in_data['LAI'].shape), np.zeros(in_data['LAI'].shape)
+        omega0 = np.zeros(in_data['LAI'].shape, np.float32)
+        Omega = np.zeros(in_data['LAI'].shape, np.float32)
         omega0[i] = CI.calc_omega0_Kustas(
             in_data['LAI'][i],
             in_data['f_c'][i],
@@ -637,7 +638,7 @@ class PyTSEB(object):
 
         if self.water_stress:
             i = np.array(np.logical_and(~noVegPixels, mask == 1))
-            [_, _, _, _, _, _, out_data['LE_0'][i], _, 
+            [_, _, _, _, _, _, out_data['LE_0'][i], _,
              out_data['LE_C_0'][i], _, _, _, _, _, _, _, _, _, _] = \
                  pet.shuttleworth_wallace(
                               in_data['T_A1'][i],
@@ -670,13 +671,11 @@ class PyTSEB(object):
 
             out_data['CWSI'][i] = 1.0 - (out_data['LE_C1'][i] / out_data['LE_C_0'][i])
 
-        
         if self.calc_daily_ET:
-            out_data['ET_day'] = met.flux_2_evaporation(in_data['S_dn_24'] * out_data['LE1'] / in_data['S_dn'], 
-                                                        t_k=20+273.15, 
+            out_data['ET_day'] = met.flux_2_evaporation(in_data['S_dn_24'] * out_data['LE1'] / in_data['S_dn'],
+                                                        t_k=20+273.15,
                                                         time_domain=24)
-            
-        
+
         print("Finished processing!")
         return out_data
 
@@ -801,7 +800,7 @@ class PyTSEB(object):
 
         # See if the parameter is a number
         try:
-            array = np.zeros(dims) + float(parameter)
+            array = np.zeros(dims, np.float32) + float(parameter)
             return success, array
         except ValueError:
             pass
@@ -814,7 +813,7 @@ class PyTSEB(object):
             return success, array
         # If it is then get the value of that parameter
         try:
-            array = np.zeros(dims) + float(inputString)
+            array = np.zeros(dims, np.float32) + float(inputString)
         except ValueError:
             try:
                 fid = gdal.Open(inputString, gdal.GA_ReadOnly)
@@ -822,11 +821,11 @@ class PyTSEB(object):
                     array = fid.GetRasterBand(band).ReadAsArray(self.subset[0],
                                                                 self.subset[1],
                                                                 self.subset[2],
-                                                                self.subset[3])
+                                                                self.subset[3]).astype(np.float32)
                 else:
-                    array = fid.GetRasterBand(band).ReadAsArray()
+                    array = fid.GetRasterBand(band).ReadAsArray().astype(np.float32)
             except AttributeError:
-                print("%s image not present for parameter %s"%(inputString, parameter))
+                print("%s image not present for parameter %s" % (inputString, parameter))
                 success = False
             finally:
                 fid = None
@@ -1065,7 +1064,7 @@ class PyTSEB(object):
                             # Soil heat flux parameter
                             ("G", "Soil Heat Flux Parameter"),
                             ('S_dn_24', 'Daily shortwave irradiance')])
-            
+
         return input_fields
 
     def _set_special_model_input(self, field, dims):
@@ -1577,9 +1576,9 @@ class PydisTSEB(PyTSEB):
                 inputs[field] = fid.GetRasterBand(1).ReadAsArray(subset[0],
                                                                  subset[1],
                                                                  subset[2],
-                                                                 subset[3])
+                                                                 subset[3]).astype(np.float32)
             else:
-                inputs[field] = fid.GetRasterBand(1).ReadAsArray()
+                inputs[field] = fid.GetRasterBand(1).ReadAsArray().astype(np.float32)
             inputs['scale'] = [geo_LR, prj_LR, self.geo, self.prj]
             success = True
         else:
