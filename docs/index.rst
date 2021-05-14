@@ -58,7 +58,7 @@ Contents
 
 .. toctree::
 
-	PyTSEB
+	pyTSEB
 	README_Notebooks
 	TSEB
 	net_radiation
