@@ -1,7 +1,7 @@
 resistances package
 ===================
 
-.. automodule:: resistances
+.. automodule:: pyTSEB.resistances
     :members:
     :undoc-members:
     :show-inheritance:

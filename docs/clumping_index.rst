@@ -1,7 +1,7 @@
 clumping_index package
 ======================
 
-.. automodule:: clumping_index
+.. automodule:: pyTSEB.clumping_index
     :members:
     :undoc-members:
     :show-inheritance:

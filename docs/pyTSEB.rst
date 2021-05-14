@@ -1,7 +1,7 @@
 PyTSEB package
 ==============
 
-.. automodule:: PyTSEB
+.. automodule:: pyTSEB.PyTSEB
     :members:
     :undoc-members:
     :show-inheritance:

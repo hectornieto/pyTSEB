@@ -1,7 +1,7 @@
 wind_profile package
 ====================
 
-.. automodule:: wind_profile
+.. automodule:: pyTSEB.wind_profile
     :members:
     :undoc-members:
     :show-inheritance:

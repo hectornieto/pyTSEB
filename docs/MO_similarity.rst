@@ -1,7 +1,7 @@
 MO_similarity package
 =====================
 
-.. automodule:: MO_similarity
+.. automodule:: pyTSEB.MO_similarity
     :members:
     :undoc-members:
     :show-inheritance:

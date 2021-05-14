@@ -1,7 +1,7 @@
 meteo_utils package
 ===================
 
-.. automodule:: meteo_utils
+.. automodule:: pyTSEB.meteo_utils
     :members:
     :undoc-members:
     :show-inheritance:
