@@ -189,7 +189,7 @@ class PyTSEB(object):
                 elif self.G_form[0][0] == TSEB.G_TIME_DIFF:
                     # Set the time in the G_form flag to compute the Santanello and
                     # Friedl G
-                    self.G_form[1] = in_data['time']
+                    self.G_form[1] = self._set_param_array("time", dims)[1]
             elif field == 'S_dn_24':
                 success, in_data[field] = self._set_param_array(field, dims)
                 if success:
