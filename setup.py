@@ -46,7 +46,7 @@ REQS = ['numpy>=1.10', 'gdal', 'bokeh', 'pyPro4Sail', 'pandas', 'netCDF4']
 setup(
     name                  = "pyTSEB",
     packages              = ['pyTSEB'],
-    dependency_links      = ['http://github.com/hectornieto/pyPro4Sail/tarball/master#egg=pyPro4Sail-v1.0'],
+    dependency_links      = ['http://github.com/hectornieto/pyPro4Sail/tarball/master#egg=pyPro4Sail-v2.0'],
     install_requires      = REQS,
     version               = "2.1",
     author                = "Hector Nieto",
