@@ -21,7 +21,7 @@ Wind profile functions
 
 import numpy as np
 
-import pyTSEB.MO_similarity as MO  
+from . import MO_similarity as MO
 #==============================================================================
 # List of constants used in wind_profile
 #==============================================================================

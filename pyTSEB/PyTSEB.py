@@ -83,14 +83,13 @@ import numpy as np
 import pandas as pd
 from netCDF4 import Dataset
 
-from pyTSEB import TSEB
-import pyTSEB.meteo_utils as met
-import pyTSEB.net_radiation as rad
-import pyTSEB.resistances as res
-import pyTSEB.clumping_index as CI
-import pyTSEB.energy_combination_ET as pet
-
-from pyTSEB import dis_TSEB
+from . import TSEB
+from . import meteo_utils as met
+from . import net_radiation as rad
+from . import resistances as res
+from . import clumping_index as CI
+from . import energy_combination_ET as pet
+from . import dis_TSEB
 
 
 # Constants for indicating whether model output field should be saved to file

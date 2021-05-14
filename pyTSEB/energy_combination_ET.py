@@ -7,7 +7,7 @@ Created on Thu Nov  9 11:58:34 2017
 from collections import deque
 import time
 
-from pyTSEB import TSEB
+from . import TSEB
 import numpy as np
 
 # kB coefficient

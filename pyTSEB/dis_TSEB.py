@@ -12,7 +12,7 @@ from scipy.ndimage.filters import gaussian_filter
 from scipy.signal import convolve2d
 from scipy.ndimage import uniform_filter
 
-import pyTSEB.TSEB as TSEB
+from . import TSEB
 
 # ==============================================================================
 # List of constants used in dis_TSEB model and sub-routines

@@ -34,7 +34,7 @@ PACKAGE CONTENTS
 """
 
 import numpy as np
-from pyTSEB import net_radiation as rad
+from . import net_radiation as rad
 
 def calc_omega0_Kustas(LAI, f_C, x_LAD=1, isLAIeff=True):
     ''' Nadir viewing clmping factor

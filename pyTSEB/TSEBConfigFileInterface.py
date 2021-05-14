@@ -17,7 +17,7 @@
 from configparser import ConfigParser, NoOptionError
 import itertools
 
-from pyTSEB.PyTSEB import PyTSEB, PyTSEB2T, PyDTD, PydisTSEB
+from .PyTSEB import PyTSEB, PyTSEB2T, PyDTD, PydisTSEB
 
 
 class ParserError(Exception):

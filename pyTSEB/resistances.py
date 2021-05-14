@@ -61,9 +61,9 @@ from math import pi
 
 import numpy as np
 from scipy.special import gamma as gamma_func
-import pyTSEB.MO_similarity as MO
-import pyTSEB.meteo_utils as met
-import pyTSEB.net_radiation as rad
+from . import MO_similarity as MO
+from . import meteo_utils as met
+from . import net_radiation as rad
 
 # ==============================================================================
 # List of constants used in TSEB model and sub-routines

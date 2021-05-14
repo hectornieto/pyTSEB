@@ -48,7 +48,7 @@ Stability correction functions
 
 import numpy as np
 
-import pyTSEB.meteo_utils as met
+from . import meteo_utils as met
 
 # ==============================================================================
 # List of constants used in MO similarity

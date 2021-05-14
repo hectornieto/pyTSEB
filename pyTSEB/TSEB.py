@@ -80,12 +80,12 @@ import time
 import numpy as np
 from pyPro4Sail.FourSAIL import FourSAIL
 
-import pyTSEB.meteo_utils as met
-import pyTSEB.resistances as res
-import pyTSEB.MO_similarity as MO
-import pyTSEB.net_radiation as rad
-import pyTSEB.clumping_index as CI
-import pyTSEB.wind_profile as wnd
+from . import meteo_utils as met
+from . import resistances as res
+from . import MO_similarity as MO
+from . import net_radiation as rad
+from . import clumping_index as CI
+from . import wind_profile as wnd
 
 # ==============================================================================
 # List of constants used in TSEB model and sub-routines

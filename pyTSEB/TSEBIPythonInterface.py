@@ -19,7 +19,7 @@ import sys
 import ipywidgets as widgets
 from IPython.display import display
 
-from pyTSEB.TSEBConfigFileInterface import TSEBConfigFileInterface
+from .TSEBConfigFileInterface import TSEBConfigFileInterface
 
 
 class TSEBIPythonInterface(TSEBConfigFileInterface):
