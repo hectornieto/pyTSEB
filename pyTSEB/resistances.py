@@ -46,7 +46,7 @@ Resistances
 Stomatal conductance
 --------------------
 * :func:`calc_stomatal_conductance_TSEB` TSEB stomatal conductance.
-* :func:`calc_coef_m2mmol` Conversion factor from stomatal conductance from m s-1 to mmol m-2 s-1.
+* :func:`molm2s1_2_ms1` Conversion factor from stomatal conductance from m s-1 to mol m-2 s-1.
 
 Estimation of roughness
 -----------------------
@@ -864,6 +864,8 @@ def calc_stomatal_resistance_TSEB(
     e_ac = e_a + LE * R_A * psicr / (rho * Cp)
     # Calculate the saturation vapour pressure in the leaf in mb
     e_star = met.calc_vapor_pressure(T_C)
+    # Ensure physical constrains in canopy-air vpd
+    e_ac = np.clip(e_ac, 0, e_star)
     # Calculate the boundary layer canopy resisitance to water vapour (Anderson et al. 2000)
     # Invert the SW LE_S equation to calculate the bulk stomatal resistance
     R_c = np.asarray((rho * Cp * (e_star - e_ac) / (LE_C * psicr)) - R_x)
@@ -871,6 +873,8 @@ def calc_stomatal_resistance_TSEB(
     # Get the mean stomatal resistance (here LAI comes in as stomatal resistances
     # are in parallel: 1/Rc=sum(1/R_st)=LAI/Rst
     r_st = R_c * K_c * F
+    # Ensure positive stomatal resistance
+    r_st = np.maximum(r_st, 0)
     return np.asarray(r_st)
 
 
@@ -886,7 +890,8 @@ def calc_stomatal_conductance_TSEB(
         p=1013.0,
         leaf_type=1,
         f_g=1,
-        f_dry=1):
+        f_dry=1,
+        max_gs=1.5):
     ''' TSEB Stomatal conductace
 
     Estimates the effective Stomatal conductace by inverting the
@@ -921,6 +926,9 @@ def calc_stomatal_conductance_TSEB(
         Fraction of green leaves.
     f_dry : float, optional
         Fraction of dry (non-wet) leaves.
+    max_gs = float, optional
+        Theoretical maximum stomatal conductance mol m-2 -1, default = 1.5,
+        taken from  [McElwain2016]_ derived value for Laurus nobilis
 
     Returns
     -------
@@ -933,7 +941,14 @@ def calc_stomatal_conductance_TSEB(
         model for estimating canopy transpiration and carbon assimilation fluxes based on
         canopy light-use efficiency, Agricultural and Forest Meteorology, Volume 101,
         Issue 4, 12 April 2000, Pages 265-289, ISSN 0168-1923,
-        http://dx.doi.org/10.1016/S0168-1923(99)00170-7.'''
+        http://dx.doi.org/10.1016/S0168-1923(99)00170-7.
+    .. [McElwain2016] McElwain, J.C., Yiotis, C. and Lawson, T. (2016),
+        Using modern plant trait relationships between observed and theoretical
+        maximum stomatal conductance and vein density to examine patterns of
+        plant macroevolution.
+        New Phytologist, 209: 94-103
+        https://doi.org/10.1111/nph.13579
+    '''
 
     # Get the mean stomatal resistance
     rst = calc_stomatal_resistance_TSEB(
@@ -951,15 +966,17 @@ def calc_stomatal_conductance_TSEB(
         f_dry=f_dry)
 
     # and the mean leaf conductance is the reciprocal of R_st (m s-1)
-    G_s = np.full(rst.shape, np.nan)
-    G_s[rst > 0] = 1.0 / rst[rst > 0]
-    G_s[rst > 0] = calc_coef_m2mmol(T_C[rst > 0], p=p[rst > 0]) * G_s[rst > 0]
-    return np.asarray(G_s)
+    g_s = np.full(rst.shape, np.nan)
+    valid = np.logical_and(np.isfinite(rst), rst > 0)
+    g_s[valid] = 1.0 / rst[valid]
+    g_s[valid] = g_s[valid] / molm2s1_2_ms1(T_A[valid], p=p[valid])
+    g_s[valid] = np.clip(g_s[valid], 0, max_gs)
+    return np.asarray(g_s)
 
 
-def calc_coef_m2mmol(T_C, p=1013.25):
-    '''Calculates the conversion factor from stomatal conductance from m s-1
-    to mmol m-2 s-1.
+def molm2s1_2_ms1(T_C, p=1013.25):
+    '''Calculates the conversion factor for stomatal conductance
+    from mol m-2 s-1. to m s-1.
 
     Parameters
     ----------
@@ -970,8 +987,8 @@ def calc_coef_m2mmol(T_C, p=1013.25):
 
     Returns
     -------
-    K_gs : float
-        Conversion factor from  m s-1 to mmol m-2 s-1.
+    k : float
+        Conversion factor from  mol m-2 s-1. to m s-1
 
     References
     ----------
@@ -981,9 +998,8 @@ def calc_coef_m2mmol(T_C, p=1013.25):
         http://dx.doi.org/10.2134/agronj14.0109.
     '''
 
-    K_gs = 0.1 * p / (R_u * T_C)  # to mol m-2 s-1
-    K_gs = K_gs * 1e3  # to mmol m-2 s-1
-    return np.asarray(K_gs)
+    k = (R_u * T_C) / (0.1 * p)  # from mol m-2 s-1
+    return np.asarray(k)
 
 
 def calc_z_0H(z_0M, kB=0):
