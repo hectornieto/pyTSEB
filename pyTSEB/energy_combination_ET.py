@@ -269,10 +269,10 @@ def penman_monteith(T_A_K,
                                                         TSEB._L_diff(L_queue[1][i], L_queue[4][i]) < TSEB.L_thres,
                                                         TSEB._L_diff(L_queue[2][i], L_queue[5][i]) < TSEB.L_thres))
 
-    flag, Ln, LE, H, G, R_A, u_friction, L, n_iterations = map(
-        np.asarray, (flag, Ln, LE, H, G, R_A, u_friction, L, n_iterations))
+    flag, T_0_K, Ln, LE, H, G, R_A, u_friction, L, n_iterations = map(
+        np.asarray, (flag, T_0_K, Ln, LE, H, G, R_A, u_friction, L, n_iterations))
 
-    return flag, Ln, LE, H, G, R_A, u_friction, L, n_iterations
+    return flag, T_0_K, Ln, LE, H, G, R_A, u_friction, L, n_iterations
 
 
 def shuttleworth_wallace(T_A_K,
@@ -1288,6 +1288,7 @@ def rst_apar_factor(apar, r_st_min=40, r_st_max=5000, apar_min=100):
     f = np.clip(f, 0, 1)  # Ensure that the reduction factor lies between 0 and 1
 
     return f
+
 
 def rst_temp_factor_Noilhan(T_A_K, T_ref_K=298):
     ''' Estimate stomatal stress due to temperature based on [Noilhan]_
