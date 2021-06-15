@@ -1388,31 +1388,29 @@ def OSEB(Tr_K,
 
     Parameters
     ----------
-    Tr_K : float
+    Tr_K : float or array
         Radiometric composite temperature (Kelvin).
-    T_A_K : float
+    T_A_K : float or array
         Air temperature (Kelvin).
-    u : float
+    u : float or array
         Wind speed above the canopy (m s-1).
-    ea : float
+    ea : float or array
         Water vapour pressure above the canopy (mb).
-    p : float
+    p : float or array
         Atmospheric pressure (mb), use 1013 mb by default.
-    S_n : float
-        Solar irradiance (W m-2).
-    L_dn : float
+    Sn : float or array
+        Net shortwave radiation (W m-2).
+    L_dn : float or array
         Downwelling longwave radiation (W m-2)
-    emis : float
+    emis : float or array
         Surface emissivity.
-    albedo : float
-        Surface broadband albedo.
-    z_0M : float
+    z_0M : float or array
         Aerodynamic surface roughness length for momentum transfer (m).
-    d_0 : float
+    d_0 : float or array
         Zero-plane displacement height (m).
-    z_u : float
+    z_u : float or array
         Height of measurement of windspeed (m).
-    z_T : float
+    z_T : float or array
         Height of measurement of air temperature (m).
     calcG_params : list[list,float or array], optional
         Method to calculate soil heat flux,parameters.
@@ -1424,7 +1422,7 @@ def OSEB(Tr_K,
                                                        (see :func:`~TSEB.calc_G_time_diff`).
     const_L : Optional[float]
         If included, its value will be used to force the Moning-Obukhov stability length.
-    T0_K: Optional[tuple(float,float)]
+    T0_K: Optional[tuple(float or array,float or array)]
         If given it contains radiometric composite temperature (K) at time 0 as
         the first element and air temperature (K) at time 0 as the second element,
         in order to derive differential temperatures like is done in DTD
@@ -1432,23 +1430,23 @@ def OSEB(Tr_K,
 
     Returns
     -------
-    flag : int
+    flag : int or array
         Quality flag, see Appendix for description.
-    Ln : float
+    Ln : float or array
         Net longwave radiation (W m-2)
-    LE : float
+    LE : float or array
         Latent heat flux (W m-2).
-    H : float
+    H : float or array
         Sensible heat flux (W m-2).
-    G : float
+    G : float or array
         Soil heat flux (W m-2).
-    R_A : float
+    R_A : float or array
         Aerodynamic resistance to heat transport (s m-1).
-    u_friction : float
+    u_friction : float or array
         Friction velocity (m s-1).
-    L : float
+    L : float or array
         Monin-Obuhkov length (m).
-    n_iterations : int
+    n_iterations : int or array
         number of iterations until convergence of L.
     '''
 

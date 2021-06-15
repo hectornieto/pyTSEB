@@ -933,7 +933,7 @@ def calc_stomatal_conductance_TSEB(
     Returns
     -------
     G_s : float
-        effective leaf stomata conductance (mmol m-2 s-1).
+        effective leaf stomata conductance (mol m-2 s-1).
 
     References
     ----------
