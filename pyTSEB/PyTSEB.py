@@ -660,13 +660,13 @@ class PyTSEB(object):
                               leaf_width=in_data['leaf_width'][i],
                               z0_soil=in_data['z0_soil'][i],
                               x_LAD=in_data['x_LAD'][i],
+                              Rst_min=self.p['Rst_min'],
+                              R_ss=self.p['R_ss'],
                               calcG_params=[model_params["calcG_params"][0],
                                             model_params["calcG_params"][1][i]],
                               resistance_form=[model_params["resistance_form"][0],
                                                {k: model_params["resistance_form"][1][k][i]
-                                                   for k in model_params["resistance_form"][1]}],
-                              Rst_min=100,
-                              R_ss=500)
+                                                   for k in model_params["resistance_form"][1]}])
 
             out_data['CWSI'][i] = 1.0 - (out_data['LE_C1'][i] / out_data['LE_C_0'][i])
 

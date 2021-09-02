@@ -165,6 +165,9 @@ class TSEBConfigFileInterface():
         conf['resistance_form'] = parser.getint('resistance_form', fallback=None)
 
         conf['water_stress'] = parser.getint('water_stress', fallback=False)
+        if conf['water_stress']:
+            conf['Rst_min'] = parser.getfloat('Rst_min', fallback=100)
+            conf['R_ss'] = parser.getfloat('R_ss', fallback=500)
 
         conf['calc_row'] = parser.getint('calc_row', fallback=[0, 0])
 
