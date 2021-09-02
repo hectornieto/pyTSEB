@@ -636,7 +636,7 @@ class PyTSEB(object):
         out_data['delta_R_n1'] = out_data['Sn_C1'] + out_data['Ln_C1']
 
         if self.water_stress:
-            i = np.array(np.logical_and(~noVegPixels, mask == 1))
+            i = mask == 1
             [_, _, _, _, _, _, out_data['LE_0'][i], _,
              out_data['LE_C_0'][i], _, _, _, _, _, _, _, _, _, _] = \
                  pet.shuttleworth_wallace(
@@ -647,7 +647,7 @@ class PyTSEB(object):
                               out_data['Sn_C1'][i],
                               out_data['Sn_S1'][i],
                               in_data['L_dn'][i],
-                              in_data['LAI'][i],
+                              np.maximum(in_data['LAI'][i], 0.01),
                               in_data['h_C'][i],
                               in_data['emis_C'][i],
                               in_data['emis_S'][i],
