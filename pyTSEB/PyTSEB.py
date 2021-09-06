@@ -636,7 +636,7 @@ class PyTSEB(object):
         out_data['delta_R_n1'] = out_data['Sn_C1'] + out_data['Ln_C1']
 
         if self.water_stress:
-            i = np.array(np.logical_and(~noVegPixels, mask == 1))
+            i = mask == 1
             [_, _, _, _, _, _, out_data['LE_0'][i], _,
              out_data['LE_C_0'][i], _, _, _, _, _, _, _, _, _, _] = \
                  pet.shuttleworth_wallace(
@@ -647,7 +647,7 @@ class PyTSEB(object):
                               out_data['Sn_C1'][i],
                               out_data['Sn_S1'][i],
                               in_data['L_dn'][i],
-                              in_data['LAI'][i],
+                              np.maximum(in_data['LAI'][i], 0.01),
                               in_data['h_C'][i],
                               in_data['emis_C'][i],
                               in_data['emis_S'][i],
@@ -660,13 +660,13 @@ class PyTSEB(object):
                               leaf_width=in_data['leaf_width'][i],
                               z0_soil=in_data['z0_soil'][i],
                               x_LAD=in_data['x_LAD'][i],
+                              Rst_min=self.p['Rst_min'],
+                              R_ss=self.p['R_ss'],
                               calcG_params=[model_params["calcG_params"][0],
                                             model_params["calcG_params"][1][i]],
                               resistance_form=[model_params["resistance_form"][0],
                                                {k: model_params["resistance_form"][1][k][i]
-                                                   for k in model_params["resistance_form"][1]}],
-                              Rst_min=100,
-                              R_ss=500)
+                                                   for k in model_params["resistance_form"][1]}])
 
             out_data['CWSI'][i] = 1.0 - (out_data['LE_C1'][i] / out_data['LE_C_0'][i])
 

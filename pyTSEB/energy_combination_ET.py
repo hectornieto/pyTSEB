@@ -83,7 +83,7 @@ def penman_monteith(T_A_K,
     const_L : float or None, optional
         If included, its value will be used to force the Moning-Obukhov stability length.
     Rst_min : float
-        Minimum (unstress) single-leaf stomatal coductance (s m -1), Default = 400 s m-1
+        Minimum (unstressed) single-leaf stomatal resistance (s m -1), Default = 400 s m-1
     leaf_type : int
         1: Hipostomatous leaves (stomata only in one side of the leaf)
         2: Amphistomatous leaves (stomata in both sides of the leaf)
@@ -91,7 +91,7 @@ def penman_monteith(T_A_K,
         cloudiness factor, if a value is set it will comput net Lw based on [Allen1998]_
     kB : float
         kB-1 parameter to compute roughness lenght for heat transport, default=2.3
-        
+
     Returns
     -------
     flag : int
@@ -166,10 +166,9 @@ def penman_monteith(T_A_K,
     psicr = TSEB.met.calc_psicr(Cp, p, lambda_)  # Psicrometric constant (mb K-1)
     es = TSEB.met.calc_vapor_pressure(T_A_K)  # saturation water vapour pressure in mb
     z_0H = TSEB.res.calc_z_0H(z_0M, kB=kB)  # Roughness length for heat transport
-    rho_cp = rho_a * Cp
     vpd = es - ea
 
-    # Calculate bulk stomatal conductance
+    # Calculate bulk stomatal resistance
     R_c = bulk_stomatal_resistance(LAI, Rst_min, leaf_type=leaf_type)
 
     # iteration of the Monin-Obukhov length
@@ -349,7 +348,7 @@ def shuttleworth_wallace(T_A_K,
     w_C : float, optional
         Canopy width to height ratio.
     Rst_min : float
-        Minimum (unstress) single-leaf stomatal coductance (s m -1),
+        Minimum (unstressed) single-leaf stomatal resistance (s m -1),
         Default = 100 s m-1
     Rss : float
         Resistance to water vapour transport in the soil surface (s m-1),
@@ -502,7 +501,7 @@ def shuttleworth_wallace(T_A_K,
     F = np.asarray(LAI / f_c)  # Real LAI
     omega0 = TSEB.CI.calc_omega0_Kustas(LAI, f_c, x_LAD=x_LAD, isLAIeff=True)
 
-    # Calculate bulk stomatal conductance
+    # Calculate bulk stomatal resistance
     R_c = bulk_stomatal_resistance(LAI * f_g, Rst_min, leaf_type=leaf_type)
     del leaf_type, Rst_min
 
@@ -677,7 +676,6 @@ def shuttleworth_wallace(T_A_K,
             no_valid_T = np.logical_and(i, T_S <= T_A_K - LOWEST_TS_DIFF)
             flag[no_valid_T] = F_LOW_TS
             T_S[no_valid_T] = T_A_K[no_valid_T] - LOWEST_TS_DIFF
-
 
             if np.all(np.abs(T_C - T_C_old) < T_DIFF_THRES) \
                     and np.all(np.abs(T_S - T_S_old) < T_DIFF_THRES):
@@ -1115,7 +1113,6 @@ def pet_fao56(T_A_K,
     # Net radiation
     Rn = Sn + Ln
 
-
     if is_daily is True:
         G_ratio = 0
     else:
@@ -1149,6 +1146,7 @@ def le_penman_monteith(r_n, g_flux, vpd, r_a, r_c, delta, rho, cp, psicr):
           / (delta + psicr * (1. + r_eff)))
     return le
 
+
 def le_penman(r_n, g_flux, vpd, r_a, r_r, delta, rho, cp, psicr):
 
     r_hr = r_a + r_r
@@ -1165,9 +1163,8 @@ def bulk_stomatal_resistance(LAI, Rst, leaf_type=TSEB.res.AMPHISTOMATOUS):
     ----------
     LAI : float
         Leaf Area Index (m2 m-2).
-    Rst_min : float
-        Minimum (unstressed) single-leaf stomatal coductance (s m -1),
-        Default = 100 s m-1
+    Rst: float
+        Minimum (unstressed) single-leaf stomatal resistance (s m -1)
     leaf_type : int
         1: Hipostomatous leaves (stomata only in one side of the leaf)
         2: Amphistomatous leaves (stomata in both sides of the leaf)
@@ -1250,6 +1247,7 @@ def rst_sdn_factor_Noilhan(Sdn, lai, fvis=0.55, r_st_min=40, r_st_max=5000,
     f = np.clip(f, 0, 1)  # Ensure that the reduction factor lies between 0 and 1
 
     return f
+
 
 def rst_apar_factor(apar, r_st_min=40, r_st_max=5000, apar_min=100):
     ''' Estimate stomatal stress due to vapour pressure deficit based on [Noilhan]_
@@ -1354,7 +1352,7 @@ def calc_effective_resistances_SW(R_A, R_x, R_S, R_c, R_ss, delta, psicr):
     R_S : float
         Soil aerodynamic resistance to heat transport (s m-1)
     R_c : float
-        Canopy bulk stomatal conductance (s m-1)
+        Canopy bulk stomatal resistance (s m-1)
     Rss : float
         Resistance to water vapour transport in the soil surface (s m-1)
     delta : float
@@ -1477,4 +1475,3 @@ def fill_and_update_et(k_cs, et, et_ref, gaps):
     # Update the K_cs coefficient with valid observations
     kcs_updated[valid] = et_filled[valid] / et_ref[valid]
     return et_filled, kcs_updated
-
