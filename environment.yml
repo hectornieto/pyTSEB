@@ -10,5 +10,6 @@ dependencies:
     - jupyter
     - notebook
     - bokeh
+    - netCDF4
     - pip:
         - https://github.com/hectornieto/pyPro4Sail/archive/master.zip
