@@ -105,6 +105,8 @@ resistance_form=0   # Resistance formulations: 0 - Kustas & Norman 1999; 1 - Cho
 KN_b=0.012          # Kustas & Norman formulation parameter
 KN_c=0.0038         # Kustas & Norman formulation parameter
 KN_C_dash=90       # Kustas & Norman formulation parameter
+R_ss=500            # Shuttleworth and Wallace (1995) resistance to water vapour transport in the soil surface (s m-1) 
+Rst_min=100         # Shuttleworth and Wallace (1995) minimum (unstressed) single-leaf stomatal resistance (s m -1)
 
 
 #==============================================================================
