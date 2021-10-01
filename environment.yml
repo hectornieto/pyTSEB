@@ -1,4 +1,4 @@
-name: pytseb
+name: pyTSEB
 channels:
     - conda-forge
 dependencies:
@@ -11,5 +11,6 @@ dependencies:
     - notebook
     - bokeh
     - netCDF4
+    - pip
     - pip:
-        - https://github.com/hectornieto/pyPro4Sail/archive/master.zip
+        - https://github.com/hectornieto/pypro4sail

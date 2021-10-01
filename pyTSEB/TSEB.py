@@ -78,7 +78,7 @@ from collections import deque
 import time
 
 import numpy as np
-from pyPro4Sail.FourSAIL import FourSAIL
+from pypro4sail.four_sail import foursail
 
 from . import meteo_utils as met
 from . import resistances as res
@@ -2308,7 +2308,7 @@ def calc_4SAIL_emission_param(
      rsot,
      gamma_sdf,
      gammas_db,
-     gamma_so] = FourSAIL(LAI,
+     gamma_so] = foursail(LAI,
                           hotspot,
                           lidf,
                           sza,
