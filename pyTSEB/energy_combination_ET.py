@@ -44,7 +44,8 @@ def penman_monteith(T_A_K,
                     Rst_min=400,
                     leaf_type=TSEB.res.AMPHISTOMATOUS,
                     f_cd=None,
-                    kB=2.3):
+                    kB=2.3,
+                    verbose=True):
     '''Penman Monteith [Allen1998]_ energy combination model.
     Calculates the Penman Monteith one source fluxes using meteorological and crop data.
 
@@ -193,17 +194,20 @@ def penman_monteith(T_A_K,
     for n_iterations in range(max_iterations):
         i = ~L_converged
         if np.all(L_converged):
-            if L_converged.size == 0:
-                print("Finished iterations with no valid solution")
-            else:
-                print("Finished interations with a max. L diff: " + str(L_diff_max))
+            if verbose:
+                if L_converged.size == 0:
+                    print("Finished iterations with no valid solution")
+                else:
+                    print("Finished interations with a max. L diff: " + str(L_diff_max))
             break
         current_time = time.time()
         loop_duration = current_time - loop_time
         loop_time = current_time
         total_duration = loop_time - start_time
-        print("Iteration: %d, non-converged pixels: %d, max L diff: %f, total time: %f, loop time: %f" %
-              (n_iterations, np.sum(i), L_diff_max, total_duration, loop_duration))
+        if verbose:
+            print("Iteration: %d, non-converged pixels: "
+                  "%d, max L diff: %f, total time: %f, loop time: %f" %
+                  (n_iterations, np.sum(i), L_diff_max, total_duration, loop_duration))
 
         iterations[i] = n_iterations
         flag[i] = 0
@@ -223,7 +227,7 @@ def penman_monteith(T_A_K,
             R_A[i] = TSEB.res.calc_R_A(z_T[i], u_friction[i], L[i], d_0[i], z_0H[i])
 
             # Apply Penman Monteith Combination equation
-            LE[i] = le_penman_monteith(Rn[i], G[[i]], vpd[i], R_A[i], R_c[i],
+            LE[i] = le_penman_monteith(Rn[i], G[i], vpd[i], R_A[i], R_c[i],
                                        delta[i], rho_a[i], Cp[i], psicr[i])
             H[i] = Rn[i] - G[i] - LE[i]
 
@@ -302,7 +306,8 @@ def shuttleworth_wallace(T_A_K,
                          const_L=None,
                          massman_profile=[0, []],
                          leaf_type=TSEB.res.AMPHISTOMATOUS,
-                         kB=0):
+                         kB=0,
+                         verbose=True):
     '''Shuttleworth and Wallace [Shuttleworth1995]_ dual source energy combination model.
     Calculates turbulent fluxes using meteorological and crop data for a
     dual source system in series.
@@ -543,18 +548,20 @@ def shuttleworth_wallace(T_A_K,
     for n_iterations in range(max_iterations):
         i = ~L_converged
         if np.all(L_converged):
-            if L_converged.size == 0:
-                print("Finished iterations with no valid solution")
-            else:
-                print("Finished interations with a max. L diff: " + str(L_diff_max))
+            if verbose:
+                if L_converged.size == 0:
+                    print("Finished iterations with no valid solution")
+                else:
+                    print("Finished interations with a max. L diff: " + str(L_diff_max))
             break
         current_time = time.time()
         loop_duration = current_time - loop_time
         loop_time = current_time
         total_duration = loop_time - start_time
-        print(
-            "Iteration: %d, non-converged pixels: %d, max L diff: %f, total time: %f, loop time: %f" %
-            (n_iterations, np.sum(i), L_diff_max, total_duration, loop_duration))
+        if verbose:
+            print("Iteration: %d, non-converged pixels: "
+                  "%d, max L diff: %f, total time: %f, loop time: %f" %
+                  (n_iterations, np.sum(i), L_diff_max, total_duration, loop_duration))
 
         iterations[i] = n_iterations
         flag[i] = 0
@@ -772,7 +779,8 @@ def penman(T_A_K,
            calcG_params=[[1], 0.35],
            const_L=None,
            f_cd=None,
-           kB=0):
+           kB=0,
+           verbose=True):
     '''Penman energy combination model.
     Calculates the Penman evaporation fluxes using meteorological data.
 
@@ -905,17 +913,20 @@ def penman(T_A_K,
     for n_iterations in range(max_iterations):
         i = ~L_converged
         if np.all(L_converged):
-            if L_converged.size == 0:
-                print("Finished iterations with no valid solution")
-            else:
-                print("Finished interations with a max. L diff: " + str(L_diff_max))
+            if verbose:
+                if L_converged.size == 0:
+                    print("Finished iterations with no valid solution")
+                else:
+                    print("Finished interations with a max. L diff: " + str(L_diff_max))
             break
         current_time = time.time()
         loop_duration = current_time - loop_time
         loop_time = current_time
         total_duration = loop_time - start_time
-        print("Iteration: %d, non-converged pixels: %d, max L diff: %f, total time: %f, loop time: %f" %
-              (n_iterations, np.sum(i), L_diff_max, total_duration, loop_duration))
+        if verbose:
+            print("Iteration: %d, non-converged pixels: "
+                  "%d, max L diff: %f, total time: %f, loop time: %f" %
+                  (n_iterations, np.sum(i), L_diff_max, total_duration, loop_duration))
 
         iterations[i] = n_iterations
         flag[i] = 0
@@ -935,7 +946,7 @@ def penman(T_A_K,
             R_A[i] = TSEB.res.calc_R_A(z_T[i], u_friction[i], L[i], d_0[i], z_0H[i])
 
             # Apply Penman Combination equation
-            LE[i] = le_penman(Rn[i], G[[i]], vpd[i], R_A[i], r_r[i], delta[i],
+            LE[i] = le_penman(Rn[i], G[i], vpd[i], R_A[i], r_r[i], delta[i],
                               rho_a[i], Cp[i], psicr[i])
             H[i] = Rn[i] - G[i] - LE[i]
 
