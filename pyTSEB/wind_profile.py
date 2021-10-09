@@ -206,7 +206,7 @@ def calc_u_Massman(u_c, h_c, lai, z, canopy_distribution, xi_soil=0.0001, c_d=0.
     '''
     u_c, h_c, lai, z = map(np.asarray, [u_c, h_c, lai, z])
     U_b = calc_U_b(z, h_c, xi_soil)  # Eq.6
-    U_t = calc_U_t(z, lai, h_c, canopy_distribution, xi_soil, C_d_equiv=c_d)  #
+    U_t = calc_U_t(z, lai, h_c, canopy_distribution, xi_soil, c_d_equiv=c_d)  #
     # Eq. 7
     u_z = u_c * U_b * U_t
     return u_z
@@ -276,9 +276,9 @@ def calc_U_t(z, lai, h_c, canopy_distribution, xi_soil=0.0025, c_d_equiv=0.2):
         Pages 594-603, http://dx.doi.org/10.1139/cjfr-2016-0354
     '''
     upper_limit = z / h_c
-    zeta_h = drag_area_index(lai, C_d_equiv=c_d_equiv)
+    zeta_h = drag_area_index(lai, c_d_equiv=c_d_equiv)
     zeta_xi = cummulative_drag_area(lai, canopy_distribution, upper_limit,
-                                    C_d_equiv=c_d_equiv)
+                                    c_d_equiv=c_d_equiv)
     u_star_ratio = calc_u_star_ratio(zeta_h, xi_soil)
     c_surf = 2.0 * u_star_ratio ** 2  # Eq. 9
     n = zeta_h / c_surf  # Eq. 8
@@ -511,8 +511,8 @@ def canopy_shape(h_c, h_b, h_max=0.5):
     '''
 
     # Use relative units
-    h_b = h_b / h_c
     xi_max = (h_max * (h_c - h_b) + h_b) / h_c
+    h_b = h_b / h_c
 
     # Lower standar deviation
     sigma_l = (xi_max - h_b) / 2.0
