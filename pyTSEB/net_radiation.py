@@ -624,3 +624,17 @@ def calc_Sn_Campbell(lai, sza, S_dn_dir, S_dn_dif, fvis, fnir, rho_leaf_vis,
             + taudt[1] * (1.0 - rsoiln) * S_dn_dif*fnir)
     
     return np.asarray(Sn_C), np.asarray(Sn_S)
+
+
+def leafangle_2_chi(alpha):
+    alpha = np.radians(alpha)
+    x_lad = ((alpha / 9.65) ** (1. / -1.65)) - 3.
+
+    return x_lad
+
+
+def chi_2_leafangle(x_lad):
+    alpha = 9.65 * (3. + x_lad) ** -1.65
+    alpha = np.degrees(alpha)
+    return alpha
+
