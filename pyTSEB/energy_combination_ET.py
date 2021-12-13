@@ -566,6 +566,7 @@ def shuttleworth_wallace(T_A_K,
         iterations[i] = n_iterations
         flag[i] = 0
 
+        i_outer = i.copy()
         T_C_old = np.zeros(T_C.shape)
         T_S_old = np.zeros(T_S.shape)
         for nn_interations in range(max_iterations):
@@ -684,15 +685,19 @@ def shuttleworth_wallace(T_A_K,
             flag[no_valid_T] = F_LOW_TS
             T_S[no_valid_T] = T_A_K[no_valid_T] - LOWEST_TS_DIFF
 
-            if np.all(np.abs(T_C - T_C_old) < T_DIFF_THRES) \
-                    and np.all(np.abs(T_S - T_S_old) < T_DIFF_THRES):
+            if np.nanmax(np.abs(T_C - T_C_old)) < T_DIFF_THRES \
+                    and np.nanmax(np.abs(T_S - T_S_old)) < T_DIFF_THRES:
                 break
             else:
+                i = (((np.abs(T_C - T_C_old) >= T_DIFF_THRES) |
+                      (np.abs(T_S - T_S_old) >= T_DIFF_THRES)) &
+                     i_outer)
                 T_C_old = T_C.copy()
                 T_S_old = T_S.copy()
 
         # Now L can be recalculated and the difference between iterations
         # derived
+        i = i_outer
         if const_L is None:
             L[i] = TSEB.MO.calc_mo_length(u_friction[i],
                                           T_A_K[i],
