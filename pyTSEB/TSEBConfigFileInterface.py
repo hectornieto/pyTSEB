@@ -147,11 +147,12 @@ class TSEBConfigFileInterface():
         ''' Parses the information contained in a configuration file into a dictionary'''
 
         parser = MyConfigParser('top')
+        parser.optionxform = str
         with open(input_file) as conf_file:
             conf_file = itertools.chain(('[top]',), conf_file)  # dummy section to please parser
             parser.read_file(conf_file)
 
-        return parser
+        return dict(parser.items("top"))
 
     @staticmethod
     def _parse_common_config(parser):
