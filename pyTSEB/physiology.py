@@ -470,8 +470,8 @@ def gpp_canopy_no_gs(vpd,
                                                          rho_leaf,
                                                          tau_leaf,
                                                          rho_soil,
-                                                         x_LAD=x_lad,
-                                                         LAI_eff=lai_eff)
+                                                         x_lad=x_lad,
+                                                         lai_eff=lai_eff)
 
     # Canopy integral for Jc
     canopy_decay_sunlit = canopy_integral(lai_eff, kd_star + kb)
@@ -833,8 +833,8 @@ def gpp_canopy(gs,
                                                          rho_leaf,
                                                          tau_leaf,
                                                          rho_soil,
-                                                         x_LAD=x_lad,
-                                                         LAI_eff=lai_eff)
+                                                         x_lad=x_lad,
+                                                         lai_eff=lai_eff)
 
     # Canopy integral for Jc
     canopy_decay_sunlit = canopy_integral(lai_eff, kd_star + kb)
@@ -1081,8 +1081,8 @@ def gpp_canopy_multilayer(gs,
                                                        rho_leaf,
                                                        tau_leaf,
                                                        rho_soil,
-                                                       x_LAD=x_lad,
-                                                       LAI_eff=lai_eff_i)
+                                                       x_lad=x_lad,
+                                                       lai_eff=lai_eff_i)
 
         # fraction of sunlit and shaded leaf area within the canopy
         w_sunlit = np.exp(-lai_eff_i * kb)  # Eq. C3 in [Wang1998]_
@@ -1344,8 +1344,8 @@ def gpp_canopy_2leaf(gs,
                                                          rho_leaf,
                                                          tau_leaf,
                                                          rho_soil,
-                                                         x_LAD=x_lad,
-                                                         LAI_eff=lai_eff)
+                                                         x_lad=x_lad,
+                                                         lai_eff=lai_eff)
     # Canopy integral for Jc
     canopy_decay_sunlit = canopy_integral(lai_eff, kd_star + kb)
     canopy_decay_sunlit[np.isnan(canopy_decay_sunlit)] = 0
