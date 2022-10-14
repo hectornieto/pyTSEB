@@ -352,8 +352,9 @@ def TSEB_2T(T_C,
     # iteration of the Monin-Obukhov length
     u_friction = MO.calc_u_star(u, z_u, L, d_0, z_0M)
     u_friction = np.asarray(np.maximum(U_FRICTION_MIN, u_friction))
-    L_old = np.ones(T_C.shape)
-    L_diff = np.asarray(np.ones(T_C.shape) * np.inf)
+    l_queue = deque([np.array(L)], 6)
+    l_converged = np.asarray(np.zeros(Tr_K.shape)).astype(bool)
+    l_diff_max = np.inf
 
     # Outer loop for estimating stability.
     # Stops when difference in consecutives L is below a given threshold
@@ -431,22 +432,17 @@ def TSEB_2T(T_C,
         # Now L can be recalculated and the difference between iterations
         # derived
         if const_L is None:
-            L[i] = MO.calc_L(
-                u_friction[i],
-                T_A_K[i],
-                rho[i],
-                c_p[i],
-                H[i],
-                LE[i])
-            L_diff = np.asarray(np.fabs(L - L_old) / np.fabs(L_old))
-            L_diff[np.isnan(L_diff)] = np.inf
-            L_old = np.array(L)
-            L_old[L_old == 0] = 1e-36
+            L[i] = MO.calc_L(u_friction[i],
+                             T_A_K[i],
+                             rho[i],
+                             c_p[i],
+                             H[i],
+                             LE[i])
 
-            # Calculate again the friction velocity with the new stability
-            # correctios
-            u_friction[i] = MO.calc_u_star(u[i], z_u[i], L[i], d_0[i], z_0M[i])
-            u_friction = np.asarray(np.maximum(U_FRICTION_MIN, u_friction))
+            i, l_queue, l_converged, l_diff_max = monin_obukhov_convergence(L,
+                                                                            l_queue,
+                                                                            l_converged,
+                                                                            flag)
 
     # Compute soil and canopy latent heat fluxes
     LE_S = Rn_S - G - H_S
@@ -853,27 +849,10 @@ def TSEB_PT(Tr_K,
             # We check convergence against the value of L from previous iteration but as well
             # against values from 2 or 3 iterations back. This is to catch situations (not
             # infrequent) where L oscillates between 2 or 3 steady state values.
-            L_new = np.array(L, np.float32)
-            L_new[L_new == 0] = 1e-36
-            L_queue.appendleft(L_new)
-            i = np.logical_and(~L_converged, flag != F_INVALID)
-            if not np.any(i):
-                continue
-            L_converged[i] = _L_diff(L_queue[0][i], L_queue[1][i]) < L_thres
-            L_diff_max = np.max(_L_diff(L_queue[0][i], L_queue[1][i]))
-            if len(L_queue) >= 4:
-                i = np.logical_and(~L_converged, flag != F_INVALID)
-                if not np.any(i):
-                    continue
-                L_converged[i] = np.logical_and(_L_diff(L_queue[0][i], L_queue[2][i]) < L_thres,
-                                                _L_diff(L_queue[1][i], L_queue[3][i]) < L_thres)
-            if len(L_queue) == 6:
-                i = np.logical_and(~L_converged, flag != F_INVALID)
-                if not np.any(i):
-                    continue
-                L_converged[i] = np.logical_and.reduce((_L_diff(L_queue[0][i], L_queue[3][i]) < L_thres,
-                                                        _L_diff(L_queue[1][i], L_queue[4][i]) < L_thres,
-                                                        _L_diff(L_queue[2][i], L_queue[5][i]) < L_thres))
+            i, L_queue, L_converged, L_diff_max = monin_obukhov_convergence(L,
+                                                                            L_queue,
+                                                                            L_converged,
+                                                                            flag)
 
     (flag,
      T_S,
@@ -2648,3 +2627,25 @@ def calc_resistances(res_form, res_types):
     R_S = np.asarray(np.maximum(1e-3, R_S), dtype=np.float32)
 
     return R_A, R_x, R_S
+
+
+def monin_obukhov_convergence(l_mo, l_queue, l_converged, flag):
+    l_new = np.array(l_mo)
+    l_new[l_new == 0] = 1e-36
+    l_queue.appendleft(l_new)
+    i = np.logical_and(~l_converged, flag != F_INVALID)
+    l_converged[i] = _L_diff(l_queue[0][i], l_queue[1][i]) < L_thres
+    l_diff_max = np.max(_L_diff(l_queue[0][i], l_queue[1][i]))
+    if len(l_queue) >= 4:
+        i = np.logical_and(~l_converged, flag != F_INVALID)
+        l_converged[i] = np.logical_and(
+            _L_diff(l_queue[0][i], l_queue[2][i]) < L_thres,
+            _L_diff(l_queue[1][i], l_queue[3][i]) < L_thres)
+    if len(l_queue) == 6:
+        i = np.logical_and(~l_converged, flag != F_INVALID)
+        l_converged[i] = np.logical_and.reduce(
+            (_L_diff(l_queue[0][i], l_queue[3][i]) < L_thres,
+             _L_diff(l_queue[1][i], l_queue[4][i]) < L_thres,
+             _L_diff(l_queue[2][i], l_queue[5][i]) < L_thres))
+
+    return i, l_queue, l_converged, l_diff_max
