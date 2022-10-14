@@ -91,7 +91,13 @@ from . import wind_profile as wnd
 L_thres = 0.001
 # mimimun allowed friction velocity
 U_FRICTION_MIN = 0.01
-U_S_MIN = 0.4
+U_S_MIN = 0.01
+U_C_MIN = 0.01
+R_A_MIN = 1e-1
+R_A_MAX = None
+RES_MIN = 1e-1
+RES_MAX = None
+
 # Maximum number of interations
 ITERATIONS = 15
 # kB coefficient
@@ -152,6 +158,7 @@ def TSEB_2T(T_C,
             calcG_params=None,
             const_L=None,
             kB=KB_1_DEFAULT,
+            massman_profile=None,
             verbose=True):
     """ TSEB using component canopy and soil temperatures.
 
@@ -255,10 +262,10 @@ def TSEB_2T(T_C,
 
     if resistance_form is None:
         resistance_form = [0, {}]
-
     if calcG_params is None:
         calcG_params = [[1], 0.35]
-
+    if massman_profile is None:
+        massman_profile = [0, []]
     # Convert float scalars into numpy arrays and check parameters size
     T_C = np.asarray(T_C)
     [T_S,
@@ -353,13 +360,12 @@ def TSEB_2T(T_C,
     u_friction = MO.calc_u_star(u, z_u, L, d_0, z_0M)
     u_friction = np.asarray(np.maximum(U_FRICTION_MIN, u_friction))
     l_queue = deque([np.array(L)], 6)
-    l_converged = np.asarray(np.zeros(Tr_K.shape)).astype(bool)
-    l_diff_max = np.inf
+    l_converged = np.asarray(np.zeros(T_S.shape)).astype(bool)
+    L_diff = np.asarray(np.ones(T_C.shape) * np.inf)
 
     # Outer loop for estimating stability.
     # Stops when difference in consecutives L is below a given threshold
     for n_iterations in range(max_iterations):
-
         if np.all(L_diff < L_thres):
             if verbose:
                 print(f"Finished iteration with a max. L diff: {np.max(L_diff)}")
@@ -379,7 +385,10 @@ def TSEB_2T(T_C,
                                   "R_x": {"u_friction": u_friction[i], "h_C": h_C[i],
                                           "d_0": d_0[i],
                                           "z_0M": z_0M[i], "L": L[i], "F": F[i], "LAI": LAI[i],
-                                          "leaf_width": leaf_width[i], "res_params": {k: res_params[k][i] for k in res_params.keys()}},
+                                          "leaf_width": leaf_width[i],
+                                          "z0_soil": z0_soil[i],
+                                          "massman_profile": massman_profile,
+                                          "res_params": {k: res_params[k][i] for k in res_params.keys()}},
                                   "R_S": {"u_friction": u_friction[i], "h_C": h_C[i],
                                           "d_0": d_0[i],
                                           "z_0M": z_0M[i], "L": L[i], "F": F[i], "omega0": omega0[i],
@@ -387,6 +396,7 @@ def TSEB_2T(T_C,
                                           "z0_soil": z0_soil[i], "z_u": z_u[i],
                                           "deltaT": T_S[i] - T_AC[i], 'u': u[i], 'rho': rho[i],
                                           "c_p": c_p[i], "f_cover": f_c[i], "w_C": w_C[i],
+                                          "massman_profile": massman_profile,
                                           "res_params": {k: res_params[k][i] for k in res_params.keys()}}
                                    })
 
@@ -480,12 +490,11 @@ def TSEB_PT(Tr_K,
             f_c=1.0,
             f_g=1.0,
             w_C=1.0,
-            resistance_form=[0, {}],
-            calcG_params=[
-                [1],
-                0.35],
+            resistance_form=None,
+            calcG_params=None,
             const_L=None,
             kB=KB_1_DEFAULT,
+            massman_profile=None,
             verbose=True):
     '''Priestley-Taylor TSEB
 
@@ -613,6 +622,13 @@ def TSEB_PT(Tr_K,
     '''
 
     # Convert input float scalars to arrays and parameters size
+    if calcG_params is None:
+        calcG_params = [[1], 0.35]
+    if resistance_form is None:
+        resistance_form = [0, {}]
+    if massman_profile is None:
+        massman_profile = [0, []]
+
     Tr_K = np.asarray(Tr_K, dtype=np.float32)
     (vza,
      T_A_K,
@@ -751,7 +767,10 @@ def TSEB_PT(Tr_K,
                        "R_x": {"u_friction": u_friction[i], "h_C": h_C[i],
                                "d_0": d_0[i],
                                "z_0M": z_0M[i], "L": L[i], "F": F[i], "LAI": LAI[i],
-                               "leaf_width": leaf_width[i], "res_params": {k: res_params[k][i] for k in res_params.keys()}},
+                               "leaf_width": leaf_width[i],
+                               "z0_soil": z0_soil[i],
+                               "massman_profile": massman_profile,
+                               "res_params": {k: res_params[k][i] for k in res_params.keys()}},
                        "R_S": {"u_friction": u_friction[i], "h_C": h_C[i],
                                "d_0": d_0[i],
                                "z_0M": z_0M[i], "L": L[i], "F": F[i], "omega0": omega0[i],
@@ -759,6 +778,7 @@ def TSEB_PT(Tr_K,
                                "z0_soil": z0_soil[i], "z_u": z_u[i],
                                "deltaT": T_S[i] - T_AC[i], 'u': u[i], 'rho': rho[i],
                                "c_p": c_p[i], "f_cover": f_c[i], "w_C": w_C[i],
+                               "massman_profile": massman_profile,
                                "res_params": {k: res_params[k][i] for k in res_params.keys()}}
                        }
             )
@@ -796,6 +816,7 @@ def TSEB_PT(Tr_K,
                              "z0_soil": z0_soil[i],  "z_u": z_u[i],
                              "deltaT": T_S[i] - T_AC[i], "u": u[i], "rho": rho[i],
                              "c_p": c_p[i], "f_cover": f_c[i], "w_C": w_C[i],
+                             "massman_profile": massman_profile,
                              "res_params": {k: res_params[k][i] for k in res_params.keys()}}
                      }
             )
@@ -925,12 +946,11 @@ def DTD(Tr_K_0,
         f_c=1.0,
         f_g=1.0,
         w_C=1.0,
-        resistance_form=[0, {}],
-        calcG_params=[
-            [1],
-            0.35],
+        resistance_form=None,
+        calcG_params=None,
         calc_Ri=True,
         kB=KB_1_DEFAULT,
+        massman_profile=None,
         verbose=True):
     ''' Calculate daytime Dual Time Difference TSEB fluxes
 
@@ -1059,6 +1079,13 @@ def DTD(Tr_K_0,
     '''
 
     # Convert input scalars to numpy arrays and parameters size
+    if calcG_params is None:
+        calcG_params = [[1], 0.35]
+    if resistance_form is None:
+        resistance_form = [0, {}]
+    if massman_profile is None:
+        massman_profile = [0, []]
+
     Tr_K_0 = np.asarray(Tr_K_0)
     (Tr_K_1,
      vza,
@@ -1159,14 +1186,19 @@ def DTD(Tr_K_0,
     params = {k: res_params[k] for k in res_params.keys()}
     R_x_params = {"u_friction": u_friction, "h_C": h_C, "d_0": d_0,
                   "z_0M": z_0M, "L": L_from_Ri, "F": F, "LAI": LAI,
-                  "leaf_width": leaf_width, "res_params": params}
+                  "leaf_width": leaf_width,
+                  "z0_soil": z0_soil,
+                  "massman_profile": massman_profile,
+                  "res_params": params}
     # based on equation from Guzinski et. al., 2015
     deltaT = (Tr_K_1 - Tr_K_0) - (T_A_K_1 - T_A_K_0)
     R_S_params = {"u_friction": u_friction, "h_C": h_C, "d_0": d_0,
                   "z_0M": z_0M, "L": L_from_Ri, "F": F,
                   "omega0": omega0, "LAI": LAI,
                   "leaf_width": leaf_width, "z0_soil": z0_soil, "z_u": z_u,
-                  "deltaT": deltaT, "res_params": params}
+                  "deltaT": deltaT,
+                  "massman_profile": massman_profile,
+                  "res_params": params}
     res_types = {"R_A": R_A_params, "R_x": R_x_params, "R_S": R_S_params}
     del R_A_params, R_x_params, R_S_params
     R_A, R_x, R_S = calc_resistances(resistance_form, res_types)
@@ -1283,7 +1315,9 @@ def DTD(Tr_K_0,
                           "z_0M": z_0M[i], "L": L_from_Ri[i], "F": F[i], "omega0": omega0[i],
                           "LAI": LAI[i], "leaf_width": leaf_width[i],
                           "z0_soil": z0_soil[i], "z_u": z_u[i],
-                          "deltaT": deltaT, "res_params": params}
+                          "deltaT": deltaT,
+                          "massman_profile": massman_profile,
+                          "res_params": params}
             _, _, R_S[i] = calc_resistances(resistance_form, {"R_S": R_S_params})
 
         T_C_diff = np.asarray(np.fabs(T_C - T_C_prev))
@@ -2525,27 +2559,36 @@ def calc_resistances(res_form, res_types):
 
     # Determine which resistances to calculate and get the required parameters
     if 'R_A' in res_types.keys():
-        z_T, u_friction, L, d_0, z_0H = \
-            [res_types['R_A'].get(k) for k in ['z_T', 'u_friction', 'L', 'd_0', 'z_0H']]
+        z_T, u_friction, L, d_0, z_0H = [res_types['R_A'].get(k)
+                                         for k in ['z_T',
+                                                   'u_friction',
+                                                   'L',
+                                                   'd_0',
+                                                   'z_0H']]
         del res_types['R_A']
         calc_R_A = True
     else:
         calc_R_A = False
     if 'R_x' in res_types.keys():
-        u_friction, h_C, d_0, z_0M, L, LAI, leaf_width, res_params = \
+        u_friction, h_C, d_0, z_0M, L, F, LAI, leaf_width, z0_soil, massman_profile, res_params = \
             [res_types['R_x'].get(k) for k in ['u_friction', 'h_C', 'd_0', 'z_0M',
-                                               'L', 'LAI', 'leaf_width', 'res_params']]
+                                               'L', 'F', 'LAI', 'leaf_width',
+                                               'z0_soil', 'massman_profile',
+                                               'res_params']]
+
         del res_types['R_x']
         calc_R_x = True
     else:
         calc_R_x = False
     if 'R_S' in res_types.keys():
-        u_friction, h_C, d_0, z_0M, L, leaf_width, z0_soil, z_u, deltaT, u, rho,\
-         c_p, f_cover, w_C, res_params, LAI = \
+        u_friction, h_C, d_0, z_0M, L, omega0, F, leaf_width, z0_soil, z_u, deltaT, u, rho,\
+         c_p, f_cover, w_C, res_params, LAI, massman_profile = \
              [res_types['R_S'].get(k) for k in ['u_friction', 'h_C', 'd_0', 'z_0M',
-                                                'L', 'leaf_width', 'z0_soil', 'z_u', 'deltaT',
-                                                'u', 'rho', 'c_p', 'f_cover', 'w_C', 'res_params',
-                                                'LAI']]
+                                                'L', 'omega0', 'F', 'leaf_width',
+                                                'z0_soil', 'z_u', 'deltaT',
+                                                'u', 'rho', 'c_p', 'f_cover',
+                                                'w_C', 'res_params', "LAI",
+                                                "massman_profile"]]
 
         del res_types['R_S']
         calc_R_S = True
@@ -2561,8 +2604,17 @@ def calc_resistances(res_form, res_types):
     if res_form == KUSTAS_NORMAN_1999:
         if calc_R_x:
             u_C = wnd.calc_u_C_star(u_friction, h_C, d_0, z_0M, L)
+            u_C = np.maximum(u_C, U_C_MIN)
             # Wind speed is highly attenuated within the canopy volume
-            u_d_zm = wnd.calc_u_Goudriaan(u_C, h_C, LAI, leaf_width, d_0+z_0M)
+            if massman_profile[0] <= 0:
+                u_d_zm = wnd.calc_u_Goudriaan(u_C, h_C, F, leaf_width, d_0+z_0M)
+            else:
+                u_d_zm = wnd.calc_u_Massman(u_C, h_C, F, d_0+z_0M,
+                                            massman_profile[1],
+                                            xi_soil=z0_soil/h_C,
+                                            c_d=massman_profile[0])
+
+            u_d_zm = np.maximum(u_d_zm, U_C_MIN)
             # Vegetation in series with soil, i.e. well mixed, so we use
             # the landscape LAI
             R_x = res.calc_R_x_Norman(LAI, leaf_width, u_d_zm, res_params)
@@ -2570,14 +2622,22 @@ def calc_resistances(res_form, res_types):
         if calc_R_S:
             if u_C is None:
                 u_C = wnd.calc_u_C_star(u_friction, h_C, d_0, z_0M, L)
+                u_C = np.maximum(u_C, U_C_MIN)
             # Clumped vegetation enhanced wind speed for the soil surface
-            u_S = wnd.calc_u_Goudriaan(u_C, h_C, LAI, leaf_width, z0_soil)
+            if massman_profile[0] <= 0:
+                u_S = wnd.calc_u_Goudriaan(u_C, h_C, LAI, leaf_width, z0_soil)
+            else:
+                u_S = wnd.calc_u_Massman(u_C, h_C, LAI, z0_soil,
+                                         massman_profile[1],
+                                         xi_soil=z0_soil/h_C,
+                                         c_d=massman_profile[0])
             u_S = np.maximum(u_S, U_S_MIN)
             R_S = res.calc_R_S_Kustas(u_S, deltaT, params=res_params)
 
     elif res_form == CHOUDHURY_MONTEITH_1988:
         if calc_R_x:
             u_C = wnd.calc_u_C_star(u_friction, h_C, d_0, z_0M, L)
+            u_C = np.maximum(u_C, U_C_MIN)
             # Vegetation in series with soil, i.e. well mixed, so we use
             # the landscape LAI
             R_x = res.calc_R_x_Choudhury(u_C, LAI, leaf_width)
@@ -2597,6 +2657,7 @@ def calc_resistances(res_form, res_types):
     elif res_form == CHOUDHURY_MONTEITH_ALPHA_1988:
         if calc_R_x:
             u_C = wnd.calc_u_C_star(u_friction, h_C, d_0, z_0M, L)
+            u_C = np.maximum(u_C, U_C_MIN)
             # Wind speed is highly attenuated within the canopy volume
             alpha_prime = wnd.calc_A_Goudriaan(h_C, LAI, leaf_width)
             # Vegetation in series with soil, i.e. well mixed, so we use
@@ -2612,21 +2673,45 @@ def calc_resistances(res_form, res_types):
     elif res_form == HADHIGHI_AND_OR_2015:
         if calc_R_x:
             u_C = wnd.calc_u_C_star(u_friction, h_C, d_0, z_0M, L)
+            u_C = np.maximum(u_C, U_C_MIN)
             # Wind speed is highly attenuated within the canopy volume
-            u_d_zm = wnd.calc_u_Goudriaan(u_C, h_C, LAI, leaf_width, d_0+z_0M)
+            if massman_profile[0] <= 0:
+                u_d_zm = wnd.calc_u_Goudriaan(u_C, h_C, F, leaf_width, d_0+z_0M)
+            else:
+                u_d_zm = wnd.calc_u_Massman(u_C, h_C, F, d_0+z_0M,
+                                            massman_profile[1],
+                                            xi_soil=z0_soil/h_C,
+                                            c_d=massman_profile[0])
+
+            u_d_zm = np.maximum(u_d_zm, U_C_MIN)
             # Vegetation in series with soil, i.e. well mixed, so we use
             # the landscape LAI
             R_x = res.calc_R_x_Norman(LAI, leaf_width, u_d_zm, res_params)
             del LAI, leaf_width, u_d_zm
         if calc_R_S:
-            R_S = res.calc_R_S_Haghighi(u, h_C, z_u, rho, c_p, z0_soil=z0_soil, f_cover=f_cover,
-                                        w_C=w_C)
+            # Wind speed is highly attenuated within the canopy volume
+            if massman_profile[0] <= 0:
+                u_star_soil = None
+            else:
+                u_star_ratio_2 = wnd.calc_ustar_massman(h_C, F, z0_soil,
+                                                      massman_profile[1],
+                                                      Xi_soil=z0_soil/h_C,
+                                                      C_d=massman_profile[0])
 
-    R_A = np.asarray(np.maximum(1e-3, R_A), dtype=np.float32)
-    R_x = np.asarray(np.maximum(1e-3, R_x), dtype=np.float32)
-    R_S = np.asarray(np.maximum(1e-3, R_S), dtype=np.float32)
+                u_star_soil = u_friction * np.sqrt(u_star_ratio_2)
+
+            R_S = res.calc_R_S_Haghighi(u, h_C, z_u, rho, c_p,
+                                        z0_soil=z0_soil,
+                                        f_cover=f_cover,
+                                        w_C=w_C,
+                                        u_star=u_star_soil)
+
+    R_A = np.asarray(np.clip(R_A, R_A_MIN, R_A_MAX))
+    R_x = np.asarray(np.clip(R_x, RES_MIN, RES_MAX))
+    R_S = np.asarray(np.clip(R_S, RES_MIN, RES_MAX))
 
     return R_A, R_x, R_S
+
 
 
 def monin_obukhov_convergence(l_mo, l_queue, l_converged, flag):
