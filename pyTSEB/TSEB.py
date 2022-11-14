@@ -154,7 +154,8 @@ def TSEB_2T(T_C,
             resistance_form=None,
             calcG_params=None,
             const_L=None,
-            kB=KB_1_DEFAULT):
+            kB=KB_1_DEFAULT,
+            verbose=True):
     """ TSEB using component canopy and soil temperatures.
 
     Calculates the turbulent fluxes by the Two Source Energy Balance model
@@ -360,11 +361,14 @@ def TSEB_2T(T_C,
     # Outer loop for estimating stability.
     # Stops when difference in consecutives L is below a given threshold
     for n_iterations in range(max_iterations):
+
         if np.all(L_diff < L_thres):
-            print(f"Finished iteration with a max. L diff: {np.max(L_diff)}")
+            if verbose:
+                print(f"Finished iteration with a max. L diff: {np.max(L_diff)}")
             break
 
-        print(f"Iteration {n_iterations}, max. L diff: {np.max(L_diff)}")
+        if verbose:
+            print(f"Iteration {n_iterations}, max. L diff: {np.max(L_diff)}")
 
         i = np.logical_and(L_diff >= L_thres, flag != F_INVALID)
         iterations[i] = n_iterations
@@ -488,7 +492,8 @@ def TSEB_PT(Tr_K,
                 [1],
                 0.35],
             const_L=None,
-            kB=KB_1_DEFAULT):
+            kB=KB_1_DEFAULT,
+            verbose=True):
     '''Priestley-Taylor TSEB
 
     Calculates the Priestley Taylor TSEB fluxes using a single observation of
@@ -712,17 +717,19 @@ def TSEB_PT(Tr_K,
     for n_iterations in range(max_iterations):
         i = flag != F_INVALID
         if np.all(L_converged[i]):
-            if L_converged[i].size == 0:
-                print("Finished iterations with no valid solution")
-            else:
-                print(f"Finished interations with a max. L diff: {L_diff_max}")
+            if verbose:
+                if L_converged[i].size == 0:
+                    print("Finished iterations with no valid solution")
+                else:
+                    print(f"Finished interations with a max. L diff: {L_diff_max}")
             break
         current_time = time.time()
         loop_duration = current_time - loop_time
         loop_time = current_time
         total_duration = loop_time - start_time
-        print("Iteration: %d, non-converged pixels: %d, max L diff: %f, total time: %f, loop time: %f" %
-              (n_iterations, np.sum(~L_converged[i]), L_diff_max, total_duration, loop_duration))
+        if verbose:
+            print("Iteration: %d, non-converged pixels: %d, max L diff: %f, total time: %f, loop time: %f" %
+                  (n_iterations, np.sum(~L_converged[i]), L_diff_max, total_duration, loop_duration))
         iterations[np.logical_and(~L_converged, flag != F_INVALID)] = n_iterations
 
         # Inner loop to iterativelly reduce alpha_PT in case latent heat flux
@@ -947,7 +954,8 @@ def DTD(Tr_K_0,
             [1],
             0.35],
         calc_Ri=True,
-        kB=KB_1_DEFAULT):
+        kB=KB_1_DEFAULT,
+        verbose=True):
     ''' Calculate daytime Dual Time Difference TSEB fluxes
 
     Parameters
@@ -1195,13 +1203,14 @@ def DTD(Tr_K_0,
     for n_iterations in range(ITERATIONS):
         i = flag != F_INVALID
         if np.all(T_C_diff[i] < T_C_thres):
-            if T_C_diff[i].size == 0:
-                print("Finished iterations with no valid solution")
-            else:
-                print(f"Finished iteration with a max. T_C diff: {np.max(T_C_diff[i])}")
+            if verbose:
+                if T_C_diff[i].size == 0:
+                    print("Finished iterations with no valid solution")
+                else:
+                    print(f"Finished iteration with a max. T_C diff: {np.max(T_C_diff[i])}")
             break
-
-        print(f"Iteration {n_iterations},"
+        if verbose:
+            print(f"Iteration {n_iterations},"
               f"maximum T_C difference between iterations: {np.max(T_C_diff[i])}")
         iterations[np.logical_and(T_C_diff >= T_C_thres, flag != F_INVALID)] = n_iterations
 

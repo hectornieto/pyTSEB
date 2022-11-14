@@ -45,7 +45,8 @@ def gpp_leaf_no_gs(t_a_k,
                    g0p=0.01,
                    a_1=14.,
                    d_0=10.,
-                   fw=1):
+                   fw=1,
+                   verbose=True):
     """Model of photosynthesis Dewar+Farquhar.
     The function evaluates assimilation and conductance limited by temperature
     (Bernacchi's or Arrhenius equation) and radiation.
@@ -162,7 +163,8 @@ def gpp_leaf_no_gs(t_a_k,
                                                  a_1,
                                                  d_0,
                                                  oi=OI,
-                                                 fw=fw)
+                                                 fw=fw,
+                                                  verbose=verbose)
 
     return assim, rd, gst, ci, temp_limited
 
@@ -294,7 +296,8 @@ def gpp_canopy_no_gs(vpd,
                      a_1=14.,
                      d_0=10.,
                      fw=1,
-                     leaf_type=1):
+                     leaf_type=1,
+                     verbose=True):
     """Model of photosynthesis Dewar+Farquhar.
     The function evaluates assimilation and conductance limited by temperature
     (Bernacchi's or Arrhenius equation) and radiation.
@@ -513,7 +516,8 @@ def gpp_canopy_no_gs(vpd,
                                                                                d_0,
                                                                                oi=oi,
                                                                                fw=fw,
-                                                                               leaf_type=leaf_type)
+                                                                               leaf_type=leaf_type,
+                                                                               verbose=verbose)
 
     assim_sunlit, gs_sunlit, ci_sunlit, temp_limited_sunlit = gs_solver_canopy(vpd,
                                                                                lai_sunlit,
@@ -532,7 +536,8 @@ def gpp_canopy_no_gs(vpd,
                                                                                d_0,
                                                                                oi=oi,
                                                                                fw=fw,
-                                                                               leaf_type=leaf_type)
+                                                                               leaf_type=leaf_type,
+                                                                               verbose=verbose)
 
     assim = assim_shaded + assim_sunlit
     rd = rd_shaded + rd_sunlit
