@@ -589,6 +589,7 @@ def shuttleworth_wallace(T_A_K,
                                                 "leaf_width":
                                                     leaf_width[i],
                                                 "massman_profile": massman_profile,
+                                                "z0_soil": z0_soil[i],
                                                 "res_params":
                                                     {k:res_params[k][i] for k in
                                                                res_params.keys()}
