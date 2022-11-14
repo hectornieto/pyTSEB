@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Tue Sep 13 15:50:52 2016
-
-@author: Hector Nieto (hnieto@ias.csic.es)
+@author: Hector Nieto (hector.nieto@ica.csic.es)
 
 DESCRIPTION
 ===========

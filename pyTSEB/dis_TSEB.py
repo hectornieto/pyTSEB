@@ -3,7 +3,7 @@
 """
 Created on Mon Mar 26 11:10:34 2018
 
-@author: hector
+@author: Hector Nieto (hector.nieto@ica.csic.es)
 """
 import numpy as np
 from osgeo import gdal

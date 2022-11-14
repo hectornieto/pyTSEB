@@ -16,10 +16,7 @@
 
 """
 Created on Thu Jan  7 16:37:45 2016
-@author: Hector Nieto (hnieto@ias.csic.es)
-
-Modified on Jan  27 2016
-@author: Hector Nieto (hnieto@ias.csic.es)
+@author: Hector Nieto (hector.nieto@ica.csic.es)
 
 DESCRIPTION
 ===========

@@ -2,7 +2,7 @@
 """
 Created on Thu Nov  9 11:58:34 2017
 
-@author: hnieto
+@author: Hector Nieto (hector.nieto@ica.csic.es)
 """
 from collections import deque
 import time
@@ -39,7 +39,7 @@ def penman_monteith(T_A_K,
                     d_0,
                     z_u,
                     z_T,
-                    calcG_params=[[1], 0.35],
+                    calcG_params=None,
                     const_L=None,
                     Rst_min=400,
                     leaf_type=TSEB.res.AMPHISTOMATOUS,
@@ -123,6 +123,9 @@ def penman_monteith(T_A_K,
     '''
 
     # Convert float scalars into numpy arrays and check parameters size
+    if calcG_params is None:
+        calcG_params = [[1], 0.35]
+
     T_A_K = np.asarray(T_A_K)
     [u,
      ea,
@@ -259,18 +262,11 @@ def penman_monteith(T_A_K,
             # We check convergence against the value of L from previous iteration but as well
             # against values from 2 or 3 iterations back. This is to catch situations (not
             # infrequent) where L oscillates between 2 or 3 steady state values.
-            L_new = L.copy()
-            L_new[L_new == 0] = 1e-36
-            L_queue.appendleft(L_new)
-            L_converged[i] = TSEB._L_diff(L_queue[0][i], L_queue[1][i]) < TSEB.L_thres
-            L_diff_max = np.max(TSEB._L_diff(L_queue[0][i], L_queue[1][i]))
-            if len(L_queue) >= 4:
-                L_converged[i] = np.logical_and(TSEB._L_diff(L_queue[0][i], L_queue[2][i]) < TSEB.L_thres,
-                                                TSEB._L_diff(L_queue[1][i], L_queue[3][i]) < TSEB.L_thres)
-            if len(L_queue) == 6:
-                L_converged[i] = np.logical_and.reduce((TSEB._L_diff(L_queue[0][i], L_queue[3][i]) < TSEB.L_thres,
-                                                        TSEB._L_diff(L_queue[1][i], L_queue[4][i]) < TSEB.L_thres,
-                                                        TSEB._L_diff(L_queue[2][i], L_queue[5][i]) < TSEB.L_thres))
+            i, L_queue, L_converged, L_diff_max = TSEB.monin_obukhov_convergence(L,
+                                                                            L_queue,
+                                                                            L_converged,
+                                                                            flag)
+
 
     flag, T_0_K, Ln, LE, H, G, R_A, u_friction, L, n_iterations = map(
         np.asarray, (flag, T_0_K, Ln, LE, H, G, R_A, u_friction, L, n_iterations))
@@ -301,10 +297,10 @@ def shuttleworth_wallace(T_A_K,
                          w_C=1,
                          Rst_min=100,
                          R_ss=500,
-                         resistance_form=[0, {}],
-                         calcG_params=[[1], 0.35],
+                         resistance_form=None,
+                         calcG_params=None,
                          const_L=None,
-                         massman_profile=[0, []],
+                         massman_profile=None,
                          leaf_type=TSEB.res.AMPHISTOMATOUS,
                          kB=0,
                          verbose=True):
@@ -432,6 +428,13 @@ def shuttleworth_wallace(T_A_K,
     '''
 
     # Convert float scalars into numpy arrays and check parameters size
+    if massman_profile is None:
+        massman_profile = [0, []]
+    if calcG_params is None:
+        calcG_params = [[1], 0.35]
+    if resistance_form is None:
+        resistance_form = [0, {}]
+
     T_A_K = np.asarray(T_A_K)
     [u,
      ea,
@@ -566,7 +569,6 @@ def shuttleworth_wallace(T_A_K,
         iterations[i] = n_iterations
         flag[i] = 0
 
-        i_outer = i.copy()
         T_C_old = np.zeros(T_C.shape)
         T_S_old = np.zeros(T_S.shape)
         for nn_interations in range(max_iterations):
@@ -630,7 +632,6 @@ def shuttleworth_wallace(T_A_K,
             Ln[i] = emiss[i] * (L_dn[i] - TSEB.met.calc_stephan_boltzmann(T_0[i]))
             Ln_C[i] = (1. - taudl[i]) * Ln[i]
             Ln_S[i] = taudl[i] * Ln[i]
-
             Rn_C[i] = Sn_C[i] + Ln_C[i]
             Rn_S[i] = Sn_S[i] + Ln_S[i]
             Rn[i] = Rn_C[i] + Rn_S[i]
@@ -686,19 +687,15 @@ def shuttleworth_wallace(T_A_K,
             flag[no_valid_T] = F_LOW_TS
             T_S[no_valid_T] = T_A_K[no_valid_T] - LOWEST_TS_DIFF
 
-            if np.nanmax(np.abs(T_C - T_C_old)) < T_DIFF_THRES \
-                    and np.nanmax(np.abs(T_S - T_S_old)) < T_DIFF_THRES:
+            if np.all(np.abs(T_C - T_C_old) < T_DIFF_THRES) \
+                    and np.all(np.abs(T_S - T_S_old) < T_DIFF_THRES):
                 break
             else:
-                i = (((np.abs(T_C - T_C_old) >= T_DIFF_THRES) |
-                      (np.abs(T_S - T_S_old) >= T_DIFF_THRES)) &
-                     i_outer)
                 T_C_old = T_C.copy()
                 T_S_old = T_S.copy()
 
         # Now L can be recalculated and the difference between iterations
         # derived
-        i = i_outer
         if const_L is None:
             L[i] = TSEB.MO.calc_mo_length(u_friction[i],
                                           T_A_K[i],
@@ -717,21 +714,11 @@ def shuttleworth_wallace(T_A_K,
             # We check convergence against the value of L from previous iteration but as well
             # against values from 2 or 3 iterations back. This is to catch situations (not
             # infrequent) where L oscillates between 2 or 3 steady state values.
-            L_new = L.copy()
-            L_new[L_new == 0] = 1e-6
-            L_queue.appendleft(L_new)
-            L_converged[i] = TSEB._L_diff(L_queue[0][i],
-                                          L_queue[1][i]) < TSEB.L_thres
-            L_diff_max = np.max(TSEB._L_diff(L_queue[0][i], L_queue[1][i]))
-            if len(L_queue) >= 4:
-                L_converged[i] = np.logical_and(
-                    TSEB._L_diff(L_queue[0][i], L_queue[2][i]) < TSEB.L_thres,
-                    TSEB._L_diff(L_queue[1][i], L_queue[3][i]) < TSEB.L_thres)
-            if len(L_queue) == 6:
-                L_converged[i] = np.logical_and.reduce(
-                    (TSEB._L_diff(L_queue[0][i], L_queue[3][i]) < TSEB.L_thres,
-                     TSEB._L_diff(L_queue[1][i], L_queue[4][i]) < TSEB.L_thres,
-                     TSEB._L_diff(L_queue[2][i], L_queue[5][i]) < TSEB.L_thres))
+            i, L_queue, L_converged, L_diff_max = TSEB.monin_obukhov_convergence(
+                L,
+                L_queue,
+                L_converged,
+                flag)
 
     (flag,
      T_S,
@@ -1195,143 +1182,6 @@ def bulk_stomatal_resistance(LAI, Rst, leaf_type=TSEB.res.AMPHISTOMATOUS):
 
     R_c = Rst / (leaf_type * LAI)
     return np.asarray(R_c)
-
-
-def rst_vpd_factor_Noilhan(vpd, g_vpd=0.025):
-    ''' Estimate stomatal stress due to vapour pressure deficit based on [Noilhan]_
-
-    Parameteers
-    -----------
-    vpd : float
-        Vapour Pressure Devidit (mb)
-    g_vdp : float
-        Empirical scale coefficient, use 0.025 mb-1 by default.
-
-    Returns
-    -------
-    f : float
-        Reduction factor in stomatal conductance [0-1]
-
-    References
-    ----------
-    .. [Noilhan1989] J. Noilhan, S. Planton, A simple parameterization of
-        land surface processes for meteorological models,
-        Monthly Weather Review , Volume 117, 1989,
-        Pages 536-549,
-        https://doi.org/10.1175/1520-0493(1989)117<0536:ASPOLS>2.0.CO;2.
-    '''
-
-    f = 1. - g_vpd * vpd
-    f = np.clip(f, 0, 1)  # Ensure that the reduction factor lies between 0 and 1
-    return f
-
-
-def rst_sdn_factor_Noilhan(Sdn, lai, fvis=0.55, r_st_min=40, r_st_max=5000,
-                           Sdn_min=100):
-    ''' Estimate stomatal stress due to vapour pressure deficit based on [Noilhan]_
-
-    Parameteers
-    -----------
-    Sdn : float
-        Solar Irradiance (W m-2)
-    lai : float
-        Leaf Area Index
-    fvis : float
-        Fraction of PAR radiation to solar irradiance
-    r_st_min : float
-        Minimum stomatal resistance (s m-1)
-    r_st_max : float
-        Maximum stomatal resistance (s m-1)
-    Sdn_min : float
-        Miminumn solar irradiance
-
-    Returns
-    -------
-    f : float
-        Reduction factor in stomatal conductance [0-1]
-
-    References
-    ----------
-    .. [Noilhan1989] J. Noilhan, S. Planton, A simple parameterization of
-        land surface processes for meteorological models,
-        Monthly Weather Review , Volume 117, 1989,
-        Pages 536-549,
-        https://doi.org/10.1175/1520-0493(1989)117<0536:ASPOLS>2.0.CO;2.
-    '''
-
-    f = fvis * (Sdn / Sdn_min) * (2. / lai)
-    f = (f + r_st_min / r_st_max) / (1. + f)
-    f = np.clip(f, 0, 1)  # Ensure that the reduction factor lies between 0 and 1
-
-    return f
-
-
-def rst_apar_factor(apar, r_st_min=40, r_st_max=5000, apar_min=100):
-    ''' Estimate stomatal stress due to vapour pressure deficit based on [Noilhan]_
-
-    Parameteers
-    -----------
-    Sdn : float
-        Solar Irradiance (W m-2)
-    lai : float
-        Leaf Area Index
-    fvis : float
-        Fraction of PAR radiation to solar irradiance
-    r_st_min : float
-        Minimum stomatal resistance (s m-1)
-    r_st_max : float
-        Maximum stomatal resistance (s m-1)
-    Sdn_min : float
-        Miminumn solar irradiance
-
-    Returns
-    -------
-    f : float
-        Reduction factor in stomatal conductance [0-1]
-
-    References
-    ----------
-    .. [Noilhan1989] J. Noilhan, S. Planton, A simple parameterization of
-        land surface processes for meteorological models,
-        Monthly Weather Review , Volume 117, 1989,
-        Pages 536-549,
-        https://doi.org/10.1175/1520-0493(1989)117<0536:ASPOLS>2.0.CO;2.
-    '''
-
-    f = apar / apar_min
-    f = (f + r_st_min / r_st_max) / (1. + f)
-    f = np.clip(f, 0, 1)  # Ensure that the reduction factor lies between 0 and 1
-
-    return f
-
-
-def rst_temp_factor_Noilhan(T_A_K, T_ref_K=298):
-    ''' Estimate stomatal stress due to temperature based on [Noilhan]_
-
-    Parameteers
-    -----------
-    T_A_K : float
-        Air temperature (Kelvin).
-    T_ref_K : float
-        Reference optimal temperature (Kelvin)
-
-    Returns
-    -------
-    f : float
-        Reduction factor in stomatal conductance [0-1]
-
-    References
-    ----------
-    .. [Noilhan1989] J. Noilhan, S. Planton, A simple parameterization of
-        land surface processes for meteorological models,
-        Monthly Weather Review , Volume 117, 1989,
-        Pages 536-549,
-        https://doi.org/10.1175/1520-0493(1989)117<0536:ASPOLS>2.0.CO;2.
-    '''
-
-    f = 1. - 0.0016 * (T_ref_K - T_A_K) ** 2
-    f = np.clip(f, 0, 1)  # Ensure that the reduction factor lies between 0 and 1
-    return f
 
 
 def calc_T(H, T_A, R, rho_a, Cp):
