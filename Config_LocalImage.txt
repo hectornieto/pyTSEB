@@ -37,7 +37,7 @@ f_g=1
 # Output File
 #==============================================================================
 # full path to output directory, The output GeoTIFF files will be stored in that folder with a standard name : Output_<TSEB_MODEL>.tif and Output_<TSEB_MODEL>_ancillary.tif
-output_file=./Output/test_image.tif
+output_file=./Output/test_image.vrt
 
 #==============================================================================
 # Site Description
@@ -61,6 +61,7 @@ u=2.15
 p=1011
 ea=13.4
 S_dn=861.74
+S_dn_24=304.97
 L_dn=
 
 #==============================================================================
@@ -122,3 +123,4 @@ G_constant=0
 G_amp=0.35
 G_phase=3
 G_shape=24
+water_stress=1
