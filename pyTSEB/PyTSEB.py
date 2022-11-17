@@ -163,7 +163,7 @@ class PyTSEB(object):
         # Process all input fields
         for field in list(input_fields):
             # Some fields might need special treatment
-            if field in ["lat", "lon", "stdlon", "DOY", "time"]:
+            if field in ["stdlon", "DOY", "time"]:
                 success, temp_data[field] = self._set_param_array(field, dims)
             elif field == "input_mask":
                 if self.p['input_mask'] == '0':

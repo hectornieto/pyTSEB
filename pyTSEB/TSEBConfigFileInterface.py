@@ -128,7 +128,9 @@ class TSEBConfigFileInterface():
         'p',
         'flux_LR',
         'flux_LR_ancillary',
-        'S_dn_24'
+        'S_dn_24',
+        'SZA',
+        'SAA',
     ]
 
     POINT_VARS = [
