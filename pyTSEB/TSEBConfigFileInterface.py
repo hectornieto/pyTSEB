@@ -214,7 +214,7 @@ class TSEBConfigFileInterface():
             img_vars.remove('subset')
 
         for p in img_vars:
-            if p == 'S_dn_24':
+            if p in ['S_dn_24', "SZA", "SAA"]:
                 conf.update({p: parser.myget(p, fallback='')})
             else:
                 conf.update({p: parser.myget(p)})
