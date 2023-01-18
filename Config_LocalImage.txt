@@ -8,7 +8,7 @@ model=TSEB_PT
 
 # Input land surface temperature in Kelvin # mandatory file
 # If running DTD both T_R0 (sunrise) and T_R1 inputs are required
-# If running TSEB_2A the input T_R1 should contain at least 2 bands: [band 1: Canopy temperature, band 2: soil temperature]
+# If running TSEB_2T the input T_R1 should contain at least 2 bands: [band 1: Canopy temperature, band 2: soil temperature]
 T_R1=./Input/ExampleImage_Trad_pm.tif
 T_R0=./Input/ExampleImage_Trad_am.tif
 
