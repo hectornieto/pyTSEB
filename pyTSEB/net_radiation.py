@@ -532,6 +532,9 @@ def calc_spectra_Cambpell(lai, sza, rho_leaf, tau_leaf, rho_soil, x_lad=1, lai_e
     albb = (rbcpy + fact) / (1.0 + rbcpy * fact)  # Eq 15.9
     del rbcpy, fact
 
+    taubt, taudt, albb, albd, rho_soil = map(np.array,
+                                             [taubt, taudt, albb, albd, rho_soil])
+
     taubt[np.isnan(taubt)] = 1
     taudt[np.isnan(taudt)] = 1
     albb[np.isnan(albb)] = rho_soil[np.isnan(albb)]
