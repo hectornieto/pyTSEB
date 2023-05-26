@@ -135,7 +135,7 @@ def calc_roughness(LAI, h_C, w_C=1, landcover=CROP, f_c=None):
     h_C : float
         Canopy height (m)
     w_C : float, optional
-        Canopy height to width ratio.
+        Canopy width to height ratio.
     landcover : int, optional
         landcover type, use 11 for crops, 2 for grass, 5 for shrubs,
         4 for conifer forests and 3 for broadleaved forests.

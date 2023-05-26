@@ -215,6 +215,15 @@ def TSEB_2T(T_C,
     alpha_PT : float, optional
         Priestley Taylor coeffient for canopy potential transpiration,
         use 1.26 by default.
+    x_LAD : float, optional
+        Campbell 1990 leaf inclination distribution function chi parameter.
+    f_c : float, optional
+        Fractional cover.
+    f_g : float, optional
+        Fraction of vegetation that is green.
+    w_C : float, optional
+        Canopy width to height ratio.
+
     resistance_form : int, optional
         Flag to determine which Resistances R_x, R_S model to use.
 
@@ -427,7 +436,7 @@ def TSEB_2T(T_C,
             (i,
              H_C < calc_H_C_PT(
                  Rn_C,
-                 1.0,
+                 f_g,
                  T_A_K,
                  p,
                  c_p,
@@ -2651,7 +2660,7 @@ def calc_F_theta_campbell(theta, F, w_C=1, Omega0=1, x_LAD=1):
     F : float
         Real Leaf (Plant) Area Index.
     w_C : float
-        Ratio of vegetation height versus width, optional (default = 1).
+        Canopy width to height ratio, optional (default = 1).
     Omega0 : float
         Clumping index at nadir, optional (default =1).
     x_LAD : float
@@ -2673,7 +2682,8 @@ def calc_F_theta_campbell(theta, F, w_C=1, Omega0=1, x_LAD=1):
         surface temperature, Agricultural and Forest Meteorology, Volume 77, Issues 3-4,
         Pages 263-293, http://dx.doi.org/10.1016/0168-1923(95)02265-Y.
     '''
-
+    # Convert from canopy width/height to height/width as required by Kustas' Omega function
+    w_C = 1. / w_C
     # First calcualte the angular clumping factor Omega based on eq (3) from
     # W.P. Kustas, J.M. Norman,  Agricultural and Forest Meteorology 94 (1999)
     # CHECK: should theta here be in degrees or radians
