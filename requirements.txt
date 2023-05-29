@@ -1,6 +1,6 @@
 numpy >= 1.10
 bokeh
-https://github.com/hectornieto/pyPro4Sail/archive/refs/tags/v2.0.tar.gz
+git+https://github.com/hectornieto/pypro4sail@master
 pandas
 netCDF4
 scipy
