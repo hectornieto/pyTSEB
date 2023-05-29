@@ -380,21 +380,30 @@ def TSEB_2T(T_C,
     u_friction = np.asarray(np.maximum(U_FRICTION_MIN, u_friction))
     l_queue = deque([np.array(L)], 6)
     l_converged = np.asarray(np.zeros(T_S.shape)).astype(bool)
-    L_diff = np.asarray(np.ones(T_C.shape) * np.inf)
+    l_diff_max = np.inf
 
     # Outer loop for estimating stability.
     # Stops when difference in consecutives L is below a given threshold
+    start_time = time.time()
+    loop_time = time.time()
     for n_iterations in range(max_iterations):
-
-        if np.all(L_diff < L_thres):
+        if np.all(l_converged[i]):
             if verbose:
-                print(f"Finished iteration with a max. L diff: {np.max(L_diff)}")
+                if l_converged[i].size == 0:
+                    print("Finished iterations with no valid solution")
+                else:
+                    print(f"Finished interations with a max. L diff: {l_diff_max}")
             break
-
+        current_time = time.time()
+        loop_duration = current_time - loop_time
+        loop_time = current_time
+        total_duration = loop_time - start_time
         if verbose:
-            print(f"Iteration {n_iterations}, max. L diff: {np.max(L_diff)}")
+            print("Iteration: %d, non-converged pixels: %d, max L diff: %f, total time: %f, loop time: %f" %
+                  (n_iterations, np.sum(~l_converged[i]), l_diff_max, total_duration, loop_duration))
+        iterations[np.logical_and(~l_converged, flag != F_INVALID)] = n_iterations
 
-        i = np.logical_and(L_diff >= L_thres, flag != F_INVALID)
+        i = np.logical_and(~l_converged, flag != F_INVALID)
         iterations[i] = n_iterations
         flag[i] = F_ALL_FLUXES
 
