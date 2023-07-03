@@ -123,4 +123,8 @@ G_constant=0
 G_amp=0.35
 G_phase=3
 G_shape=24
+# Whether to compute crop water strex indices
 water_stress=1
+# If landscape is composed of row crops set this flag to one and set the row azimuth
+calc_row=1
+row_az=90

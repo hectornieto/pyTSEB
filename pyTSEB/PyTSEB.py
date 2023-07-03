@@ -600,6 +600,15 @@ class PyTSEB(object):
         if self.p['calc_row'][0] == 0:  # randomly placed canopies
             Omega[i] = CI.calc_omega_Kustas(
                 omega0[i], in_data['SZA'][i], w_C=in_data['w_C'][i])
+        elif self.p['calc_row'][0] == 1:  # row crop canopies
+                Omega[i] = CI.calc_omega_rows(in_data['LAI'][i],
+                                              in_data['f_c'][i],
+                                              theta=in_data['SZA'][i],
+                                              psi=self.p['calc_row'][1] - in_data['SAA'][i],
+                                              w_c=in_data['w_C'][i],
+                                              x_lad=in_data['x_LAD'][i],
+                                              is_lai_eff=True)
+
         else:
             Omega[i] = CI.calc_omega_Kustas(
                 omega0[i], in_data['SZA'][i], w_C=in_data['w_C'][i])
