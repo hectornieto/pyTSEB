@@ -18,13 +18,16 @@ N_ELEMENTS_CI = 1000
 CO2_MOLAR_WEIGHT = 44
 C_MOLAR_WEIGHT = 12.011
 
-DEFAULT_C_KC = (38.05, 79.430e3)
-DEFAULT_C_KO = (20.30, 36.380e3)
-DEFAULT_C_TES = (19.02, 37.830e3)
-DEFAULT_C_RD = (17.91, 44.790e3)
-DEFAULT_C_VCX = (33.99, 73.680e3)
-DEFAULT_C_JX = (18.88, 35.350e3)
-DEFAULT_C_TPU = (21.46, 53.100e3)
+DEFAULT_C_KC = (404.9, 79430.0)  # Bonan2011
+DEFAULT_C_KO = (278.4, 36380.0)  # Bonan2011
+DEFAULT_C_TES = (42.75, 37830.0)  # Bonan2011
+DEFAULT_C_VCX = (84.2, 65330.0, 149250.0, 485.0)  # Bonan2011
+DEFAULT_C_RD = (0.015 * DEFAULT_C_VCX[0], 46390.0, 150650.0, 490.0)  # Bonan2011
+DEFAULT_C_JX = (1.97 * DEFAULT_C_VCX[0], 43540.0, 152040.0, 495.0)  # Bonan2011
+DEFAULT_C_TPU = (21.46, 53.100e3, 150650.0, 490.0)  # Bonan2011
+A_GS = 11.0  # Wang1998
+D_0_GS = 10.0  # hPa-1, Leuning 1995
+G0P = 0.01  # mol H20 m-2 s-1
 REL_DIFF = 0.001
 N_ITERATIONS = 100
 CANOPY_LAYERS = 10
@@ -42,9 +45,9 @@ def gpp_leaf_no_gs(t_a_k,
                    c_rd=None,
                    c_vcx=None,
                    c_jx=None,
-                   g0p=0.01,
-                   a_1=14.,
-                   d_0=10.,
+                   g0p=G0P,
+                   a_1=A_GS,
+                   d_0=D_0_GS,
                    fw=1,
                    verbose=True):
     """Model of photosynthesis Dewar+Farquhar.
@@ -292,9 +295,9 @@ def gpp_canopy_no_gs(vpd,
                      f_soil=0,
                      kn=0.11,
                      kd_star=1e-6,
-                     g0p=0.01,
-                     a_1=14.,
-                     d_0=10.,
+                     g0p=G0P,
+                     a_1=A_GS,
+                     d_0=D_0_GS,
                      fw=1,
                      leaf_type=1,
                      verbose=True):
@@ -1822,7 +1825,14 @@ def gs_ball_berry(assim, ca, h, g0p, a_1):
     return gs
 
 
-def gs_ball_berry_leuning(assim, ca, vpd, tes=0, a_1=14, d_0=3.5, g0p=0.01, fw=1):
+def gs_ball_berry_leuning(assim,
+                          ca,
+                          vpd,
+                          tes=0,
+                          g0p=G0P,
+                          a_1=A_GS,
+                          d_0=D_0_GS,
+                          fw=1):
     """
     Parameters
     ----------
