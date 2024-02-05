@@ -178,10 +178,10 @@ def penman_monteith(T_A_K,
     # iteration of the Monin-Obukhov length
     if const_L is None:
         # Initially assume stable atmospheric conditions and set variables for
-        L = np.zeros(T_A_K.shape) + np.inf
+        L = np.full(T_A_K.shape, np.inf)
         max_iterations = ITERATIONS
     else:  # We force Monin-Obukhov lenght to the provided array/value
-        L = np.ones(T_A_K.shape) * const_L
+        L = np.full(T_A_K.shape, const_L)
         max_iterations = 1  # No iteration
     u_friction = TSEB.MO.calc_u_star(u, z_u, L, d_0, z_0M)
     u_friction = np.asarray(np.maximum(TSEB.U_FRICTION_MIN, u_friction))
@@ -517,10 +517,10 @@ def shuttleworth_wallace(T_A_K,
     # iteration of the Monin-Obukhov length
     if const_L is None:
         # Initially assume stable atmospheric conditions and set variables for
-        L = np.zeros(T_A_K.shape) + np.inf
+        L = np.full(T_A_K.shape, np.inf)
         max_iterations = ITERATIONS
     else:  # We force Monin-Obukhov lenght to the provided array/value
-        L = np.ones(T_A_K.shape) * const_L
+        L = np.full(T_A_K.shape, const_L)
         max_iterations = 1  # No iteration
     u_friction = TSEB.MO.calc_u_star(u, z_u, L, d_0, z_0M)
     u_friction = np.asarray(np.maximum(TSEB.U_FRICTION_MIN, u_friction))
@@ -887,10 +887,10 @@ def penman(T_A_K,
     # iteration of the Monin-Obukhov length
     if const_L is None:
         # Initially assume stable atmospheric conditions and set variables for
-        L = np.zeros(T_A_K.shape) + np.inf
+        L = np.full(T_A_K.shape, np.inf)
         max_iterations = ITERATIONS
     else:  # We force Monin-Obukhov lenght to the provided array/value
-        L = np.ones(T_A_K.shape) * const_L
+        L = np.full(T_A_K.shape, const_L)
         max_iterations = 1  # No iteration
     u_friction = TSEB.MO.calc_u_star(u, z_u, L, d_0, z_0M)
     u_friction = np.asarray(np.maximum(TSEB.U_FRICTION_MIN, u_friction))
