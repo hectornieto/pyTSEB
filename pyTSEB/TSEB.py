@@ -1208,8 +1208,8 @@ def TSEB_SW(Tr_K,
                                                1.0 - emis_C,
                                                np.zeros(emis_S.shape),
                                                1.0 - emis_S,
-                                               x_LAD=x_LAD,
-                                               LAI_eff=None)
+                                               x_lad=x_LAD,
+                                               lai_eff=None)
 
     emiss = taudl * emis_S + (1 - taudl) * emis_C
 
@@ -1744,8 +1744,8 @@ def TSEB_PM(Tr_K,
                                                1.0 - emis_C,
                                                np.zeros(emis_S.shape),
                                                1.0 - emis_S,
-                                               x_LAD=x_LAD,
-                                               LAI_eff=None)
+                                               x_lad=x_LAD,
+                                               lai_eff=None)
     emiss = taudl * emis_S + (1 - taudl) * emis_C
 
     Ln = emiss * (L_dn - met.calc_stephan_boltzmann(T_AC))
