@@ -83,6 +83,7 @@ from . import MO_similarity as MO
 from . import net_radiation as rad
 from . import clumping_index as CI
 from . import wind_profile as wnd
+from . import energy_combination_ET as pet
 
 # ==============================================================================
 # List of constants used in TSEB model and sub-routines
