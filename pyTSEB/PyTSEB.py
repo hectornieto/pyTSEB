@@ -320,7 +320,7 @@ class PyTSEB(object):
 
         # Read input data from CSV file
         in_data = pd.read_csv(self.p['input_file'],
-                              delim_whitespace=True,
+                              sep="\s+",
                               index_col=False)
         in_data.index = compose_date(
             years=in_data['year'],
@@ -410,9 +410,8 @@ class PyTSEB(object):
         # Run the chosen model
 
         out_data = self.run(in_data.to_records(index=False))
-        out_data = pd.DataFrame(data=np.stack(out_data.values()).T,
-                                index=in_data.index,
-                                columns=out_data.keys())
+        out_data = pd.DataFrame(data=out_data,
+                                index=in_data.index)
 
         # ======================================
         # Save output file
