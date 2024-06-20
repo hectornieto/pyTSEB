@@ -16,7 +16,7 @@ The project consists of:
 
 Download the project to your local system, enter the download directory and then type
 
-`python setup.py install` 
+`pip install ./` 
 
 if you want to install pyTSEB and its low-level modules in your Python distribution. 
 
