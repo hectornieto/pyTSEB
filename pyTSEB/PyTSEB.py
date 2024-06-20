@@ -530,7 +530,7 @@ class PyTSEB(object):
         # Create the output dictionary
         out_data = dict()
         for field in self._get_output_structure():
-            out_data[field] = np.zeros(in_data['LAI'].shape, np.float32) + np.NaN
+            out_data[field] = np.zeros(in_data['LAI'].shape, np.float32) + np.nan
 
         # Esimate diffuse and direct irradiance
         difvis, difnir, fvis, fnir = rad.calc_difuse_ratio(

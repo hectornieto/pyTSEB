@@ -343,7 +343,7 @@ def TSEB_2T(T_C,
     # calcG_params[1] = None
     # Create the output variables
     [flag, Ln_S, Ln_C, LE_C, H_C, LE_S, H_S, G, R_S, R_x,
-        R_A, iterations] = [np.zeros(T_S.shape, np.float32)+np.NaN for i in range(12)]
+        R_A, iterations] = [np.zeros(T_S.shape, np.float32)+np.nan for i in range(12)]
     T_AC = T_A_K.copy()
 
     # iteration of the Monin-Obukhov length
@@ -714,7 +714,7 @@ def TSEB_PT(Tr_K,
     # calcG_params[1] = None
     # Create the output variables
     [Ln_S, Ln_C, H, LE, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A, delta_Rn,
-     Rn_S, iterations] = [np.zeros(Tr_K.shape, np.float32)+np.NaN for i in range(15)]
+     Rn_S, iterations] = [np.zeros(Tr_K.shape, np.float32)+np.nan for i in range(15)]
 
     # iteration of the Monin-Obukhov length
     if const_L is None:
@@ -1163,7 +1163,7 @@ def TSEB_SW(Tr_K,
     # calcG_params[1] = None
     # Create the output variables
     [ H, LE, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A,
-     Rss_out, Rst_out, iterations, R_c] = [np.zeros(Tr_K.shape)+np.NaN for i in range(14)]
+     Rss_out, Rst_out, iterations, R_c] = [np.zeros(Tr_K.shape)+np.nan for i in range(14)]
     # iteration of the Monin-Obukhov length
     if const_L is None:
         # Initially assume stable atmospheric conditions and set variables for
@@ -1697,7 +1697,7 @@ def TSEB_PM(Tr_K,
     # calcG_params[1] = None
     # Create the output variables
     [flag, H, LE, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A,
-     iterations, R_c] = [np.zeros(Tr_K.shape)+np.NaN for i in range(13)]
+     iterations, R_c] = [np.zeros(Tr_K.shape)+np.nan for i in range(13)]
 
     # iteration of the Monin-Obukhov length
     if const_L is None:
@@ -2201,7 +2201,7 @@ def DTD(Tr_K_0,
     resistance_form = resistance_form[0]
     # Create the output variables
     [flag, T_S, T_C, T_AC, Ln_S, Ln_C, LE_C, H_C, LE_S, H_S, G, R_S, R_x,
-        R_A, H, iterations] = [np.zeros(Tr_K_1.shape, np.float32) + np.NaN for i in range(16)]
+        R_A, H, iterations] = [np.zeros(Tr_K_1.shape, np.float32) + np.nan for i in range(16)]
 
     # Calculate the general parameters
     rho = met.calc_rho(p, ea, T_A_K_1)  # Air density
@@ -2554,7 +2554,7 @@ def OSEB(Tr_K,
                          calcG_params[1]],
                         [Tr_K] * 12)
     # Create the output variables
-    [flag, Ln, LE, H, G, R_A] = [np.zeros(Tr_K.shape, np.float32) + np.NaN for i in range(6)]
+    [flag, Ln, LE, H, G, R_A] = [np.zeros(Tr_K.shape, np.float32) + np.nan for i in range(6)]
 
     # iteration of the Monin-Obukhov length
     if const_L is None:
