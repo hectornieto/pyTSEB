@@ -39,6 +39,7 @@ PACKAGE CONTENTS
 * :func:`calc_mixing_ratio` Ration of mass of water vapour to mass of dry air.
 * :func:`calc_lapse_rate_moist` Moist-adiabatic lapse rate.
 * :func:`flux_2_evaporation` Evaporation rate.
+* :func:`bowen_ratio_closure` Corrects Energy Balance using presernvation of BR
 '''
 
 import numpy as np
@@ -440,3 +441,16 @@ def flux_2_evaporation(flux, t_k=20 + 273.15, time_domain=1):
     # Convert instantaneous rate to the time_domain rate
     et = et * 1e3 * time_domain * 3600.  # mm
     return et
+
+
+def bowen_ratio_closure(rn, g, h, le, br_range_exclude=[-1.3, -0.7]):
+    br = h / le
+    le_br = le.copy()
+    h_br = h.copy()
+    valid_br = np.logical_or(br <= br_range_exclude[0],
+                             br >= br_range_exclude[1])
+
+    le_br[valid_br] = (rn[valid_br] - g[valid_br]) / (1 + br[valid_br])
+    h_br[valid_br] = rn[valid_br] - g[valid_br] - le_br[valid_br]
+    return le_br, h_br
+
