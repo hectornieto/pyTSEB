@@ -3777,10 +3777,10 @@ def monin_obukhov_convergence(l_mo, l_queue, l_converged, flag):
     l_new[l_new == 0] = 1e-36
     l_queue.appendleft(l_new)
     i = np.logical_and(~l_converged, flag != F_INVALID)
-    l_converged[i] = _L_diff(l_queue[0][i], l_queue[1][i]) < L_thres
-    if np.sum(i) == 0:
-        return i, l_queue, np.ones_like(l_converged, dtype=bool), np.nan
-    l_diff_max = np.nanmax(_L_diff(l_queue[0][i], l_queue[1][i]))
+
+    if np.sum(i) <= 1:
+        return i, l_queue, l_converged, np.inf
+
     if len(l_queue) >= 4:
         i = np.logical_and(~l_converged, flag != F_INVALID)
         l_converged[i] = np.logical_and(

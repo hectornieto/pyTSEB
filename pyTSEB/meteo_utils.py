@@ -39,6 +39,7 @@ PACKAGE CONTENTS
 * :func:`calc_mixing_ratio` Ration of mass of water vapour to mass of dry air.
 * :func:`calc_lapse_rate_moist` Moist-adiabatic lapse rate.
 * :func:`flux_2_evaporation` Evaporation rate.
+* :func:`bowen_ratio_closure` Corrects Energy Balance using presernvation of BR
 '''
 
 import numpy as np
