@@ -3792,5 +3792,9 @@ def monin_obukhov_convergence(l_mo, l_queue, l_converged, flag):
             (_L_diff(l_queue[0][i], l_queue[3][i]) < L_thres,
              _L_diff(l_queue[1][i], l_queue[4][i]) < L_thres,
              _L_diff(l_queue[2][i], l_queue[5][i]) < L_thres))
-
+             
+    l_diff_max = np.nanmax(_L_diff(l_queue[0][i], l_queue[1][i]))
+    
     return i, l_queue, l_converged, l_diff_max
+    
+    
