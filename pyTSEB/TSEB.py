@@ -83,6 +83,7 @@ from . import MO_similarity as MO
 from . import net_radiation as rad
 from . import clumping_index as CI
 from . import wind_profile as wnd
+from . import energy_combination_ET as pet
 
 # ==============================================================================
 # List of constants used in TSEB model and sub-routines
@@ -1190,8 +1191,8 @@ def TSEB_SW(Tr_K,
                                                1.0 - emis_C,
                                                np.zeros(emis_S.shape),
                                                1.0 - emis_S,
-                                               x_LAD=x_LAD,
-                                               LAI_eff=None)
+                                               x_lad=x_LAD,
+                                               lai_eff=None)
 
     emiss = taudl * emis_S + (1 - taudl) * emis_C
 
@@ -3758,6 +3759,8 @@ def monin_obukhov_convergence(l_mo, l_queue, l_converged, flag):
     l_queue.appendleft(l_new)
     i = np.logical_and(~l_converged, flag != F_INVALID)
     l_converged[i] = _L_diff(l_queue[0][i], l_queue[1][i]) < L_thres
+    if np.sum(i) <= 1:
+        return i, l_queue, l_converged, np.inf
     l_diff_max = np.max(_L_diff(l_queue[0][i], l_queue[1][i]))
     if len(l_queue) >= 4:
         i = np.logical_and(~l_converged, flag != F_INVALID)
