@@ -216,6 +216,15 @@ def TSEB_2T(T_C,
     alpha_PT : float, optional
         Priestley Taylor coeffient for canopy potential transpiration,
         use 1.26 by default.
+    x_LAD : float, optional
+        Campbell 1990 leaf inclination distribution function chi parameter.
+    f_c : float, optional
+        Fractional cover.
+    f_g : float, optional
+        Fraction of vegetation that is green.
+    w_C : float, optional
+        Canopy width to height ratio.
+
     resistance_form : int, optional
         Flag to determine which Resistances R_x, R_S model to use.
 
@@ -334,7 +343,7 @@ def TSEB_2T(T_C,
     # calcG_params[1] = None
     # Create the output variables
     [flag, Ln_S, Ln_C, LE_C, H_C, LE_S, H_S, G, R_S, R_x,
-        R_A, iterations] = [np.zeros(T_S.shape, np.float32)+np.NaN for i in range(12)]
+        R_A, iterations] = [np.zeros(T_S.shape, np.float32)+np.nan for i in range(12)]
     T_AC = T_A_K.copy()
 
     # iteration of the Monin-Obukhov length
@@ -372,21 +381,30 @@ def TSEB_2T(T_C,
     u_friction = np.asarray(np.maximum(U_FRICTION_MIN, u_friction))
     l_queue = deque([np.array(L)], 6)
     l_converged = np.asarray(np.zeros(T_S.shape)).astype(bool)
-    L_diff = np.asarray(np.ones(T_C.shape) * np.inf)
+    l_diff_max = np.inf
 
     # Outer loop for estimating stability.
     # Stops when difference in consecutives L is below a given threshold
+    start_time = time.time()
+    loop_time = time.time()
     for n_iterations in range(max_iterations):
-
-        if np.all(L_diff < L_thres):
+        if np.all(l_converged[i]):
             if verbose:
-                print(f"Finished iteration with a max. L diff: {np.max(L_diff)}")
+                if l_converged[i].size == 0:
+                    print("Finished iterations with no valid solution")
+                else:
+                    print(f"Finished interations with a max. L diff: {l_diff_max}")
             break
-
+        current_time = time.time()
+        loop_duration = current_time - loop_time
+        loop_time = current_time
+        total_duration = loop_time - start_time
         if verbose:
-            print(f"Iteration {n_iterations}, max. L diff: {np.max(L_diff)}")
+            print("Iteration: %d, non-converged pixels: %d, max L diff: %f, total time: %f, loop time: %f" %
+                  (n_iterations, np.sum(~l_converged[i]), l_diff_max, total_duration, loop_duration))
+        iterations[np.logical_and(~l_converged, flag != F_INVALID)] = n_iterations
 
-        i = np.logical_and(L_diff >= L_thres, flag != F_INVALID)
+        i = np.logical_and(~l_converged, flag != F_INVALID)
         iterations[i] = n_iterations
         flag[i] = F_ALL_FLUXES
 
@@ -428,7 +446,7 @@ def TSEB_2T(T_C,
             (i,
              H_C < calc_H_C_PT(
                  Rn_C,
-                 1.0,
+                 f_g,
                  T_A_K,
                  p,
                  c_p,
@@ -696,7 +714,7 @@ def TSEB_PT(Tr_K,
     # calcG_params[1] = None
     # Create the output variables
     [Ln_S, Ln_C, H, LE, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A, delta_Rn,
-     Rn_S, iterations] = [np.zeros(Tr_K.shape, np.float32)+np.NaN for i in range(15)]
+     Rn_S, iterations] = [np.zeros(Tr_K.shape, np.float32)+np.nan for i in range(15)]
 
     # iteration of the Monin-Obukhov length
     if const_L is None:
@@ -1145,7 +1163,7 @@ def TSEB_SW(Tr_K,
     # calcG_params[1] = None
     # Create the output variables
     [ H, LE, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A,
-     Rss_out, Rst_out, iterations, R_c] = [np.zeros(Tr_K.shape)+np.NaN for i in range(14)]
+     Rss_out, Rst_out, iterations, R_c] = [np.zeros(Tr_K.shape)+np.nan for i in range(14)]
     # iteration of the Monin-Obukhov length
     if const_L is None:
         # Initially assume stable atmospheric conditions and set variables for
@@ -1679,7 +1697,7 @@ def TSEB_PM(Tr_K,
     # calcG_params[1] = None
     # Create the output variables
     [flag, H, LE, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A,
-     iterations, R_c] = [np.zeros(Tr_K.shape)+np.NaN for i in range(13)]
+     iterations, R_c] = [np.zeros(Tr_K.shape)+np.nan for i in range(13)]
 
     # iteration of the Monin-Obukhov length
     if const_L is None:
@@ -1727,8 +1745,8 @@ def TSEB_PM(Tr_K,
                                                1.0 - emis_C,
                                                np.zeros(emis_S.shape),
                                                1.0 - emis_S,
-                                               x_LAD=x_LAD,
-                                               LAI_eff=None)
+                                               x_lad=x_LAD,
+                                               lai_eff=None)
     emiss = taudl * emis_S + (1 - taudl) * emis_C
 
     Ln = emiss * (L_dn - met.calc_stephan_boltzmann(T_AC))
@@ -2183,7 +2201,7 @@ def DTD(Tr_K_0,
     resistance_form = resistance_form[0]
     # Create the output variables
     [flag, T_S, T_C, T_AC, Ln_S, Ln_C, LE_C, H_C, LE_S, H_S, G, R_S, R_x,
-        R_A, H, iterations] = [np.zeros(Tr_K_1.shape, np.float32) + np.NaN for i in range(16)]
+        R_A, H, iterations] = [np.zeros(Tr_K_1.shape, np.float32) + np.nan for i in range(16)]
 
     # Calculate the general parameters
     rho = met.calc_rho(p, ea, T_A_K_1)  # Air density
@@ -2536,7 +2554,7 @@ def OSEB(Tr_K,
                          calcG_params[1]],
                         [Tr_K] * 12)
     # Create the output variables
-    [flag, Ln, LE, H, G, R_A] = [np.zeros(Tr_K.shape, np.float32) + np.NaN for i in range(6)]
+    [flag, Ln, LE, H, G, R_A] = [np.zeros(Tr_K.shape, np.float32) + np.nan for i in range(6)]
 
     # iteration of the Monin-Obukhov length
     if const_L is None:
@@ -2652,7 +2670,7 @@ def calc_F_theta_campbell(theta, F, w_C=1, Omega0=1, x_LAD=1):
     F : float
         Real Leaf (Plant) Area Index.
     w_C : float
-        Ratio of vegetation height versus width, optional (default = 1).
+        Canopy width to height ratio, optional (default = 1).
     Omega0 : float
         Clumping index at nadir, optional (default =1).
     x_LAD : float
@@ -2674,7 +2692,8 @@ def calc_F_theta_campbell(theta, F, w_C=1, Omega0=1, x_LAD=1):
         surface temperature, Agricultural and Forest Meteorology, Volume 77, Issues 3-4,
         Pages 263-293, http://dx.doi.org/10.1016/0168-1923(95)02265-Y.
     '''
-
+    # Convert from canopy width/height to height/width as required by Kustas' Omega function
+    w_C = 1. / w_C
     # First calcualte the angular clumping factor Omega based on eq (3) from
     # W.P. Kustas, J.M. Norman,  Agricultural and Forest Meteorology 94 (1999)
     # CHECK: should theta here be in degrees or radians
@@ -3758,10 +3777,10 @@ def monin_obukhov_convergence(l_mo, l_queue, l_converged, flag):
     l_new[l_new == 0] = 1e-36
     l_queue.appendleft(l_new)
     i = np.logical_and(~l_converged, flag != F_INVALID)
-    l_converged[i] = _L_diff(l_queue[0][i], l_queue[1][i]) < L_thres
+
     if np.sum(i) <= 1:
         return i, l_queue, l_converged, np.inf
-    l_diff_max = np.max(_L_diff(l_queue[0][i], l_queue[1][i]))
+
     if len(l_queue) >= 4:
         i = np.logical_and(~l_converged, flag != F_INVALID)
         l_converged[i] = np.logical_and(

@@ -48,7 +48,6 @@ REQS = ['numpy>=1.10', 'gdal', 'bokeh', 'pandas', 'netCDF4',
 setup(
     name                  = "pyTSEB",
     packages              = ['pyTSEB'],
-    install_requires      = REQS,
     version               = "2.1",
     author                = "Hector Nieto",
     author_email          = "hector.nieto.solana@gmail.com",

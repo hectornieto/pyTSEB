@@ -135,7 +135,7 @@ def calc_roughness(LAI, h_C, w_C=1, landcover=CROP, f_c=None):
     h_C : float
         Canopy height (m)
     w_C : float, optional
-        Canopy height to width ratio.
+        Canopy width to height ratio.
     landcover : int, optional
         landcover type, use 11 for crops, 2 for grass, 5 for shrubs,
         4 for conifer forests and 3 for broadleaved forests.
@@ -399,19 +399,18 @@ def calc_R_S_Haghighi(u, h_c, zm, rho, c_p, z0_soil=0.01, f_cover=0, w_C=1,
     """
     def calc_prod_alpha(alpha, n):
         out = 1.0
-        for i in range(n):
+        for i in range(n + 1):
             out = out * (2 * (alpha - i) + 1)
         return out
 
     def calc_prod_alpha_array(alpha_array):
         out_array = np.ones(alpha_array.shape)
-        n_array = np.ceil(alpha_array).astype(np.int)
+        n_array = np.floor(alpha_array).astype(int)
         ns = np.unique(n_array)
         for n in ns:
             index = n_array == n
             out_array[index] = calc_prod_alpha(alpha_array[index], n)
         return out_array
-
 
 
     # Define constanst

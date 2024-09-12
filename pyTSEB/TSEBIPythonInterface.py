@@ -879,67 +879,76 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
             title='Select Input Configuration File')
         if not input_file:
             return
-        config_data = self.parse_input_config(input_file, is_image=self.is_image)
+        config_data = self.parse_input_config(input_file)
+        self.get_data(config_data, is_image=self.is_image)
+
         # Update the widget fields
-        self.w_model.value = config_data['model']
-        self.w_lat.value = config_data['lat']
-        self.w_lon.value = config_data['lon']
-        self.w_alt.value = config_data['alt']
-        self.w_stdlon.value = config_data['stdlon']
-        self.w_z_u.value = config_data['z_u']
-        self.w_z_T.value = config_data['z_T']
-        self.w_emis_C.value = config_data['emis_C']
-        self.w_emis_S.value = config_data['emis_S']
-        self.w_rho_vis_C.value = config_data['rho_vis_C']
-        self.w_tau_vis_C.value = config_data['tau_vis_C']
-        self.w_rho_nir_C.value = config_data['rho_nir_C']
-        self.w_tau_nir_C.value = config_data['tau_nir_C']
-        self.w_rho_vis_S.value = config_data['rho_vis_S']
-        self.w_rho_nir_S.value = config_data['rho_nir_S']
-        self.w_PT.value = config_data['alpha_PT']
-        self.w_LAD.value = config_data['x_LAD']
-        self.w_leafwidth.value = config_data['leaf_width']
-        self.w_zsoil.value = config_data['z0_soil']
-        if config_data['landcover'].isdigit():
-            config_data['landcover'] = int(config_data['landcover'])
-        if config_data['landcover'] not in self.w_lc.options.values():
-                options = self.w_lc.options.copy()
-                options.update({config_data['landcover']: config_data['landcover']})
-                self.w_lc.options = options
-        self.w_lc.value = config_data['landcover']
-        self.w_G_form.value = int(config_data['G_form'])
-        self.w_Gconstant.value = config_data['G_constant']
-        self.w_Gratio.value = config_data['G_ratio']
-        self.w_G_amp.value = config_data['G_amp']
-        self.w_G_phase.value = config_data['G_phase']
-        self.w_G_shape.value = config_data['G_shape']
-        self.w_outputtxt.value = config_data['output_file']
-        self.w_res.value = int(config_data['resistance_form'])
-        self.w_KN_b.value = config_data['KN_b']
-        self.w_KN_c.value = config_data['KN_c']
-        self.w_KN_C_dash.value = config_data['KN_C_dash']
+        self.w_model.value = self.params['model']
+        self.w_lat.value = self.params['lat']
+        self.w_lon.value = self.params['lon']
+        self.w_alt.value = self.params['alt']
+        self.w_stdlon.value = self.params['stdlon']
+        self.w_z_u.value = self.params['z_u']
+        self.w_z_T.value = self.params['z_T']
+        self.w_emis_C.value = self.params['emis_C']
+        self.w_emis_S.value = self.params['emis_S']
+        self.w_rho_vis_C.value = self.params['rho_vis_C']
+        self.w_tau_vis_C.value = self.params['tau_vis_C']
+        self.w_rho_nir_C.value = self.params['rho_nir_C']
+        self.w_tau_nir_C.value = self.params['tau_nir_C']
+        self.w_rho_vis_S.value = self.params['rho_vis_S']
+        self.w_rho_nir_S.value = self.params['rho_nir_S']
+        self.w_PT.value = self.params['alpha_PT']
+        self.w_LAD.value = self.params['x_LAD']
+        self.w_leafwidth.value = self.params['leaf_width']
+        self.w_zsoil.value = self.params['z0_soil']
+        try:
+            self.params['landcover'] = int(self.params['landcover'])
+            if self.params['landcover'] not in self.w_lc.options.values():
+                    options = self.w_lc.options.copy()
+                    options.update({self.params['landcover']: self.params['landcover']})
+                    self.w_lc.options = options
+            self.w_lc.value = self.params['landcover']
+        except ValueError:
+            pass
+        g_form = self.params['G_form'][0][0]
+        self.w_G_form.value = self.params['G_form'][0][0]
+        if g_form == 0:
+            self.w_Gconstant.value = self.params['G_form'][1]
+        if g_form == 1:
+            self.w_Gratio.value = self.params['G_form'][1]
+        if g_form == 2:
+            self.w_G_amp.value = self.params['G_form'][0][1]
+            self.w_G_phase.value = self.params['G_form'][0][2]
+            self.w_G_shape.value = self.params['G_form'][0][3]
+        self.w_outputtxt.value = self.params['output_file']
+        self.w_res.value = int(self.params['resistance_form'])
+        self.w_KN_b.value = self.params['KN_b']
+        self.w_KN_c.value = self.params['KN_c']
+        self.w_KN_C_dash.value = self.params['KN_C_dash']
 
         if self.is_image:
-            self.w_T_R1.value = str(config_data['T_R1']).strip('"')
-            self.w_T_R0.value = str(config_data['T_R0']).strip('"')
-            self.w_VZAtxt.value = str(config_data['VZA']).strip('"')
-            self.w_LAItxt.value = str(config_data['LAI']).strip('"')
-            self.w_Hctxt.value = str(config_data['h_C']).strip('"')
-            self.w_f_ctxt.value = str(config_data['f_c']).strip('"')
-            self.w_f_gtxt.value = str(config_data['f_g']).strip('"')
-            self.w_w_Ctxt.value = str(config_data['w_C']).strip('"')
-            self.w_masktxt.value = str(config_data['input_mask']).strip('"')
-            self.w_DOY.value = config_data['DOY']
-            self.w_time.value = config_data['time']
-            self.w_T_A1.value = config_data['T_A1']
-            self.w_S_dn.value = config_data['S_dn']
-            self.w_u.value = config_data['u']
-            self.w_ea.value = config_data['ea']
-            self.w_L_dn.value = str(config_data['L_dn']).strip('"')
-            self.w_p.value = str(config_data['p']).strip('"')
-            self.w_T_A0.value = config_data['T_A0']
+            self.w_T_R1.value = str(self.params['T_R1']).strip('"')
+            self.w_VZAtxt.value = str(self.params['VZA']).strip('"')
+            self.w_LAItxt.value = str(self.params['LAI']).strip('"')
+            self.w_Hctxt.value = str(self.params['h_C']).strip('"')
+            self.w_f_ctxt.value = str(self.params['f_c']).strip('"')
+            self.w_f_gtxt.value = str(self.params['f_g']).strip('"')
+            self.w_w_Ctxt.value = str(self.params['w_C']).strip('"')
+            self.w_masktxt.value = str(self.params['input_mask']).strip('"')
+            self.w_DOY.value = self.params['DOY']
+            self.w_time.value = self.params['time']
+            self.w_T_A1.value = self.params['T_A1']
+            self.w_S_dn.value = self.params['S_dn']
+            self.w_u.value = self.params['u']
+            self.w_ea.value = self.params['ea']
+            self.w_L_dn.value = str(self.params['L_dn']).strip('"')
+            self.w_p.value = str(self.params['p']).strip('"')
+            if self.params['model'] == "DTD":
+                self.w_T_R0.value = str(self.params['T_R0']).strip('"')
+                self.w_T_A0.value = self.params['T_A0']
         else:
-            self.w_inputtxt.value = str(config_data['input_file']).strip('"')
+            self.w_inputtxt.value = str(self.params['input_file']).strip('"')
 
     def _on_saveconfig_clicked(self, b):
         '''Opens a configuration file and writes the parameters in the GUI into the file'''
@@ -1002,7 +1011,6 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
         fid.write('rho_vis_C=' + str(self.w_rho_vis_C.value) + '\n')
         fid.write('rho_nir_C=' + str(self.w_rho_nir_C.value) + '\n')
         fid.write('tau_vis_C=' + str(self.w_tau_vis_C.value) + '\n')
-        fid.write('tau_nir_C=' + str(self.w_tau_nir_C.value) + '\n')
         fid.write('tau_nir_C=' + str(self.w_tau_nir_C.value) + '\n')
         fid.write('rho_vis_S=' + str(self.w_rho_vis_S.value) + '\n')
         fid.write('rho_nir_S=' + str(self.w_rho_nir_S.value) + '\n')

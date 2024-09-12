@@ -158,7 +158,7 @@ def penman_monteith(T_A_K,
                       [T_A_K] * 14)
 
     # Create the output variables
-    [flag, Ln, LE, H, G, R_A, iterations] = [np.zeros(T_A_K.shape, np.float32) + np.NaN for i in
+    [flag, Ln, LE, H, G, R_A, iterations] = [np.zeros(T_A_K.shape, np.float32) + np.nan for i in
                                              range(7)]
 
     # Calculate the general parameters
@@ -178,10 +178,10 @@ def penman_monteith(T_A_K,
     # iteration of the Monin-Obukhov length
     if const_L is None:
         # Initially assume stable atmospheric conditions and set variables for
-        L = np.zeros(T_A_K.shape) + np.inf
+        L = np.full(T_A_K.shape, np.inf)
         max_iterations = ITERATIONS
     else:  # We force Monin-Obukhov lenght to the provided array/value
-        L = np.ones(T_A_K.shape) * const_L
+        L = np.full(T_A_K.shape, const_L)
         max_iterations = 1  # No iteration
     u_friction = TSEB.MO.calc_u_star(u, z_u, L, d_0, z_0M)
     u_friction = np.asarray(np.maximum(TSEB.U_FRICTION_MIN, u_friction))
@@ -491,7 +491,7 @@ def shuttleworth_wallace(T_A_K,
 
     # Create the output variables
     [flag, vpd_0, LE, H, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A,
-     Rn, Rn_C, Rn_S, C_s, C_c, PM_C, PM_S, iterations] = [np.full(T_A_K.shape, np.NaN, np.float32)
+     Rn, Rn_C, Rn_S, C_s, C_c, PM_C, PM_S, iterations] = [np.full(T_A_K.shape, np.nan, np.float32)
                                                           for i in range(20)]
 
     # Calculate the general parameters
@@ -517,10 +517,10 @@ def shuttleworth_wallace(T_A_K,
     # iteration of the Monin-Obukhov length
     if const_L is None:
         # Initially assume stable atmospheric conditions and set variables for
-        L = np.zeros(T_A_K.shape) + np.inf
+        L = np.full(T_A_K.shape, np.inf)
         max_iterations = ITERATIONS
     else:  # We force Monin-Obukhov lenght to the provided array/value
-        L = np.ones(T_A_K.shape) * const_L
+        L = np.full(T_A_K.shape, const_L)
         max_iterations = 1  # No iteration
     u_friction = TSEB.MO.calc_u_star(u, z_u, L, d_0, z_0M)
     u_friction = np.asarray(np.maximum(TSEB.U_FRICTION_MIN, u_friction))
@@ -869,7 +869,7 @@ def penman(T_A_K,
                       [T_A_K] * 11)
 
     # Create the output variables
-    [flag, Ln, LE, H, G, R_A, iterations] = [np.zeros(T_A_K.shape, np.float32) + np.NaN for i in
+    [flag, Ln, LE, H, G, R_A, iterations] = [np.zeros(T_A_K.shape, np.float32) + np.nan for i in
                                              range(7)]
 
     # Calculate the general parameters
@@ -887,10 +887,10 @@ def penman(T_A_K,
     # iteration of the Monin-Obukhov length
     if const_L is None:
         # Initially assume stable atmospheric conditions and set variables for
-        L = np.zeros(T_A_K.shape) + np.inf
+        L = np.full(T_A_K.shape, np.inf)
         max_iterations = ITERATIONS
     else:  # We force Monin-Obukhov lenght to the provided array/value
-        L = np.ones(T_A_K.shape) * const_L
+        L = np.full(T_A_K.shape, const_L)
         max_iterations = 1  # No iteration
     u_friction = TSEB.MO.calc_u_star(u, z_u, L, d_0, z_0M)
     u_friction = np.asarray(np.maximum(TSEB.U_FRICTION_MIN, u_friction))

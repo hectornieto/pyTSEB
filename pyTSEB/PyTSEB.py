@@ -320,7 +320,7 @@ class PyTSEB(object):
 
         # Read input data from CSV file
         in_data = pd.read_csv(self.p['input_file'],
-                              delim_whitespace=True,
+                              sep="\s+",
                               index_col=False)
         in_data.index = compose_date(
             years=in_data['year'],
@@ -410,9 +410,8 @@ class PyTSEB(object):
         # Run the chosen model
 
         out_data = self.run(in_data.to_records(index=False))
-        out_data = pd.DataFrame(data=np.stack(out_data.values()).T,
-                                index=in_data.index,
-                                columns=out_data.keys())
+        out_data = pd.DataFrame(data=out_data,
+                                index=in_data.index)
 
         # ======================================
         # Save output file
@@ -531,7 +530,7 @@ class PyTSEB(object):
         # Create the output dictionary
         out_data = dict()
         for field in self._get_output_structure():
-            out_data[field] = np.zeros(in_data['LAI'].shape, np.float32) + np.NaN
+            out_data[field] = np.zeros(in_data['LAI'].shape, np.float32) + np.nan
 
         # Esimate diffuse and direct irradiance
         difvis, difnir, fvis, fnir = rad.calc_difuse_ratio(
@@ -600,6 +599,15 @@ class PyTSEB(object):
         if self.p['calc_row'][0] == 0:  # randomly placed canopies
             Omega[i] = CI.calc_omega_Kustas(
                 omega0[i], in_data['SZA'][i], w_C=in_data['w_C'][i])
+        elif self.p['calc_row'][0] == 1:  # row crop canopies
+                Omega[i] = CI.calc_omega_rows(in_data['LAI'][i],
+                                              in_data['f_c'][i],
+                                              theta=in_data['SZA'][i],
+                                              psi=self.p['calc_row'][1] - in_data['SAA'][i],
+                                              w_c=in_data['w_C'][i],
+                                              x_lad=in_data['x_LAD'][i],
+                                              is_lai_eff=True)
+
         else:
             Omega[i] = CI.calc_omega_Kustas(
                 omega0[i], in_data['SZA'][i], w_C=in_data['w_C'][i])
