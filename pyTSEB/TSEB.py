@@ -3777,22 +3777,28 @@ def monin_obukhov_convergence(l_mo, l_queue, l_converged, flag):
     l_new[l_new == 0] = 1e-36
     l_queue.appendleft(l_new)
     i = np.logical_and(~l_converged, flag != F_INVALID)
-
-    if np.sum(i) <= 1:
+    if np.sum(i) <= 1 or np.size(i) == 0:
         return i, l_queue, l_converged, np.inf
+
 
     if len(l_queue) >= 4:
         i = np.logical_and(~l_converged, flag != F_INVALID)
-        l_converged[i] = np.logical_and(
-            _L_diff(l_queue[0][i], l_queue[2][i]) < L_thres,
-            _L_diff(l_queue[1][i], l_queue[3][i]) < L_thres)
+        if np.any(i):
+            l_converged[i] = np.logical_and(
+                _L_diff(l_queue[0][i], l_queue[2][i]) < L_thres,
+                _L_diff(l_queue[1][i], l_queue[3][i]) < L_thres)
+
     if len(l_queue) == 6:
         i = np.logical_and(~l_converged, flag != F_INVALID)
-        l_converged[i] = np.logical_and.reduce(
-            (_L_diff(l_queue[0][i], l_queue[3][i]) < L_thres,
-             _L_diff(l_queue[1][i], l_queue[4][i]) < L_thres,
-             _L_diff(l_queue[2][i], l_queue[5][i]) < L_thres))
-             
+        if np.any(i):
+            l_converged[i] = np.logical_and.reduce(
+                (_L_diff(l_queue[0][i], l_queue[3][i]) < L_thres,
+                 _L_diff(l_queue[1][i], l_queue[4][i]) < L_thres,
+                 _L_diff(l_queue[2][i], l_queue[5][i]) < L_thres))
+
+    if np.sum(i) == 0 or np.size(i) == 0:
+        return i, l_queue, l_converged, np.inf
+
     l_diff_max = np.nanmax(_L_diff(l_queue[0][i], l_queue[1][i]))
     
     return i, l_queue, l_converged, l_diff_max
