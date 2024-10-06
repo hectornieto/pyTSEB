@@ -1,0 +1,33 @@
+---
+title: pyTSEB workflow
+---
+flowchart LR
+    weather[(Weather Forcing)]
+    lst[/LST/]
+    lai[/Total LAI/]
+    glai[/Green LAI/]
+    lidf[/Leaf angle/]
+    albedo[/albedo & transmittance/]
+    hc[/Canopy Height/]
+    wc[/Canopy Shape/]
+    fc[/Cover of clumped canopy/]
+    lw[/Effective Leaf Width/]
+
+    rtm[Radiative Transfer]
+    tseb[TSEB-PT]
+
+    roughness[/Aerodynamic roughness/]
+    sn[/Net Soil/Canopy SW Radiation/]
+    ln[/Net Soil/Canopy LW Radiation/]
+    g[/Soil Heat Flux/]
+    h[/Soil/Canopy Sensible Heat Flux/]
+    le[/Soil/Canopy Latent Heat Flux/]
+
+    lst & lai & glai & lw ----> tseb
+    tseb --> ln & g & h & le
+    weather & wc & fc & lai & albedo & lidf --> rtm
+    weather --> tseb
+    rtm --> sn
+    sn --> tseb
+    lai & hc & fc --> roughness
+    roughness --> tseb
