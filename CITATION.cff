@@ -12,7 +12,7 @@ authors:
   orcid: "https://orcid.org/0000-0001-5727-4350"
 
 title: "pyTSEB: A python Two Source Energy Balance model for estimation of evapotranspiration with remote sensing data"
-version: 2.0.4
+version: 2.2
 doi: 10.5281/zenodo.594732
 date-released: 2018-03-04
 url: "https://github.com/hectornieto/pyTSEB"
