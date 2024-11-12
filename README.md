@@ -6,11 +6,20 @@ This project contains *Python* code for *Two Source Energy Balance* models (Prie
 Dual Time Difference **DTD** and TSEB with component soil and canopy temperatures **TSEB-2T**) 
 for estimating sensible and latent heat flux (evapotranspiration) based on measurements of radiometric surface temperature. 
 
-The project consists of: 
+## :warning: Note to Users
+We hope that our effort would enhance our interactions with other groups and let us learn about the situations in which the model produces poor or unrealistic results and causes the user(s) to conclude the model is not robust. In these situations, we would be very grateful to receive any feedback from your findings and, if possible, share the data and inputs used when implementing the model.  This could help us understand factors causing poor performance of the model which may be related to improperly prescribed inputs to the model or lead to  model improvements in its parameterizations by working together in collaboration.
 
-1. lower-level modules with the basic functions needed in any resistance energy balance model 
+For example, from previous experiences in which we assisted in configuring pyTSEB, we have noticed that the user(s) sometimes incorrectly prescribe some of the the inputs required by the model, causing the model to produce erroneous results which may lead to wrong conclusions regarding the robustness of the model. Examples of ill-prescribed model inputs include:  
 
-2. higher-level scripts for easily running TSEB with tabulated data and/or satellite/airborne imagery.
+1. parsing air temperature or wind speed measured at 2 or 10m for canopies taller than this height, which would violate Monin-Obukhov similarity theory
+2. Wrong interpretation of the fractional cover parameter, which for TSEB is only needed for clumped/horizontally heterogeneous canopies, and thus the typical fractional cover variable retrieved with Earth Observation might not be appropriate for the landscape considered  as it usually represents the gap fraction for a horizontally homogeneous canopy
+3. Inadequate definition of the green fraction (fg), which is not related to the (green) fractional cover but to the fraction of leaf area or plant area index  that is green.
+
+On the other hand, there are likely conditions where pyTSEB performance will be less than satisfactory even with appropriate inputs, but it is these cases where we can determine the factors that cause the model to underperform and develop improvements/refinements benefitting future pyTSEB users and ET modellers.  Examples of how refinements of TSEB have been incorporated over different landscapes and environmental conditions are described in [Anderson et al. 2014]( https://doi.org/10.1016/j.agrformet.2024.109951).  Therefore, please do not hesitate in contacting us where you have faced issues related to pyTSEB  parametrizations or its behavior. We will be more than happy to collaborate with you and achieve a better understanding of model response to your application which will ultimately improve its applicability in  soil-plant-atmosphere water and energy  exchanges  in different environments.
+
+To give us a better overview of the use of the model in different landscapes, climates and for different purposes, we would appreciate if you could cite its use in your publications using information of the [CITATION.cff](./CITATION.cff) file:
+
+Nieto, H., Guzinski, R., & Kustas, W. P. (2018). pyTSEB: A python Two Source Energy Balance model for estimation of evapotranspiration with remote sensing data (Version 2.2) [Computer software]. https://doi.org/10.5281/zenodo.594732 
 
 ## Installation
 
@@ -86,6 +95,11 @@ Sdn_dif=Sdn*Skyl
 ```
    
 ## Basic Contents
+The project consists of: 
+
+1. lower-level modules with the basic functions needed in any resistance energy balance model 
+2. higher-level scripts for easily running TSEB with tabulated data and/or satellite/airborne imagery.
+
 ### High-level modules
 - *.pyTSEB/pyTSEB.py*, class object for TSEB scripting
 
