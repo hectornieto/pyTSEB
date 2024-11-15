@@ -1033,7 +1033,7 @@ def pet_asce(T_A_K, u, ea, p, Sdn, z_u, z_T, f_cd=1, reference=TALL_REFERENCE,
     albedo = 0.23
     Sn = Sdn * (1.0 - albedo)
     # Net longwave radiation
-    Ln = calc_Ln(T_A_K, ea, f_cd=f_cd)
+    Ln = - calc_Ln(T_A_K, ea, f_cd=f_cd)
     # Net radiation
     Rn = Sn + Ln
     # Soil heat flux
@@ -1257,7 +1257,7 @@ def calc_effective_resistances_SW(R_A, R_x, R_S, R_c, R_ss, delta, psicr):
 
 
 def calc_Ln(T_A_K, ea, f_cd=1):
-    ''' Estimates net longwave radiation for potential ET
+    ''' Estimates net emitted longwave radiation for potential ET
     Parameters
     ----------
     T_A_K : float or array
@@ -1271,7 +1271,7 @@ def calc_Ln(T_A_K, ea, f_cd=1):
     Returns
     -------
     Ln : float or array
-        Net longwave radiation (W m-2)
+        Net outgoing flux of longwave radiation (W m-2)
     '''
 
     Ln = TSEB.rad.SB * f_cd * (0.34 - 0.14 * np.sqrt(ea * 0.1)) * T_A_K ** 4
