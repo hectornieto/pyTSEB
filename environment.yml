@@ -11,6 +11,7 @@ dependencies:
     - notebook
     - bokeh
     - netCDF4
+    - py6s
     - pip
     - pip:
         - git+https://github.com/hectornieto/pypro4sail

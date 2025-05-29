@@ -1,0 +1,61 @@
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyTSEB"
+version = "2.1.0"
+description = "Two Source Energy Balance (TSEB) Models to estimate sensible and latent heat flux (evapotranspiration) from radiometric surface temperature data"
+authors = [
+    { name = "Héctor Nieto", email = "hector.nieto@csic.es" },
+    { name = "Radoslaw Guzinski", email = "rmgu@dhigroup.com"},
+    { name = "Willam P. Kustas", email = "bill.kustas@usda.gov"}    
+]
+
+maintainers = [
+    { name = "Héctor Nieto", email = "hector.nieto@csic.es" },
+    { name = "Radoslaw Guzinski", email = "rmgu@dhigroup.com"},
+]
+
+keywords = ['TSEB',
+            'Two Source Energy Balance',
+            'Resistance Energy Balance',
+            'OSEB',
+            'One Source Energy Balance',
+            'DTD', 
+            'Dual Time Differenced',
+            'Remote Sensing']
+
+classifiers  = [
+        "Development Status :: 5 - Production/Stable",
+        "Intended Audience :: Science/Research",
+        "Topic :: Scientific/Engineering :: Agricultural Science",
+        "Topic :: Scientific/Engineering :: Hydrology",
+        "Topic :: Software Development :: Libraries :: Python Modules",
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3"]
+        
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+readme = "README.md"
+requires-python = ">=3.6"
+dependencies = ["gdal>=3.8", 
+                "numpy",
+                "scipy",
+                "pandas",
+                "jupyter",
+                "notebook",
+                "bokeh",
+                "netCDF4",
+                "Py6S",
+                "pypro4sail@git+https://github.com/hectornieto/pypro4sail"
+                ]
+
+[project.urls]
+Homepage = "https://github.com/hectornieto/pyTSEB"
+Documentation = "https://pytseb.readthedocs.io"
+
+[tool.setuptools]
+packages = ["pyTSEB"]
+
