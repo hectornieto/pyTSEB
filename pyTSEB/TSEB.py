@@ -3758,11 +3758,11 @@ def calc_resistances(res_form, res_types):
 
                 u_star_soil = u_friction * np.sqrt(u_star_ratio_2)
 
+
             R_S = res.calc_R_S_Haghighi(u, h_C, z_u, rho, c_p,
                                         z0_soil=z0_soil,
                                         f_cover=f_cover,
-                                        w_C=w_C,
-                                        u_star=u_star_soil)
+                                        w_C=w_C)
 
     R_A = np.asarray(np.clip(R_A, R_A_MIN, R_A_MAX))
     R_x = np.asarray(np.clip(R_x, RES_MIN, RES_MAX))
