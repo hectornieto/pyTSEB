@@ -1284,7 +1284,7 @@ def solar_radiation_clear_sky(doy, lat, elev, SOLAR_CONSTANT=1367):
     doy_rad = 2. * np.pi * doy / 365.
     d_r = 1 + 0.033 * np.cos(doy_rad)
     decl = 0.409 * np.sin(doy_rad - 1.39)
-    w_s = np.arccos(-np.tan(lat) * np.tan(decl))
+    w_s = np.arccos(np.clip(-np.tan(lat) * np.tan(decl), -1, 1))
     rad_0 = (SOLAR_CONSTANT * d_r / np.pi) * (w_s * np.sin(lat) * np.sin(decl) +
                                               np.cos(lat) * np.cos(decl) * np.sin(
                 w_s))
