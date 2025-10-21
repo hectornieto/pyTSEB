@@ -30,7 +30,6 @@ keywords = ['TSEB',
 classifiers  = [
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Science/Research",
-        "Topic :: Scientific/Engineering :: Agricultural Science",
         "Topic :: Scientific/Engineering :: Hydrology",
         "Topic :: Software Development :: Libraries :: Python Modules",
         "Programming Language :: Python",
