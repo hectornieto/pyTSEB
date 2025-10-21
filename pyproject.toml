@@ -30,7 +30,6 @@ keywords = ['TSEB',
 classifiers  = [
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Science/Research",
-        "Topic :: Scientific/Engineering :: Agricultural Science",
         "Topic :: Scientific/Engineering :: Hydrology",
         "Topic :: Software Development :: Libraries :: Python Modules",
         "Programming Language :: Python",
@@ -49,7 +48,7 @@ dependencies = ["gdal>=3.8",
                 "bokeh",
                 "netCDF4",
                 "Py6S",
-                "pypro4sail@git+https://github.com/hectornieto/pypro4sail"
+                "pypro4sail"
                 ]
 
 [project.urls]
