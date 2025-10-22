@@ -48,7 +48,7 @@ dependencies = ["gdal>=3.8",
                 "bokeh",
                 "netCDF4",
                 "Py6S",
-                "pypro4sail"
+                "radiative-transfer-models"
                 ]
 
 [project.urls]
