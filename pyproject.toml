@@ -10,7 +10,7 @@ description = "Two Source Energy Balance (TSEB) Models to estimate sensible and 
 authors = [
     { name = "Héctor Nieto", email = "hector.nieto@csic.es" },
     { name = "Radoslaw Guzinski", email = "rmgu@dhigroup.com"},
-    { name = "Willam P. Kustas", email = "bill.kustas@usda.gov"}    
+    { name = "Willam P. Kustas", email = "bill.kustas@usda.gov"}
 ]
 
 maintainers = [
@@ -23,7 +23,7 @@ keywords = ['TSEB',
             'Resistance Energy Balance',
             'OSEB',
             'One Source Energy Balance',
-            'DTD', 
+            'DTD',
             'Dual Time Differenced',
             'Remote Sensing']
 
@@ -35,12 +35,12 @@ classifiers  = [
         "Topic :: Software Development :: Libraries :: Python Modules",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3"]
-        
+
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
 readme = "README.md"
 requires-python = ">=3.6"
-dependencies = ["gdal>=3.8", 
+dependencies = ["gdal>=3.8",
                 "numpy",
                 "scipy",
                 "pandas",
@@ -49,7 +49,7 @@ dependencies = ["gdal>=3.8",
                 "bokeh",
                 "netCDF4",
                 "Py6S",
-                "pypro4sail@git+https://github.com/hectornieto/pypro4sail"
+                "pypro4sail@git+https://github.com/hectornieto/pypro4sail@bfb6fcadf9ba6f5a7cef6ab9cb0d30f00181f674"
                 ]
 
 [project.urls]
@@ -58,4 +58,3 @@ Documentation = "https://pytseb.readthedocs.io"
 
 [tool.setuptools]
 packages = ["pyTSEB"]
-
