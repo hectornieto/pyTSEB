@@ -49,7 +49,7 @@ dependencies = ["gdal>=3.8",
                 "bokeh",
                 "netCDF4",
                 "Py6S",
-                "pypro4sail@git+https://github.com/hectornieto/pypro4sail@bfb6fcadf9ba6f5a7cef6ab9cb0d30f00181f674"
+                "pypro4sail@git+https://github.com/hectornieto/pypro4sail@v1.6"
                 ]
 
 [project.urls]
