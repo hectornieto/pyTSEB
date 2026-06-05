@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyTSEB"
-version = "2.1.0"
+version = "2.5.1"
 description = "Two Source Energy Balance (TSEB) Models to estimate sensible and latent heat flux (evapotranspiration) from radiometric surface temperature data"
 authors = [
     { name = "Héctor Nieto", email = "hector.nieto@csic.es" },
