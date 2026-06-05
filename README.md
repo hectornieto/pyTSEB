@@ -162,8 +162,9 @@ and in an image (*ExampleImage_\< variable >.tif*). Just run the high-level scri
 provided by default and compare the resulting outputs with the files stored in *./Output/*
 
 ## Contributors
-- **Hector Nieto** <hnieto@ias.csic.es> <hector.nieto.solana@gmail.com> main developer
+- **Hector Nieto** <hnieto@csic.es> <hector.nieto.solana@gmail.com> main developer
 - **Radoslaw Guzinski** main developer, tester
+- **Tarique Aziz** developer, tester
 - **William P. Kustas** TSEB modeling, tester 
 - **Ana Andreu** tester
 
