@@ -89,6 +89,35 @@ from . import energy_combination_ET as pet
 from . import dis_TSEB
 
 
+def read_point_time_series_table(filepath):
+    '''Read point time-series input tables (.txt tab-separated or .csv).
+
+    Original pyTSEB uses tab-delimited ASCII (.txt). Comma-separated files are
+    read only when the extension is .csv. Tab files must not be parsed as CSV
+    first (that yields a single column and breaks the Year column).
+    '''
+    ext = splitext(filepath)[1].lower()
+    if ext == '.csv':
+        in_data = pd.read_csv(filepath, sep=',', index_col=False)
+    else:
+        in_data = pd.read_csv(filepath, sep='\t', index_col=False)
+        if len(in_data.columns) == 1:
+            in_data = pd.read_csv(
+                filepath, sep=r'\s+', index_col=False, engine='python')
+        if len(in_data.columns) == 1:
+            in_data = pd.read_csv(filepath, sep=',', index_col=False)
+    if 'year' in in_data.columns and 'Year' not in in_data.columns:
+        in_data = in_data.rename(columns={'year': 'Year'})
+    return in_data
+
+
+_POINT_TIME_SERIES_BASE_FIELDS = (
+    'R_n1', 'Sn_C1', 'Sn_S1', 'Ln_C1', 'Ln_S1', 'T_C1', 'T_S1', 'T_AC1',
+    'LE1', 'H1', 'LE_C1', 'H_C1', 'LE_S1', 'H_S1', 'G1', 'R_S1', 'R_x1',
+    'R_A1', 'u_friction', 'L', 'Skyl', 'z_0M', 'd_0', 'flag', 'n_iterations',
+)
+
+
 # Constants for indicating whether model output field should be saved to file
 S_N = 0  # Save Not
 S_P = 1  # Save as Primary output
@@ -266,7 +295,6 @@ class PyTSEB(object):
         all_fields = self._get_output_structure()
         primary_fields = [field for field, save in all_fields.items() if save == S_P]
         ancillary_fields = [field for field, save in all_fields.items() if save == S_A]
-        print(primary_fields)
         outdir = dirname(self.p['output_file'])
         if not exists(outdir):
             mkdir(outdir)
@@ -277,6 +305,49 @@ class PyTSEB(object):
         print('Saved Files')
 
         return in_data, out_data
+
+    @staticmethod
+    def _point_time_series_base_output_headers():
+        '''Column headers for the standard point time-series output table.'''
+        return [
+            'Year', 'DOY', 'Time', 'LAI', 'f_g', 'VZA', 'SZA', 'SAA', 'L_dn',
+            'Rn_model', 'Rn_sw_veg', 'Rn_sw_soil', 'Rn_lw_veg', 'Rn_lw_soil',
+            'T_C', 'T_S', 'T_AC', 'LE_model', 'H_model', 'LE_C', 'H_C',
+            'LE_S', 'H_S', 'G_model', 'R_S', 'R_x', 'R_A', 'u_friction', 'L',
+            'Skyl', 'z_0M', 'd_0', 'flag', 'n_iterations',
+        ]
+
+    def _point_time_series_extra_fields(self, out_data=None):
+        '''Model-specific point output fields (saved as S_P or S_A only).'''
+        base_fields = set(_POINT_TIME_SERIES_BASE_FIELDS)
+        extras = []
+        for field, save_flag in self._get_output_structure().items():
+            if field in base_fields or save_flag == S_N:
+                continue
+            if out_data is not None and field not in out_data.columns:
+                continue
+            extras.append(field)
+        return extras
+
+    @staticmethod
+    def _point_time_series_header_name(field):
+        return 'R_c' if field == 'R_c1' else field
+
+    def get_point_time_series_output_headers(self):
+        '''All output table column names for the current model (GUI preview).'''
+        headers = list(self._point_time_series_base_output_headers())
+        for field in self._point_time_series_extra_fields():
+            headers.append(self._point_time_series_header_name(field))
+        return headers
+
+    def _build_point_time_series_output_fields(self, out_data):
+        '''Return (header names, internal field names) for the output table.'''
+        headers = list(self._point_time_series_base_output_headers())
+        out_data_fields = list(_POINT_TIME_SERIES_BASE_FIELDS)
+        for field in self._point_time_series_extra_fields(out_data):
+            headers.append(self._point_time_series_header_name(field))
+            out_data_fields.append(field)
+        return headers, out_data_fields
 
     def process_point_series_array(self):
         ''' Prepare input data and calculate energy fluxes for all the dates in point time-series.
@@ -318,19 +389,17 @@ class PyTSEB(object):
         # ======================================
         # Process the input
 
-        # Read input data from CSV file
-        in_data = pd.read_csv(self.p['input_file'],
-                              sep="\s+",
-                              index_col=False)
+        in_data = read_point_time_series_table(self.p['input_file'])
+        year_col = 'Year'
+
         in_data.index = compose_date(
-            years=in_data['year'],
+            years=in_data[year_col],
             days=in_data['DOY'],
             hours=in_data['time'],
             minutes=in_data['time'] % 1 * 60)
 
-        # Check if all the required columns are present
         required_columns = self._get_required_data_columns()
-        missing = set(required_columns) - (set(in_data.columns))
+        missing = set(required_columns) - set(in_data.columns)
         if missing:
             print('ERROR: ' + str(list(missing)) + ' not found in file ' + self.p['input_file'])
             return None, None
@@ -416,49 +485,10 @@ class PyTSEB(object):
         # ======================================
         # Save output file
 
-        # Output Headers
-        outputTxtFieldNames = [
-            'Year',
-            'DOY',
-            'Time',
-            'LAI',
-            'f_g',
-            'VZA',
-            'SZA',
-            'SAA',
-            'L_dn',
-            'Rn_model',
-            'Rn_sw_veg',
-            'Rn_sw_soil',
-            'Rn_lw_veg',
-            'Rn_lw_soil',
-            'T_C',
-            'T_S',
-            'T_AC',
-            'LE_model',
-            'H_model',
-            'LE_C',
-            'H_C',
-            'LE_S',
-            'H_S',
-            'G_model',
-            'R_S',
-            'R_x',
-            'R_A',
-            'u_friction',
-            'L',
-            'Skyl',
-            'z_0M',
-            'd_0',
-            'flag']
+        outputTxtFieldNames, out_data_fields = self._build_point_time_series_output_fields(
+            out_data)
 
-        # Create the ouput directory if it doesn't exist
-        outdir = dirname(self.p['output_file'])
-        if not exists(outdir):
-            mkdir(outdir)
-
-        # Write the data
-        csvData = pd.concat([in_data[['year',
+        csvData = pd.concat([in_data[[year_col,
                                       'DOY',
                                       'time',
                                       'LAI',
@@ -467,30 +497,7 @@ class PyTSEB(object):
                                       'SZA',
                                       'SAA',
                                       'L_dn']],
-                             out_data[['R_n1',
-                                       'Sn_C1',
-                                       'Sn_S1',
-                                       'Ln_C1',
-                                       'Ln_S1',
-                                       'T_C1',
-                                       'T_S1',
-                                       'T_AC1',
-                                       'LE1',
-                                       'H1',
-                                       'LE_C1',
-                                       'H_C1',
-                                       'LE_S1',
-                                       'H_S1',
-                                       'G1',
-                                       'R_S1',
-                                       'R_x1',
-                                       'R_A1',
-                                       'u_friction',
-                                       'L',
-                                       'Skyl',
-                                       'z_0M',
-                                       'd_0',
-                                       'flag']]],
+                             out_data[out_data_fields]],
                             axis=1)
         csvData.to_csv(
             self.p['output_file'],
@@ -562,6 +569,18 @@ class PyTSEB(object):
             in_data['rho_vis_S'] + out_data['fnir'] * in_data['rho_nir_S']
         out_data['Sn_S1'][i] = (1. - spectraGrdOSEB[i]) * \
             (out_data['S_dn_dir'][i] + out_data['S_dn_dif'][i])
+        
+        # Assign intermediate output values for bare soil
+        out_data['omega0'][i] = np.nan  # No vegetation clumping for bare soil
+        out_data['F'][i] = np.nan  # No leaf area for bare soil
+        out_data['theta_s1'][i] = in_data['SZA'][i]
+        out_data['alpha'][i] = in_data['alpha_PT'][i]
+        # Calculate albedo for bare soil
+        S_in = out_data['S_dn_dir'][i] + out_data['S_dn_dif'][i]
+        out_data['albedo1'][i] = np.where(S_in > 0, spectraGrdOSEB[i], np.nan)
+        # Ri (Richardson number) for bare soil - NaN since no differential temperatures
+        if 'Ri' in out_data:
+            out_data['Ri'][i] = np.nan
 
         # Other fluxes for bare soil
         self._call_flux_model_soil(in_data, out_data, model_params, i)
@@ -571,6 +590,9 @@ class PyTSEB(object):
         out_data['Ln_C1'][i] = 0.0
         out_data['LE_C1'][i] = 0.0
         out_data['H_C1'][i] = 0.0
+        # Set PM-specific field if available
+        if 'R_c1' in out_data:
+            out_data['R_c1'][i] = np.nan  # No canopy resistance for bare soil
 
         # ======================================
         # Then process vegetated cases
@@ -627,6 +649,24 @@ class PyTSEB(object):
                                                       in_data['rho_nir_S'][i],
                                                       x_LAD=in_data['x_LAD'][i],
                                                       LAI_eff=LAI_eff[i])
+        
+        # Assign calculated intermediate values to output
+        out_data['omega0'][i] = omega0[i]
+        out_data['F'][i] = F[i]
+        out_data['theta_s1'][i] = in_data['SZA'][i]
+        out_data['alpha'][i] = in_data['alpha_PT'][i]
+        # Calculate albedo as (S_out/S_in) = reflectivity
+        # Shortwave net = (1 - albedo) * S_in, so albedo = 1 - (S_net/S_in)
+        S_in = out_data['S_dn_dir'][i] + out_data['S_dn_dif'][i]
+        S_out_soil = in_data['rho_vis_S'][i] * out_data['fvis'][i] * out_data['S_dn_dir'][i] + \
+                     in_data['rho_nir_S'][i] * out_data['fnir'][i] * out_data['S_dn_dir'][i] + \
+                     in_data['rho_vis_S'][i] * out_data['fvis'][i] * out_data['S_dn_dif'][i] + \
+                     in_data['rho_nir_S'][i] * out_data['fnir'][i] * out_data['S_dn_dif'][i]
+        out_data['albedo1'][i] = np.where(S_in > 0, S_out_soil / S_in, np.nan)
+        # Ri (Richardson number) is only calculated for DTD model (requires differential temperatures)
+        # For other models, it remains NaN
+        if 'Ri' in out_data and self.model_type != "DTD":
+            out_data['Ri'][i] = np.nan
 
         # Other fluxes for vegetation
         self._call_flux_model_veg(in_data, out_data, model_params, i)
@@ -684,57 +724,44 @@ class PyTSEB(object):
         return out_data
 
     def _call_flux_model_veg(self, in_data, out_data, model_params, i):
-        ''' Call a TSEB_PT model to calculate fluxes for data points containing vegetation.
-
-        Parameters
-        ----------
-        in_data : dict
-            The input data for the model.
-        out_data : dict
-            Dict containing the output data from the model which will be updated. It also contains
-            previusly calculated shortwave radiation and roughness values which are used as input
-            data.
-
-        Returns
-        -------
-        None
-        '''
-
-        [out_data['flag'][i], out_data['T_S1'][i], out_data['T_C1'][i],
-         out_data['T_AC1'][i], out_data['Ln_S1'][i], out_data['Ln_C1'][i],
-         out_data['LE_C1'][i], out_data['H_C1'][i], out_data['LE_S1'][i],
-         out_data['H_S1'][i], out_data['G1'][i], out_data['R_S1'][i],
-         out_data['R_x1'][i], out_data['R_A1'][i], out_data['u_friction'][i],
-         out_data['L'][i], out_data['n_iterations'][i]] = TSEB.TSEB_PT(
-            in_data['T_R1'][i],
-            in_data['VZA'][i],
-            in_data['T_A1'][i],
-            in_data['u'][i],
-            in_data['ea'][i],
-            in_data['p'][i],
-            out_data['Sn_C1'][i],
-            out_data['Sn_S1'][i],
-            in_data['L_dn'][i],
-            in_data['LAI'][i],
-            in_data['h_C'][i],
-            in_data['emis_C'][i],
-            in_data['emis_S'][i],
-            out_data['z_0M'][i],
-            out_data['d_0'][i],
-            in_data['z_u'][i],
-            in_data['z_T'][i],
-            f_c=in_data['f_c'][i],
-            f_g=in_data['f_g'][i],
-            w_C=in_data['w_C'][i],
-            leaf_width=in_data['leaf_width'][i],
-            z0_soil=in_data['z0_soil'][i],
-            alpha_PT=in_data['alpha_PT'][i],
-            x_LAD=in_data['x_LAD'][i],
-            calcG_params=[model_params["calcG_params"][0],
-                          model_params["calcG_params"][1][i]],
-            resistance_form=[model_params["resistance_form"][0],
-                             {k: model_params["resistance_form"][1][k][i]
-                             for k in model_params["resistance_form"][1]}])
+        if self.model_type == "TSEB_PT":
+            [out_data['flag'][i], out_data['T_S1'][i], out_data['T_C1'][i],
+             out_data['T_AC1'][i], out_data['Ln_S1'][i], out_data['Ln_C1'][i],
+             out_data['LE_C1'][i], out_data['H_C1'][i], out_data['LE_S1'][i],
+             out_data['H_S1'][i], out_data['G1'][i], out_data['R_S1'][i],
+             out_data['R_x1'][i], out_data['R_A1'][i], out_data['u_friction'][i],
+             out_data['L'][i], out_data['n_iterations'][i], out_data['alpha_PT_rec'][i]] = TSEB.TSEB_PT(
+                in_data['T_R1'][i],
+                in_data['VZA'][i],
+                in_data['T_A1'][i],
+                in_data['u'][i],
+                in_data['ea'][i],
+                in_data['p'][i],
+                out_data['Sn_C1'][i],
+                out_data['Sn_S1'][i],
+                in_data['L_dn'][i],
+                in_data['LAI'][i],
+                in_data['h_C'][i],
+                in_data['emis_C'][i],
+                in_data['emis_S'][i],
+                out_data['z_0M'][i],
+                out_data['d_0'][i],
+                in_data['z_u'][i],
+                in_data['z_T'][i],
+                f_c=in_data['f_c'][i],
+                f_g=in_data['f_g'][i],
+                w_C=in_data['w_C'][i],
+                leaf_width=in_data['leaf_width'][i],
+                z0_soil=in_data['z0_soil'][i],
+                alpha_PT=in_data['alpha_PT'][i],
+                x_LAD=in_data['x_LAD'][i],
+                calcG_params=[model_params["calcG_params"][0],
+                              model_params["calcG_params"][1][i]],
+                resistance_form=[model_params["resistance_form"][0],
+                                 {k: model_params["resistance_form"][1][k][i]
+                                 for k in model_params["resistance_form"][1]}])
+        else:
+            raise NotImplementedError(f"_call_flux_model_veg must be overridden in subclass for model type: {self.model_type}")
 
     def _call_flux_model_soil(self, in_data, out_data, model_params, i):
         ''' Call a OSEB model to calculate soil fluxes for data points containing no vegetation.
@@ -836,6 +863,29 @@ class PyTSEB(object):
 
         return success, array
 
+    @staticmethod
+    def _set_band_statistics(band, arr):
+        '''Set GDAL band metadata statistics.
+
+        GDAL Band.ComputeStatistics can return None (e.g. all-NaN band), which breaks
+        SetStatistics(*...). PM/SW ancillary outputs may be entirely invalid for some
+        pixels or bands; fall back to numpy on finite values only.
+        '''
+        stats = band.ComputeStatistics(0)
+        if stats is not None:
+            band.SetStatistics(*stats)
+            return
+        mask = np.isfinite(arr)
+        if not np.any(mask):
+            return
+        sub = np.asarray(arr, dtype=np.float64)[mask]
+        band.SetStatistics(
+            float(np.min(sub)),
+            float(np.max(sub)),
+            float(np.mean(sub)),
+            float(np.std(sub)),
+        )
+
     def write_raster_output(self, outfile, output, fields):
         '''Write the specified arrays of a dictionary to a raster file.
 
@@ -880,7 +930,7 @@ class PyTSEB(object):
             for i, field in enumerate(fields):
                 band = ds.GetRasterBand(i + 1)
                 band.WriteArray(output[field])
-                band.SetStatistics(*band.ComputeStatistics(0))
+                self._set_band_statistics(band, output[field])
             out_ds = gdal.Translate(outfile, ds, format=driver_name, creationOptions=opt,
                                     noData=None)
             # If GDAL drivers for other formats do not exist then default to GeoTiff
@@ -992,10 +1042,12 @@ class PyTSEB(object):
             ('d_0', S_N),  # Zero-plane displacement height (m)
             ('Skyl', S_N),
             ('flag', S_A),  # Quality flag
-            ('n_iterations', S_N)])  # Number of iterations before model converged to stable value
+            ('n_iterations', S_N),  # Number of iterations before model converged to stable value
+            ('alpha_PT_rec', S_A)])  # Final reduced Priestley-Taylor alpha value
 
 
         if self.calc_daily_ET:
+            # Keep primary stack to the four bulk fluxes (Rn, H, LE, G); see notebook docs.
             output_structure['ET_day'] = S_P
 
         if self.water_stress:
@@ -1105,7 +1157,7 @@ class PyTSEB(object):
             Names of the required input columns.
         '''
 
-        required_columns = ('year',
+        required_columns = ('Year',
                             'DOY',
                             'time',
                             'T_R1',
@@ -1180,6 +1232,12 @@ class PyDTD(PyTSEB):
     def __init__(self, parameters):
         super().__init__(parameters)
 
+    def _get_output_structure(self):
+        output_structure = super()._get_output_structure()
+        # Richardson number is a DTD stability diagnostic (not used by other models).
+        output_structure['Ri'] = S_A
+        return output_structure
+
     def _get_input_structure(self):
         ''' Input fields' names for DTD model.  Only relevant for image processing mode.
 
@@ -1212,7 +1270,7 @@ class PyDTD(PyTSEB):
             Names of the required input columns.
         '''
 
-        required_columns = ('year',
+        required_columns = ('Year',
                             'DOY',
                             'time',
                             'T_R0',
@@ -1250,7 +1308,7 @@ class PyDTD(PyTSEB):
             out_data['LE_C1'][i], out_data['H_C1'][i], out_data['LE_S1'][i],
             out_data['H_S1'][i], out_data['G1'][i], out_data['R_S1'][i],
             out_data['R_x1'][i], out_data['R_A1'][i], out_data['u_friction'][i],
-            out_data['L'][i], out_data['Ri'], out_data['n_iterations'][i]] = TSEB.DTD(
+            out_data['L'][i], out_data['Ri'][i], out_data['n_iterations'][i]] = TSEB.DTD(
                 in_data['T_R0'][i],
                 in_data['T_R1'][i],
                 in_data['VZA'][i],
@@ -1393,7 +1451,7 @@ class PyTSEB2T(PyTSEB):
             Names of the required input columns.
         '''
 
-        required_columns = ('year',
+        required_columns = ('Year',
                             'DOY',
                             'time',
                             'T_C',
@@ -1664,3 +1722,134 @@ class PydisTSEB(PyTSEB):
              resistance_form=model_params["resistance_form"],
              flux_LR_method=self.flux_LR_method,
              correct_LST=self.correct_LST)
+
+
+class PyTSEB_PM(PyTSEB):
+    def __init__(self, parameters):
+        super().__init__(parameters)
+
+    def _get_output_structure(self):
+        ''' Output fields' names for TSEB_PM model.
+        
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        output_structure: ordered dict
+            Names of the output fields as keys and instructions on whether the output
+            should be saved to file as values.
+        '''
+        output_structure = super()._get_output_structure()
+        output_structure.pop('alpha_PT_rec', None)  # PT-only; not used by PM
+        output_structure['R_c1'] = S_A  # canopy resistance to water vapor transport (s/m) at time t1 (PM model only)
+        return output_structure
+
+    def _call_flux_model_veg(self, in_data, out_data, model_params, i):
+        results = TSEB.TSEB_PM(
+            in_data['T_R1'][i],
+            in_data['VZA'][i],
+            in_data['T_A1'][i],
+            in_data['u'][i],
+            in_data['ea'][i],
+            in_data['p'][i],
+            out_data['Sn_C1'][i],
+            out_data['Sn_S1'][i],
+            in_data['L_dn'][i],
+            in_data['LAI'][i],
+            in_data['h_C'][i],
+            in_data['emis_C'][i],
+            in_data['emis_S'][i],
+            out_data['z_0M'][i],
+            out_data['d_0'][i],
+            in_data['z_u'][i],
+            in_data['z_T'][i],
+            leaf_width=in_data['leaf_width'][i],
+            z0_soil=in_data['z0_soil'][i],
+            r_c_min=self.p.get('r_c_min', 50.),
+            x_LAD=in_data['x_LAD'][i],
+            f_c=in_data['f_c'][i],
+            f_g=in_data['f_g'][i],
+            w_C=in_data['w_C'][i],
+            resistance_form=[model_params["resistance_form"][0],
+                             {k: model_params["resistance_form"][1][k][i]
+                              for k in model_params["resistance_form"][1]}],
+            calcG_params=[model_params["calcG_params"][0],
+                          model_params["calcG_params"][1][i]]
+        )
+        keys = ['flag', 'T_S1', 'T_C1', 'T_AC1', 'Ln_S1', 'Ln_C1', 'LE_C1', 'H_C1', 'LE_S1', 'H_S1', 'G1', 'R_S1', 'R_x1', 'R_A1', 'R_c1', 'u_friction', 'L', 'n_iterations']
+        _assign_outputs(results, out_data, i, keys)
+
+class PyTSEB_SW(PyTSEB):
+    def __init__(self, parameters):
+        super().__init__(parameters)
+
+    def _get_output_structure(self):
+        ''' Output fields' names for TSEB_SW model.
+        
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        output_structure: ordered dict
+            Names of the output fields as keys and instructions on whether the output
+            should be saved to file as values.
+        '''
+        output_structure = super()._get_output_structure()
+        output_structure.pop('alpha_PT_rec', None)  # PT-only; not used by SW
+        # Add SW-specific fields
+        output_structure['Rss_out'] = S_A  # Final iterated soil surface resistance (s/m) at time t1 (SW model only)
+        output_structure['Rst_out'] = S_A  # Final iterated leaf stomatal resistance (s/m) at time t1 (SW model only)
+        output_structure['R_c'] = S_A  # canopy resistance to water vapor transport (s/m) at time t1 (SW model only)
+        return output_structure
+
+    def _call_flux_model_veg(self, in_data, out_data, model_params, i):
+        results = TSEB.TSEB_SW(
+            in_data['T_R1'][i],
+            in_data['VZA'][i],
+            in_data['T_A1'][i],
+            in_data['u'][i],
+            in_data['ea'][i],
+            in_data['p'][i],
+            out_data['Sn_C1'][i],
+            out_data['Sn_S1'][i],
+            in_data['L_dn'][i],
+            in_data['LAI'][i],
+            in_data['h_C'][i],
+            in_data['emis_C'][i],
+            in_data['emis_S'][i],
+            out_data['z_0M'][i],
+            out_data['d_0'][i],
+            in_data['z_u'][i],
+            in_data['z_T'][i],
+            leaf_width=in_data['leaf_width'][i],
+            z0_soil=in_data['z0_soil'][i],
+            Rst_min=self.p.get('Rst_min', 100),
+            Rss_min=self.p.get('R_ss', 500),
+            x_LAD=in_data['x_LAD'][i],
+            f_c=in_data['f_c'][i],
+            f_g=in_data['f_g'][i],
+            w_C=in_data['w_C'][i],
+            resistance_form=[model_params["resistance_form"][0],
+                             {k: model_params["resistance_form"][1][k][i]
+                              for k in model_params["resistance_form"][1]}],
+            calcG_params=[model_params["calcG_params"][0],
+                          model_params["calcG_params"][1][i]],
+        )
+        keys = [
+            'flag', 'T_S1', 'T_C1', 'T_AC1', 'Ln_S1', 'Ln_C1', 'LE_C1', 'H_C1',
+            'LE_S1', 'H_S1', 'G1', 'R_S1', 'R_x1', 'R_A1', 'Rss_out', 'Rst_out',
+            'u_friction', 'L', 'n_iterations',
+        ]
+        _assign_outputs(results, out_data, i, keys)
+
+# Helper function for robust output assignment
+def _assign_outputs(results, out_data, i, keys):
+    for idx, key in enumerate(keys):
+        if idx < len(results):
+            out_data[key][i] = results[idx]
+        else:
+            out_data[key][i] = np.nan

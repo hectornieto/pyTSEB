@@ -17,7 +17,7 @@
 from configparser import ConfigParser, NoOptionError
 import itertools
 
-from .PyTSEB import PyTSEB, PyTSEB2T, PyDTD, PydisTSEB
+from .PyTSEB import PyTSEB, PyTSEB2T, PyDTD, PydisTSEB, PyTSEB_PM, PyTSEB_SW
 
 
 class ParserError(Exception):
@@ -171,6 +171,13 @@ class TSEBConfigFileInterface():
             conf['Rst_min'] = parser.getfloat('Rst_min', fallback=100)
             conf['R_ss'] = parser.getfloat('R_ss', fallback=500)
 
+        # Add PM and SW specific parameters
+        if conf['model'] == 'TSEB_PM':
+            conf['r_c_min'] = parser.getfloat('r_c_min', fallback=50.)
+        if conf['model'] == 'TSEB_SW':
+            conf['Rst_min'] = parser.getfloat('Rst_min', fallback=100)
+            conf['R_ss'] = parser.getfloat('R_ss', fallback=500)
+
         conf['calc_row'] = parser.getint('calc_row', fallback=[0, 0])
 
         if conf['calc_row'] != [0, 0]:
@@ -267,6 +274,10 @@ class TSEBConfigFileInterface():
                 model = PyDTD(self.params)
             elif self.params['model'] == "disTSEB":
                 model = PydisTSEB(self.params)
+            elif self.params['model'] == "TSEB_PM":
+                model = PyTSEB_PM(self.params)
+            elif self.params['model'] == "TSEB_SW":
+                model = PyTSEB_SW(self.params)
             else:
                 print("Unknown model: " + self.params['model'] + "!")
                 return None

@@ -113,7 +113,7 @@ Rst_min=100         # Shuttleworth and Wallace (1995) minimum (unstressed) singl
 #==============================================================================
 # Additional options
 #==============================================================================
-# Soil Heat Flux calculation
+# Soil heat flux: G_form 1 uses G_ratio as fraction G/Rn_soil (G = G_ratio * Rn_S), not total Rn
 #1: default, estimate G as a ratio of Rn_soil, default G_ratio=0.35
 #0: Use a constant G, usually use G_Constant=0 to ignore the computation of G
 #2: estimate G from Santanello and Friedl with GAmp the maximum ration amplitude, Gphase, the time shift between G and Rn (hours) and Gshape the typical diurnal shape (hours)

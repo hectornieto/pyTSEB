@@ -1243,13 +1243,13 @@ def calc_effective_resistances_SW(R_A, R_x, R_S, R_c, R_ss, delta, psicr):
 
     delta_psicr = delta + psicr
 
-    R_a_SW = delta_psicr * R_A  # Eq. 16 [Shuttleworth1988]_
-    R_s_SW = delta_psicr * R_S + psicr * R_ss  # Eq. 17 [Shuttleworth1988]_
-    R_c_SW = delta_psicr * R_x + psicr * R_c  # Eq. 18 [Shuttleworth1988]_
+    R_a_SW = delta_psicr * R_A  # Eq. 16 [Shuttleworth1985]_
+    R_s_SW = delta_psicr * R_S + psicr * R_ss  # Eq. 17 [Shuttleworth1985]_
+    R_c_SW = delta_psicr * R_x + psicr * R_c  # Eq. 18 [Shuttleworth1985]_
     C_c = 1. / (1. + R_c_SW * R_a_SW / (
-                R_s_SW * (R_c_SW + R_a_SW)))  # Eq. 14 [Shuttleworth1988]_
+                R_s_SW * (R_c_SW + R_a_SW)))  # Eq. 14 [Shuttleworth1985]_
     C_s = 1. / (1. + R_s_SW * R_a_SW / (
-                R_c_SW * (R_s_SW + R_a_SW)))  # Eq. 15 [Shuttleworth1988]_
+                R_c_SW * (R_s_SW + R_a_SW)))  # Eq. 15 [Shuttleworth1985]_
 
     C_c[np.isnan(C_c)] = 0
     C_s[np.isnan(C_s)] = 0
@@ -1343,7 +1343,6 @@ def fill_and_update_et(k_cs, et, et_ref, gaps):
     kcs_updated[valid] = et_filled[valid] / et_ref[valid]
     return et_filled, kcs_updated
 
-
 def leaf_stomatal_resistance(lai, r_c, leaf_type=TSEB.res.AMPHISTOMATOUS):
     ''' Calculate the bulk canopy stomatal resistance.
 
@@ -1366,3 +1365,4 @@ def leaf_stomatal_resistance(lai, r_c, leaf_type=TSEB.res.AMPHISTOMATOUS):
 
     r_st = r_c * leaf_type * lai
     return np.asarray(r_st)
+

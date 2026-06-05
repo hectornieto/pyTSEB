@@ -50,7 +50,7 @@ Ancillary functions
 -------------------
 * :func:`calc_F_theta_campbell`. Gap fraction estimation.
 * :func:`calc_G_time_diff`. Santanello & Friedl (2003) [Santanello2003]_ soil heat flux model.
-* :func:`calc_G_ratio`. Soil heat flux as a fixed fraction of net radiation [Choudhury1987]_.
+* :func:`calc_G_ratio`. Soil heat flux as a fixed fraction of soil net radiation (Rn_S) [Choudhury1987]_.
 * :func:`calc_H_C`. canopy sensible heat flux in a parallel resistance network.
 * :func:`calc_H_C_PT`. Priestley- Taylor Canopy sensible heat flux.
 * :func:`calc_H_DTD_parallel`. Priestley- Taylor Canopy sensible
@@ -909,8 +909,8 @@ def TSEB_PT(Tr_K,
      T_S,
      T_C,
      T_AC,
-     L_nS,
-     L_nC,
+     Ln_S,
+     Ln_C,
      LE_C,
      H_C,
      LE_S,
@@ -921,27 +921,29 @@ def TSEB_PT(Tr_K,
      R_A,
      u_friction,
      L,
-     n_iterations) = map(np.asarray,
-                         (flag,
-                          T_S,
-                          T_C,
-                          T_AC,
-                          Ln_S,
-                          Ln_C,
-                          LE_C,
-                          H_C,
-                          LE_S,
-                          H_S,
-                          G,
-                          R_S,
-                          R_x,
-                          R_A,
-                          u_friction,
-                          L,
-                          iterations))
+     n_iterations,
+     alpha_PT_rec) = map(np.asarray,
+                        (flag,
+                         T_S,
+                         T_C,
+                         T_AC,
+                         Ln_S,
+                         Ln_C,
+                         LE_C,
+                         H_C,
+                         LE_S,
+                         H_S,
+                         G,
+                         R_S,
+                         R_x,
+                         R_A,
+                         u_friction,
+                         L,
+                         iterations,
+                         alpha_PT_rec))
 
-    return (flag, T_S, T_C, T_AC, L_nS, L_nC, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A, u_friction,
-            L, n_iterations)
+    return (flag, T_S, T_C, T_AC, Ln_S, Ln_C, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A, u_friction,
+            L, n_iterations, alpha_PT_rec)
 
 def TSEB_SW(Tr_K,
             vza,
@@ -1076,6 +1078,10 @@ def TSEB_SW(Tr_K,
         Bulk canopy aerodynamic resistance to heat transport (s m-1).
     R_A : float
         Aerodynamic resistance to heat transport (s m-1).
+    Rss_out : float                                     
+        Final iterated soil surface resistance (s m-1).  
+    Rst_out : float                                     
+        Final iterated leaf stomatal resistance (s m-1).
     u_friction : float
         Friction velocity (m s-1).
     L : float
@@ -1320,22 +1326,22 @@ def TSEB_SW(Tr_K,
             # Compute Soil Heat Flux Ratio
             G[i] = calc_G([calcG_params[0], calcG_array], Rn_S, i)
 
-            # Eq. 12 in [Shuttleworth1988]_
+            # Eq. 12 in [Shuttleworth1985]_
             PM_C = (delta[i] * (Rn[i] - G[i]) + (rho_cp[i] * vpd[i] - delta[i] * R_x[i] * (Rn_S[i] - G[i])) / (
                     R_A[i] + R_x[i])) / \
                       (delta[i] + psicr[i] * (1. + R_c[i] / (R_A[i] + R_x[i])))
             PM_C[np.isnan(PM_C)] = 0
-            # Eq. 13 in [Shuttleworth1988]_
+            # Eq. 13 in [Shuttleworth1985]_
             PM_S = (delta[i] * (Rn[i] - G[i]) + (rho_cp[i] * vpd[i] - delta[i] * R_S[i] * delta_Rn[i]) / (
                         R_A[i] + R_S[i])) / \
                       (delta[i] + psicr[i] * (1. + Rss[i] / (R_A[i] + R_S[i])))
             PM_S[np.isnan(PM_S)] = 0
-            # Eq. 11 in [Shuttleworth1988]_
+            # Eq. 11 in [Shuttleworth1985]_
             LE[i] = C_c * PM_C + C_s * PM_S
             H[i] = Rn[i] - G[i] - LE[i]
 
             # Compute canopy and soil  fluxes
-            # Vapor pressure deficit at canopy source height (mb) # Eq. 8 in [Shuttleworth1988]_
+            # Vapor pressure deficit at canopy source height (mb) # Eq. 8 in [Shuttleworth1985]
             vpd_0 = vpd[i] + (delta[i] * (Rn[i] - G[i]) - (delta[i] + psicr[i]) * LE[i]) * R_A[i] / (rho_cp[i])
             # Eq. 10 in Shuttleworth & Wallace 1985
             LE_C[i] = (delta[i] * delta_Rn[i] + rho_cp[i] * vpd_0 / R_x[i]) / \
@@ -1409,10 +1415,6 @@ def TSEB_SW(Tr_K,
             # Calculate total fluxes
             H[i] = np.asarray(H_C[i] + H_S[i])
             LE[i] = np.asarray(LE_C[i] + LE_S[i])
-
-            # Transfer the resistances
-            Rst_out[i] = Rst[i]
-            Rss_out[i] = Rss[i]
             # Now L can be recalculated and the difference between iterations
             # derived
             if const_L is None:
@@ -1438,12 +1440,16 @@ def TSEB_SW(Tr_K,
                                                                          L_converged,
                                                                          flag)
 
+    # Assign final iterated values of Rss and Rst to output variables
+    Rss_out = Rss
+    Rst_out = Rst
+    
     (flag,
      T_S,
      T_C,
      T_AC,
-     L_nS,
-     L_nC,
+     Ln_S,
+     Ln_C,
      LE_C,
      H_C,
      LE_S,
@@ -1454,30 +1460,32 @@ def TSEB_SW(Tr_K,
      R_A,
      Rss_out,
      Rst_out,
+     R_c,
      u_friction,
      L,
      n_iterations) = map(np.asarray,
-                         (flag,
-                          T_S,
-                          T_C,
-                          T_AC,
-                          Ln_S,
-                          Ln_C,
-                          LE_C,
-                          H_C,
-                          LE_S,
-                          H_S,
-                          G,
-                          R_S,
-                          R_x,
-                          R_A,
-                          Rss_out,
-                          Rst_out,
-                          u_friction,
-                          L,
-                          iterations))
+                        (flag,
+                         T_S,
+                         T_C,
+                         T_AC,
+                         Ln_S,
+                         Ln_C,
+                         LE_C,
+                         H_C,
+                         LE_S,
+                         H_S,
+                         G,
+                         R_S,
+                         R_x,
+                         R_A,
+                         Rss_out,
+                         Rst_out,
+                         R_c,
+                         u_friction,
+                         L,
+                         iterations))
 
-    return (flag, T_S, T_C, T_AC, L_nS, L_nC, LE_C, H_C, LE_S, H_S, G, R_S, R_x,
+    return (flag, T_S, T_C, T_AC, Ln_S, Ln_C, LE_C, H_C, LE_S, H_S, G, R_S, R_x,
             R_A, Rss_out, Rst_out, u_friction, L, n_iterations)
 
 
@@ -1618,6 +1626,8 @@ def TSEB_PM(Tr_K,
         Monin-Obuhkov length (m).
     n_iterations : int
         number of iterations until convergence of L.
+    R_c : float
+        Canopy resistance to water vapor transport (s m-1).
 
     References
     ----------
@@ -1781,9 +1791,14 @@ def TSEB_PM(Tr_K,
         # canopy transpiration.
         flag[np.logical_and(~L_converged, flag != F_INVALID)] = F_ALL_FLUXES
         LE_S[np.logical_and(~L_converged, flag != F_INVALID)] = -1
+        
+        # Initialize canopy resistance (similar to Hector version)
+        # Start with r_c_min and iterate upward if needed
         step_rc = STEP_RC
         r_c = np.full(Tr_K.shape, r_c_min - step_rc)
-
+        
+        i = np.logical_and.reduce((~L_converged, flag != F_INVALID))
+        
         while np.any(LE_S[i] < 0):
             i = np.logical_and.reduce((LE_S < 0,
                                        ~L_converged,
@@ -1833,9 +1848,6 @@ def TSEB_PM(Tr_K,
                                                        }
                                                       )
 
-
-
-
             # Compute Soil Heat Flux Ratio
             G[i] = calc_G([calcG_params[0], calcG_array], Rn_S, i)
 
@@ -1849,7 +1861,6 @@ def TSEB_PM(Tr_K,
 
             T_C[i] = calc_T_C_series(Tr_K[i], T_A_K[i], R_A[i], R_x[i], R_S[i],
                                      f_theta[i], H_C[i], rho[i], c_p[i])
-
 
             # Calculate soil temperature
             flag_t = np.zeros(flag.shape) + F_ALL_FLUXES
@@ -1923,7 +1934,7 @@ def TSEB_PM(Tr_K,
                     u[i], z_u[i], L[i], d_0[i], z_0M[i])
                 u_friction[i] = np.asarray(np.maximum(U_FRICTION_MIN, u_friction[i]))
 
-        if const_L is None:
+    if const_L is None:
             # We check convergence against the value of L from previous iteration but as well
             # against values from 2 or 3 iterations back. This is to catch situations (not
             # infrequent) where L oscillates between 2 or 3 steady state values.
@@ -1932,12 +1943,15 @@ def TSEB_PM(Tr_K,
                                                                          L_converged,
                                                                          flag)
 
+    # Assign the final r_c values to R_c for output BEFORE mapping
+    R_c = r_c
+    
     (flag,
      T_S,
      T_C,
      T_AC,
-     L_nS,
-     L_nC,
+     Ln_S,
+     Ln_C,
      LE_C,
      H_C,
      LE_S,
@@ -1948,26 +1962,28 @@ def TSEB_PM(Tr_K,
      R_A,
      u_friction,
      L,
-     n_iterations) = map(np.asarray,
-                         (flag,
-                          T_S,
-                          T_C,
-                          T_AC,
-                          Ln_S,
-                          Ln_C,
-                          LE_C,
-                          H_C,
-                          LE_S,
-                          H_S,
-                          G,
-                          R_S,
-                          R_x,
-                          R_A,
-                          u_friction,
-                          L,
-                          iterations))
+     n_iterations,
+     R_c) = map(np.asarray,
+                (flag,
+                 T_S,
+                 T_C,
+                 T_AC,
+                 Ln_S,
+                 Ln_C,
+                 LE_C,
+                 H_C,
+                 LE_S,
+                 H_S,
+                 G,
+                 R_S,
+                 R_x,
+                 R_A,
+                 u_friction,
+                 L,
+                 iterations,
+                 R_c))
 
-    return (flag, T_S, T_C, T_AC, L_nS, L_nC, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A, u_friction,
+    return (flag, T_S, T_C, T_AC, Ln_S, Ln_C, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A, R_c, u_friction,
             L, n_iterations)
 
 
@@ -2732,18 +2748,18 @@ def calc_G_time_diff(R_n, G_param=[12.0, 0.35, 3.0, 24.0]):
     Parameters
     ----------
     R_n : float
-        Net radiation (W m-2).
+        Soil net radiation Rn_S (W m-2).
     G_param : tuple(float,float,float,float)
         tuple with parameters required (time, Amplitude,phase_shift,shape).
 
             time: float
                 time of interest (decimal hours).
             Amplitude : float
-                maximum value of G/Rn, amplitude, default=0.35.
+                maximum value of G/Rn_soil, amplitude, default=0.35.
             phase_shift : float
                 shift of peak G relative to solar noon (default 3hrs before noon).
             shape : float
-                shape of G/Rn, default 24 hrs.
+                shape of G/Rn_soil diurnal curve, default 24 hrs.
 
     Returns
     -------
@@ -2773,18 +2789,10 @@ def calc_G_time_diff_sigmoid(R_n, G_param=[12, 0, 0.35, 10.0, 14.0, 1.0, 1.0]):
     Parameters
     ----------
     R_n : float
-        Net radiation (W m-2).
-    G_param : tuple(float,float,float,float)
-        tuple with parameters required (time, Amplitude,phase_shift,shape).
-
-            time: float
-                time of interest (decimal hours).
-            Amplitude : float
-                maximum value of G/Rn, amplitude, default=0.35.
-            phase_shift : float
-                shift of peak G relative to solar noon (default 3hrs after noon).
-            shape : float
-                shape of G/Rn, default 24 hrs.
+        Soil net radiation Rn_S (W m-2).
+    G_param : tuple
+        (time, G_ratio_min, G_ratio_max, phase_shift_0, phase_shift_1,
+         shape_0, shape_1) — time-varying fraction of Rn_soil.
 
     Returns
     -------
@@ -2814,7 +2822,7 @@ def calc_G_ratio(Rn_S, G_ratio=0.35):
     Rn_S : float
         Net soil radiation (W m-2).
     G_ratio : float, optional
-        G/Rn_S ratio, default=0.35.
+        Fraction G/Rn_soil (G = G_ratio * Rn_S), default=0.35.
 
     Returns
     -------
@@ -3758,11 +3766,11 @@ def calc_resistances(res_form, res_types):
 
                 u_star_soil = u_friction * np.sqrt(u_star_ratio_2)
 
-
             R_S = res.calc_R_S_Haghighi(u, h_C, z_u, rho, c_p,
                                         z0_soil=z0_soil,
                                         f_cover=f_cover,
-                                        w_C=w_C)
+                                        w_C=w_C,
+                                        u_star=u_star_soil)
 
     R_A = np.asarray(np.clip(R_A, R_A_MIN, R_A_MAX))
     R_x = np.asarray(np.clip(R_x, RES_MIN, RES_MAX))

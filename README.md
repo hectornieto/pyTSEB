@@ -152,6 +152,8 @@ http://pytseb.readthedocs.org/en/latest/index.html
 - Kustas,  W.  P.  and  Norman,  J.  M.:  Evaluation  of  soil  and  vegetation heat flux prediction using a simple two-source model with radiometric  temperatures  for  partial  canopy  cover,  Agr.  Forest Meteorol., 94, 13–29, 199
 - Guzinski, R., Nieto, H., Stisen, S., and Fensholt, R.: Inter-comparison of energy balance and hydrological models for land surface energy flux estimation over a whole river catchment, Hydrol. Earth Syst. Sci., 19, 2017-2036, doi:10.5194/hess-19-2017-2015, 2015.
 - William P. Kustas, Hector Nieto, Laura Morillas, Martha C. Anderson, Joseph G. Alfieri, Lawrence E. Hipps, Luis Villagarcía, Francisco Domingo, Monica Garcia: Revisiting the paper “Using radiometric surface temperature for surface energy flux estimation in Mediterranean drylands from a two-source perspective”, Remote Sensing of Environment, In Press. doi:10.1016/j.rse.2016.07.024.
+- Colaizzi, P. D., N. Agam, J. A. Tolk, et al. 2014. “Two-Source Energy Balance Model to Calculate E, T, and ET: Comparison of Priestley-Taylor and Penman-Monteith Formulations and Two Time Scaling Methods.” Transactions of the ASABE 57: 479–98.
+- Kustas, W. P., H. Nieto, O. Garcia-Tejera, et al. 2022. “Impact of Advection on Two-Source Energy Balance (TSEB) Canopy Transpiration Parameterization for Vineyards in the California Central Valley.” Irrigation Science, ahead of print. Scopus. https://doi.org/10.1007/s00271-022-00778-y.
 
 
 ## Tests

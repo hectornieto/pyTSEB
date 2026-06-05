@@ -19,7 +19,18 @@ import sys
 import ipywidgets as widgets
 from IPython.display import display
 
+from os.path import splitext
+
 from .TSEBConfigFileInterface import TSEBConfigFileInterface
+
+
+_MODEL_LABELS = {
+    'TSEB_PT': 'Priestley-Taylor (TSEB_PT)',
+    'DTD': 'Dual-Time Difference (DTD)',
+    'TSEB_2T': 'Component Temperatures (TSEB_2T)',
+    'TSEB_PM': 'Penman-Monteith (TSEB_PM)',
+    'TSEB_SW': 'Shuttleworth-Wallace (TSEB_SW)',
+}
 
 
 class TSEBIPythonInterface(TSEBConfigFileInterface):
@@ -76,6 +87,10 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
         self.f_c = 1.0
         self.f_g = 1.0
         self.w_c = 1.0
+        self.water_stress = False
+        self.r_c_min = 50.0
+        self.Rst_min = 100.0
+        self.R_ss = 500.0
         # Output variables saved in images
         # self.fields=('H1','LE1','R_n1','G1')
         # Ancillary output variables
@@ -84,6 +99,8 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
 
     def point_time_series_widget(self):
         '''Creates a jupyter notebook GUI for running TSEB for a point time series dataset'''
+
+        self.is_image = False
 
         # Load and save configuration buttons
         self.w_loadconfig = widgets.Button(
@@ -133,22 +150,29 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
         display(widgets.HBox([self.w_output, self.w_outputtxt]))
         display(tabs)
         display(self.w_saveconfig)
+        display(self.w_run_review_box)
         display(self.w_runmodel)
         # Handle interactions
+        self._connect_run_review_observers()
         self.w_res.on_trait_change(self._on_res_change, 'value')
         self.w_row.on_trait_change(self._on_row_change, 'value')
         self.w_G_form.on_trait_change(self._on_G_change, 'value')
         self.w_input.on_click(
-            lambda b: self._on_input_clicked(b, 'Input Text', self.w_inputtxt))
+            lambda b: self._on_point_input_clicked(b))
         self.w_output.on_click(self._on_output_clicked)
         self.w_loadconfig.on_click(self._on_loadconfig_clicked)
         self.w_saveconfig.on_click(self._on_saveconfig_clicked)
         self.w_runmodel.on_click(self._on_runmodel_clicked)
+        self._on_run_setting_change()
 
-        self.is_image = False
+    def PointTimeSeriesWidget(self):
+        '''Backward-compatible alias for point_time_series_widget().'''
+        self.point_time_series_widget()
 
     def local_image_widget(self):
         '''Creates a jupyter notebook GUI for running TSEB for an image'''
+
+        self.is_image = True
 
         # Load and save configuration buttons
         self.w_loadconfig = widgets.Button(
@@ -162,8 +186,8 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
         self.w_T_R0_But = widgets.Button(
             description='Browse Sunrise Radiometric Surface Temperature Image')
         self.w_T_R0 = widgets.Text(description='(K):', value='0', width=500)
-        self.w_T_R0_But.visible = False
-        self.w_T_R0.visible = False
+        self.w_T_R0_But.layout.display = 'none'
+        self.w_T_R0.layout.display = 'none'
         self.w_VZA = widgets.Button(description='Browse VZA Image')
         self.w_VZAtxt = widgets.Text(description='VZA:', value='0', width=500)
         self.w_LAI = widgets.Button(description='Browse LAI Image')
@@ -243,8 +267,10 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
         display(widgets.HBox([self.w_output, self.w_outputtxt]))
         display(tabs)
         display(self.w_saveconfig)
+        display(self.w_run_review_box)
         display(self.w_runmodel)
         # Handle interactions
+        self._connect_run_review_observers()
         self.w_T_R1_But.on_click(
             lambda b: self._on_input_clicked(b, 'Surface Radiometric Temperature', self.w_T_R1))
         self.w_T_R0_But.on_click(
@@ -271,8 +297,7 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
         self.w_row.on_trait_change(self._on_row_change, 'value')
         self.w_G_form.on_trait_change(self._on_G_change, 'value')
         self.w_runmodel.on_click(self._on_runmodel_clicked)
-
-        self.is_image = True
+        self._on_run_setting_change()
 
     def select_model(self):
         ''' Widget to select the TSEB model'''
@@ -282,7 +307,9 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
             options={
                 'Priestley Taylor': 'TSEB_PT',
                 'Dual-Time Difference': 'DTD',
-                'Component Temperatures': 'TSEB_2T'},
+                'Component Temperatures': 'TSEB_2T',
+                'Penman-Monteith': 'TSEB_PM',
+                'Shuttleworth-Wallace': 'TSEB_SW'},
             value=self.model)
 
     def define_site_description_time_series(self):
@@ -459,8 +486,8 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
         self.w_T_A0_But = widgets.Button(
             description='Browse Sunrise Air Temperature Image')
         self.w_T_A0 = widgets.Text(description='(K):', value='0', width=500)
-        self.w_T_A0_But.visible = False
-        self.w_T_A0.visible = False
+        self.w_T_A0_But.layout.display = 'none'
+        self.w_T_A0.layout.display = 'none'
         self.w_S_dnBut = widgets.Button(
             description='Browse Shortwave Irradiance Image')
         self.w_S_dn = widgets.Text(description='(W/m2):', value='0', width=500)
@@ -524,7 +551,7 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
             value=self.max_PT, min=0, description="Max. alphaPT", width=80)
         self.w_LAD = widgets.BoundedFloatText(
             value=self.x_LAD, min=0, description="LIDF param.", width=80)
-        self.w_LAD.visible = False
+        self.w_LAD.layout.display = 'none'
         self.w_leafwidth = widgets.BoundedFloatText(
             value=self.leaf_width, min=0.001, description="Leaf width", width=80)
         self.w_zsoil = widgets.BoundedFloatText(
@@ -633,7 +660,7 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
             max=360,
             description='Row orientation',
             width=80)
-        self.w_rowaz.visible = False
+        self.w_rowaz.layout.display = 'none'
 
     def resistances_time_series(self):
         '''Widgets for resistance model selection'''
@@ -699,12 +726,29 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
         '''Widgets for additional TSEB options'''
 
         self.calc_G_options()
+        # Add widgets for PM and SW model parameters
+        self.w_r_c_min = widgets.BoundedFloatText(
+            value=self.r_c_min, min=0, max=10000, description='r_c_min (PM)', width=140)
+        self.w_Rst_min = widgets.BoundedFloatText(
+            value=self.Rst_min, min=0, max=10000, description='Rst_min', width=120)
+        self.w_R_ss = widgets.BoundedFloatText(
+            value=self.R_ss, min=0, max=10000, description='R_ss', width=120)
+        self._setup_run_review_widgets()
         self.opt_page = widgets.VBox([
             self.w_G_form,
             self.w_Gratio,
             self.w_Gconstanttext,
             self.w_Gconstant,
-            widgets.HBox([self.w_G_amp, self.w_G_phase, self.w_G_shape])], background_color='#EEE')
+            widgets.HBox([self.w_G_amp, self.w_G_phase, self.w_G_shape]),
+            widgets.HTML('<b>Model-specific / water-stress parameters</b>'),
+            self.pm_params_box,
+            self.water_stress_params_box,
+            widgets.HTML(
+                '<i>Rst_min and R_ss are used by TSEB_SW and as unstressed '
+                'reference resistances when water stress is enabled.</i>'),
+            widgets.HTML('<b>Water stress diagnostics</b>'),
+            self.w_water_stress,
+        ], background_color='#EEE')
 
     def calc_G_options(self):
         '''Widgets for method for computing soil heat flux'''
@@ -718,23 +762,239 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
             value=self.G_form,
             width=300)
         self.w_Gratio = widgets.BoundedFloatText(
-            value=self.Gratio, min=0, max=1, description='G ratio (G/Rn)', width=80)
+            value=self.Gratio, min=0, max=1,
+            description='G ratio (G / Rn_Soil)', width=120)
         self.w_Gconstant = widgets.FloatText(
             value=self.Gconstant, description='Value (W m-2)', width=80)
-        self.w_Gconstant.visible = False
+        self.w_Gconstant.layout.display = 'none'
         self.w_Gconstanttext = widgets.HTML(
             value="Set G value (W m-2), ignored if G is present in the input file")
-        self.w_Gconstanttext.visible = False
-        self.w_Gconstant.visible = False
+        self.w_Gconstanttext.layout.display = 'none'
+        self.w_Gconstant.layout.display = 'none'
         self.w_G_amp = widgets.BoundedFloatText(
-            value=self.G_amp, min=0, max=1, description='Amplitude (G/Rn)', width=80)
-        self.w_G_amp.visible = False
+            value=self.G_amp, min=0, max=1,
+            description='Max G/Rn_soil', width=120)
+        self.w_G_amp.layout.display = 'none'
         self.w_G_phase = widgets.BoundedFloatText(
             value=self.G_phase, min=-24, max=24, description='Time Phase (h)', width=80)
-        self.w_G_phase.visible = False
+        self.w_G_phase.layout.display = 'none'
         self.w_G_shape = widgets.BoundedFloatText(
             value=self.G_shape, min=0, max=24, description='Time shape (h)', width=80)
-        self.w_G_shape.visible = False
+        self.w_G_shape.layout.display = 'none'
+
+    def _setup_run_review_widgets(self):
+        '''Widgets shown before Run: water stress toggle, confirmation, output preview.'''
+
+        self.w_water_stress = widgets.Checkbox(
+            value=self.water_stress,
+            description=(
+                'Compute CWSI (adds LE_0, LE_C_0, CWSI to image ancillary '
+                'or point time-series output columns)'))
+        self.w_confirm_settings = widgets.Checkbox(
+            value=False,
+            description='I have reviewed the settings summary below')
+        self.w_run_summary = widgets.HTML(
+            value=self._build_run_summary_html(),
+            layout=widgets.Layout(
+                border='1px solid #888',
+                padding='8px',
+                width='99%',
+                max_height='320px',
+                overflow_y='auto'))
+        self.pm_params_box = widgets.HBox([self.w_r_c_min])
+        self.water_stress_params_box = widgets.HBox([self.w_Rst_min, self.w_R_ss])
+        self.w_run_review_box = widgets.VBox([
+            widgets.HTML('<h4 style="margin:0.4em 0;">Review before running</h4>'),
+            self.w_confirm_settings,
+            self.w_run_summary,
+        ])
+        self._update_model_option_visibility()
+
+    def _connect_run_review_observers(self):
+        '''Refresh the run summary when any setting that affects outputs changes.'''
+
+        observed = [
+            self.w_model,
+            self.w_water_stress,
+            self.w_confirm_settings,
+            self.w_r_c_min,
+            self.w_Rst_min,
+            self.w_R_ss,
+            self.w_G_form,
+            self.w_row,
+            self.w_rowaz,
+        ]
+        for widget in observed:
+            widget.observe(self._on_run_setting_change, names='value')
+        if hasattr(self, 'w_outputtxt'):
+            self.w_outputtxt.observe(self._on_run_setting_change, names='value')
+
+    def _on_run_setting_change(self, change=None):
+        self._update_model_option_visibility()
+        self.w_run_summary.value = self._build_run_summary_html()
+
+    def _update_model_option_visibility(self):
+        '''Show PM / SW / water-stress parameter widgets as appropriate.'''
+
+        if not hasattr(self, 'w_model'):
+            return
+        model = self.w_model.value
+        water_stress = self.w_water_stress.value
+        self.w_r_c_min.layout.display = 'block' if model == 'TSEB_PM' else 'none'
+        show_rst = water_stress or model == 'TSEB_SW'
+        display = 'block' if show_rst else 'none'
+        self.w_Rst_min.layout.display = display
+        self.w_R_ss.layout.display = display
+
+    @staticmethod
+    def _ancillary_output_path(output_file):
+        base, ext = splitext(output_file)
+        return base + '_ancillary' + ext
+
+    def _build_preview_model(self, model, water_stress):
+        '''Instantiate a lightweight model object for output previews.'''
+
+        from .PyTSEB import PyTSEB, PyTSEB2T, PyDTD, PydisTSEB, PyTSEB_PM, PyTSEB_SW
+
+        model_classes = {
+            'TSEB_PT': PyTSEB,
+            'TSEB_2T': PyTSEB2T,
+            'DTD': PyDTD,
+            'disTSEB': PydisTSEB,
+            'TSEB_PM': PyTSEB_PM,
+            'TSEB_SW': PyTSEB_SW,
+        }
+        params = {
+            'model': model,
+            'resistance_form': 0,
+            'G_form': [[1], 0.35],
+            'water_stress': bool(water_stress),
+            'calc_row': [0, 0],
+        }
+        if model == 'TSEB_PM':
+            params['r_c_min'] = self.w_r_c_min.value
+        if model == 'TSEB_SW' or water_stress:
+            params['Rst_min'] = self.w_Rst_min.value
+            params['R_ss'] = self.w_R_ss.value
+        model_obj = model_classes[model](params)
+        s_dn_24 = getattr(self, 'params', {}).get('S_dn_24', '')
+        if s_dn_24 and str(s_dn_24).strip() not in ('', '0', '0.0'):
+            model_obj.calc_daily_ET = True
+        return model_obj
+
+    def _preview_output_bands(self, model, water_stress):
+        '''Return primary and ancillary band names for image output previews.'''
+
+        from .PyTSEB import S_P, S_A
+
+        model_obj = self._build_preview_model(model, water_stress)
+        structure = model_obj._get_output_structure()
+        primary = [name for name, save in structure.items() if save == S_P]
+        ancillary = [name for name, save in structure.items() if save == S_A]
+        return primary, ancillary
+
+    def _preview_point_time_series_columns(self, model, water_stress):
+        '''Return output table column names for point time-series previews.'''
+        model_obj = self._build_preview_model(model, water_stress)
+        return model_obj.get_point_time_series_output_headers()
+
+    def _build_run_summary_html(self):
+        '''HTML summary of model choice, options, output paths, and expected bands.'''
+
+        try:
+            model = self.w_model.value
+            water_stress = bool(self.w_water_stress.value)
+            output_file = self.w_outputtxt.value
+            is_image = bool(getattr(self, 'is_image', False))
+        except AttributeError:
+            model = self.model
+            water_stress = self.water_stress
+            is_image = bool(getattr(self, 'is_image', False))
+            output_file = (
+                self.output_image_file if is_image else self.output_text_file)
+
+        model_label = _MODEL_LABELS.get(model, model)
+        try:
+            if is_image:
+                primary, ancillary = self._preview_output_bands(model, water_stress)
+            else:
+                output_columns = self._preview_point_time_series_columns(
+                    model, water_stress)
+        except Exception as exc:
+            preview_label = 'bands' if is_image else 'columns'
+            return (
+                '<p><b>Run settings</b></p>'
+                f'<p>Model: {model_label}</p>'
+                f'<p style="color:red;">Could not preview output {preview_label}: {exc}</p>'
+            )
+
+        lines = [
+            '<p><b>Run settings</b></p>',
+            f'<p><b>Model:</b> {model_label}</p>',
+            f'<p><b>Water stress / CWSI:</b> {"On" if water_stress else "Off"}</p>',
+        ]
+        if model == 'TSEB_PM':
+            lines.append(f'<p><b>r_c_min (PM):</b> {self.w_r_c_min.value} s/m</p>')
+        if model == 'TSEB_SW' or water_stress:
+            lines.append(
+                f'<p><b>Rst_min:</b> {self.w_Rst_min.value} s/m; '
+                f'<b>R_ss:</b> {self.w_R_ss.value} s/m</p>')
+        s_dn_24 = getattr(self, 'params', {}).get('S_dn_24', '')
+        if s_dn_24 and str(s_dn_24).strip() not in ('', '0', '0.0'):
+            lines.append(
+                f'<p><b>Daily ET (ET_day):</b> On — '
+                f'<code>S_dn_24</code> is set ({s_dn_24})</p>')
+        if is_image:
+            anc_path = self._ancillary_output_path(output_file)
+            lines.extend([
+                f'<p><b>Primary output:</b> {output_file} '
+                f'({len(primary)} bands)</p>',
+                f'<p><b>Ancillary output:</b> {anc_path} '
+                f'({len(ancillary)} bands)</p>',
+            ])
+            lines.append('<p><b>Primary bands</b></p><ol>')
+            for idx, name in enumerate(primary, 1):
+                lines.append(f'<li>Band {idx}: {name}</li>')
+            lines.append('</ol><p><b>Ancillary bands</b></p><ol>')
+            for idx, name in enumerate(ancillary, 1):
+                extra = ''
+                if name == 'CWSI':
+                    extra = ' — crop water stress index'
+                elif name == 'R_c1':
+                    extra = ' — PM canopy resistance'
+                elif name in ('Rss_out', 'Rst_out', 'R_c'):
+                    extra = ' — SW resistance output'
+                lines.append(f'<li>Band {idx}: {name}{extra}</li>')
+            lines.append('</ol>')
+            if water_stress and 'CWSI' not in ancillary:
+                lines.append(
+                    '<p style="color:red;"><b>Warning:</b> water stress is on but '
+                    'CWSI is not in the ancillary list.</p>')
+        else:
+            lines.append(
+                f'<p><b>Output table:</b> {output_file} '
+                f'(tab-delimited .txt, {len(output_columns)} columns)</p>')
+            lines.append('<p><b>Output columns</b></p><ol>')
+            for idx, name in enumerate(output_columns, 1):
+                extra = ''
+                if name == 'CWSI':
+                    extra = ' — crop water stress index'
+                elif name == 'R_c':
+                    extra = ' — PM canopy resistance'
+                elif name in ('Rss_out', 'Rst_out'):
+                    extra = ' — SW resistance output'
+                elif name == 'ET_day':
+                    extra = ' — daily evapotranspiration'
+                lines.append(f'<li>Column {idx}: {name}{extra}</li>')
+            lines.append('</ol>')
+            if water_stress and 'CWSI' not in output_columns:
+                lines.append(
+                    '<p style="color:red;"><b>Warning:</b> water stress is on but '
+                    'CWSI is not in the output column list.</p>')
+        if not self.w_confirm_settings.value:
+            lines.append(
+                '<p style="color:#a60;"><b>Check the box above before Run.</b></p>')
+        return '\n'.join(lines)
 
     def get_data_TSEB_widgets(self, is_image):
         '''Parses the parameters in the GUI to TSEB variables for running TSEB'''
@@ -813,64 +1073,76 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
             self.params['f_g'] = self.f_g
             self.params['w_C'] = self.w_c
 
-        self.params['water_stress'] = False
+        self.params['water_stress'] = int(self.w_water_stress.value)
+        if self.params['water_stress']:
+            self.params['Rst_min'] = self.w_Rst_min.value
+            self.params['R_ss'] = self.w_R_ss.value
+
+        # Add PM and SW specific parameters
+        if self.params['model'] == 'TSEB_PM':
+            self.params['r_c_min'] = self.w_r_c_min.value
+        if self.params['model'] == 'TSEB_SW':
+            self.params['Rst_min'] = self.w_Rst_min.value
+            self.params['R_ss'] = self.w_R_ss.value
 
         self.ready = True
 
     def _on_model_change(self, name, value):
         '''Behaviour when TSEB model is changed'''
 
-        if value == 'DTD':
-            self.w_T_R0_But.visible = True
-            self.w_T_R0.visible = True
-            self.w_T_A0_But.visible = True
-            self.w_T_A0.visible = True
-        else:
-            self.w_T_R0_But.visible = False
-            self.w_T_R0.visible = False
-            self.w_T_A0_But.visible = False
-            self.w_T_A0.visible = False
+        if hasattr(self, 'is_image') and self.is_image:
+            if value == 'DTD':
+                self.w_T_R0_But.layout.display = 'block'
+                self.w_T_R0.layout.display = 'block'
+                self.w_T_A0_But.layout.display = 'block'
+                self.w_T_A0.layout.display = 'block'
+            else:
+                self.w_T_R0_But.layout.display = 'none'
+                self.w_T_R0.layout.display = 'none'
+                self.w_T_A0_But.layout.display = 'none'
+                self.w_T_A0.layout.display = 'none'
+        self._on_run_setting_change()
 
     def _on_row_change(self, name, value):
         '''Behaviour when selecting a canopy in row'''
 
         if value == 0:
-            self.w_rowaz.visible = False
+            self.w_rowaz.layout.display = 'none'
         else:
-            self.w_rowaz.visible = True
+            self.w_rowaz.layout.display = 'block'
 
     def _on_res_change(self, name, value):
         '''Behaviour when changing the resistance model'''
 
         if value == 0:
-            self.KN_params_box.visible = True
+            self.KN_params_box.layout.display = 'block'
         else:
-            self.KN_params_box.visible = False
+            self.KN_params_box.layout.display = 'none'
 
     def _on_G_change(self, name, value):
         '''Behaviour when changing the soil heat flux model'''
 
         if value == 0:
-            self.w_Gratio.visible = False
-            self.w_Gconstant.visible = True
-            self.w_Gconstanttext.visible = True
-            self.w_G_amp.visible = False
-            self.w_G_phase.visible = False
-            self.w_G_shape.visible = False
+            self.w_Gratio.layout.display = 'none'
+            self.w_Gconstant.layout.display = 'block'
+            self.w_Gconstanttext.layout.display = 'block'
+            self.w_G_amp.layout.display = 'none'
+            self.w_G_phase.layout.display = 'none'
+            self.w_G_shape.layout.display = 'none'
         elif value == 1:
-            self.w_Gratio.visible = True
-            self.w_Gconstant.visible = False
-            self.w_Gconstanttext.visible = False
-            self.w_G_amp.visible = False
-            self.w_G_phase.visible = False
-            self.w_G_shape.visible = False
+            self.w_Gratio.layout.display = 'block'
+            self.w_Gconstant.layout.display = 'none'
+            self.w_Gconstanttext.layout.display = 'none'
+            self.w_G_amp.layout.display = 'none'
+            self.w_G_phase.layout.display = 'none'
+            self.w_G_shape.layout.display = 'none'
         elif value == 2:
-            self.w_Gratio.visible = False
-            self.w_Gconstant.visible = False
-            self.w_Gconstanttext.visible = False
-            self.w_G_amp.visible = True
-            self.w_G_phase.visible = True
-            self.w_G_shape.visible = True
+            self.w_Gratio.layout.display = 'none'
+            self.w_Gconstant.layout.display = 'none'
+            self.w_Gconstanttext.layout.display = 'none'
+            self.w_G_amp.layout.display = 'block'
+            self.w_G_phase.layout.display = 'block'
+            self.w_G_shape.layout.display = 'block'
 
     def _on_loadconfig_clicked(self, b):
         '''Reads a configuration file and parses its data into the GUI'''
@@ -927,6 +1199,19 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
         self.w_KN_c.value = self.params['KN_c']
         self.w_KN_C_dash.value = self.params['KN_C_dash']
 
+        if 'water_stress' in self.params:
+            self.w_water_stress.value = bool(int(self.params['water_stress']))
+        if 'Rst_min' in self.params:
+            self.w_Rst_min.value = self.params['Rst_min']
+        if 'R_ss' in self.params:
+            self.w_R_ss.value = self.params['R_ss']
+        calc_row = self.params.get('calc_row', [0, 0])
+        if calc_row[0]:
+            self.w_row.value = True
+            self.w_rowaz.value = calc_row[1]
+        else:
+            self.w_row.value = False
+
         if self.is_image:
             self.w_T_R1.value = str(self.params['T_R1']).strip('"')
             self.w_VZAtxt.value = str(self.params['VZA']).strip('"')
@@ -949,6 +1234,19 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
                 self.w_T_A0.value = self.params['T_A0']
         else:
             self.w_inputtxt.value = str(self.params['input_file']).strip('"')
+
+        # Set PM and SW specific parameters if present
+        if self.params['model'] == 'TSEB_PM' and 'r_c_min' in self.params:
+            self.w_r_c_min.value = self.params['r_c_min']
+        if self.params['model'] == 'TSEB_SW':
+            if 'Rst_min' in self.params:
+                self.w_Rst_min.value = self.params['Rst_min']
+            if 'R_ss' in self.params:
+                self.w_R_ss.value = self.params['R_ss']
+
+        self._on_run_setting_change()
+        print('Loaded configuration. Review the summary below, then check '
+              '"I have reviewed the settings summary below" before Run.')
 
     def _on_saveconfig_clicked(self, b):
         '''Opens a configuration file and writes the parameters in the GUI into the file'''
@@ -1035,10 +1333,21 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
         fid.write('G_amp=' + str(self.w_G_amp.value) + '\n')
         fid.write('G_phase=' + str(self.w_G_phase.value) + '\n')
         fid.write('G_shape=' + str(self.w_G_shape.value) + '\n')
+        fid.write('water_stress=' + str(int(self.w_water_stress.value)) + '\n')
+        fid.write('Rst_min=' + str(self.w_Rst_min.value) + '\n')
+        fid.write('R_ss=' + str(self.w_R_ss.value) + '\n')
+        # Add PM and SW specific parameters
+        if self.w_model.value == 'TSEB_PM':
+            fid.write('r_c_min=' + str(self.w_r_c_min.value) + '\n')
         fid.flush()
         fid.close()
         del fid
         print('Saved Configuration File')
+
+    def _on_point_input_clicked(self, b):
+        self.w_inputtxt.value = self._get_input_filename(
+            title='Select Input Table (.txt)',
+            table_input=True)
 
     def _on_input_clicked(self, b, name, value_widget):
         value_widget.value = self._get_input_filename("Select "+name+" Image")
@@ -1050,21 +1359,37 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
         value_widget.options = options
         value_widget.value = filename
 
-    def _get_input_filename(self, title='Select Input File'):
+    def _get_input_filename(self, title='Select Input File', table_input=False):
         root, askopenfilename, _ = self._setup_tkinter()
-        # show an "Open" dialog box and return the path to the selected file
-        input_file = askopenfilename(parent=root, title=title)
+        kwargs = {'parent': root, 'title': title}
+        if table_input:
+            kwargs['filetypes'] = [
+                ('Tab-delimited text', '*.txt'),
+                ('CSV', '*.csv'),
+                ('All files', '*.*'),
+            ]
+        input_file = askopenfilename(**kwargs)
         root.destroy()  # Destroy the GUI
         return input_file
 
     def _on_output_clicked(self, b):
         '''Behaviour when clicking the output file button'''
-        self.w_outputtxt.value = self._get_output_filename()
+        if getattr(self, 'is_image', False):
+            self.w_outputtxt.value = self._get_output_filename()
+        else:
+            self.w_outputtxt.value = self._get_output_filename(table_output=True)
 
-    def _get_output_filename(self, title='Select Output File'):
+    def _get_output_filename(self, title='Select Output File', table_output=False):
         root, _, asksaveasfilename = self._setup_tkinter()
-        # show an "Open" dialog box and return the path to the selected file
-        output_file = asksaveasfilename(title=title)
+        kwargs = {'title': title}
+        if table_output:
+            kwargs['defaultextension'] = '.txt'
+            kwargs['filetypes'] = [
+                ('Tab-delimited text', '*.txt'),
+                ('CSV', '*.csv'),
+                ('All files', '*.*'),
+            ]
+        output_file = asksaveasfilename(**kwargs)
         root.destroy()  # Destroy the GUI
         return output_file
 
@@ -1072,12 +1397,8 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
         '''Creates a Tkinter input file dialog'''
 
         # Import Tkinter GUI widgets
-        if sys.version_info.major == 2:
-            from tkFileDialog import askopenfilename, asksaveasfilename
-            import Tkinter as tk
-        else:
-            from tkinter.filedialog import askopenfilename, asksaveasfilename
-            import tkinter as tk
+        import tkinter as tk
+        from tkinter import filedialog
 
         # Code below is to make sure the file dialog appears above the
         # terminal/browser
@@ -1098,14 +1419,51 @@ class TSEBIPythonInterface(TSEBConfigFileInterface):
         root.lift()
         root.focus_force()
 
-        return root, askopenfilename, asksaveasfilename
+        return root, filedialog.askopenfilename, filedialog.asksaveasfilename
 
     def _on_runmodel_clicked(self, b):
+        self._on_run_setting_change()
+        review_target = 'output bands' if self.is_image else 'output columns'
+        if not self.w_confirm_settings.value:
+            print('Stopped: check "I have reviewed the settings summary below" '
+                  f'after confirming model, water_stress, and {review_target}.')
+            self.w_runmodel.style.button_color = 'red'
+            return
+
+        model = self.w_model.value
+        water_stress = bool(self.w_water_stress.value)
+        print('=' * 60)
+        print('Running pyTSEB with confirmed settings:')
+        print('  Model:', _MODEL_LABELS.get(model, model))
+        print('  water_stress:', water_stress)
+        if self.is_image:
+            primary, ancillary = self._preview_output_bands(model, water_stress)
+            print('  Primary output:', self.w_outputtxt.value,
+                  f'({len(primary)} bands)')
+            print('  Ancillary output:',
+                  self._ancillary_output_path(self.w_outputtxt.value),
+                  f'({len(ancillary)} bands)')
+            print('  Ancillary fields:', ', '.join(ancillary))
+            if water_stress and 'CWSI' in ancillary:
+                print(f'  CWSI ancillary band index: {ancillary.index("CWSI") + 1}')
+        else:
+            output_columns = self._preview_point_time_series_columns(
+                model, water_stress)
+            print('  Output file:', self.w_outputtxt.value,
+                  f'({len(output_columns)} columns)')
+            print('  Output columns:', ', '.join(output_columns))
+            if water_stress and 'CWSI' in output_columns:
+                print(f'  CWSI column index: {output_columns.index("CWSI") + 1}')
+        print('=' * 60)
+
         # Change the colour of the button to know it is running
-        self.w_runmodel.background_color = 'yellow'
+        self.w_runmodel.style.button_color = 'yellow'
         # Get the data from the widgets
         self.get_data_TSEB_widgets(is_image=self.is_image)
         # run TSEB
         self.run(is_image=self.is_image)
         # Change the colour of the button to know it has finished
-        self.w_runmodel.background_color = 'green'
+        self.w_runmodel.style.button_color = 'green'
+        self.w_confirm_settings.value = False
+        self._on_run_setting_change()
+        print('Finished. Re-check the summary box before the next run.')
