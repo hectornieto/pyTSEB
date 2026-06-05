@@ -1,4 +1,4 @@
-name: pyTSEB-TA
+name: pyTSEB
 channels:
     - conda-forge
 dependencies:
