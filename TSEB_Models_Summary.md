@@ -44,10 +44,9 @@ This document describes the correct return values for each TSEB model function i
 14. R_A (Aerodynamic resistance to heat transport in s/m)
 15. Rss_out (Soil surface resistance to water vapor transport in s/m)
 16. Rst_out (Stomatal resistance to water vapor transport in s/m)
-17. **R_c** (Canopy resistance to water vapor transport in s/m)
-18. u_friction (Friction velocity in m/s)
-19. L (Monin-Obukhov length in m)
-20. n_iterations (Number of iterations until convergence)
+17. u_friction (Friction velocity in m/s)
+18. L (Monin-Obukhov length in m)
+19. n_iterations (Number of iterations until convergence)
 
 ### TSEB_PM (Penman-Monteith TSEB)
 **Returns 18 values:**
@@ -65,15 +64,16 @@ This document describes the correct return values for each TSEB model function i
 12. R_S (Soil aerodynamic resistance to heat transport in s/m)
 13. R_x (Bulk canopy aerodynamic resistance to heat transport in s/m)
 14. R_A (Aerodynamic resistance to heat transport in s/m)
-15. u_friction (Friction velocity in m/s)
-16. L (Monin-Obukhov length in m)
-17. n_iterations (Number of iterations until convergence)
-18. **R_c** (Canopy resistance to water vapor transport in s/m)
+15. R_c (Canopy resistance to water vapor transport in s/m)
+16. u_friction (Friction velocity in m/s)
+17. L (Monin-Obukhov length in m)
+18. n_iterations (Number of iterations until convergence)
+
 
 ## Key Differences
 
 1. **TSEB_PT** is the only model that returns `alpha_PT_rec`
-2. **TSEB_SW** is the only model that returns both `Rss_out` and `Rst_out` in addition to `R_c`
+2. **TSEB_SW** is the only model that returns both `Rss_out` and `Rst_out`
 3. **TSEB_PM** only returns `R_c` among the resistance outputs (no Rss_out, Rst_out)
 4. All models share the same first 14 outputs in the same order
 
