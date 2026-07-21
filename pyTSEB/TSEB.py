@@ -3189,7 +3189,7 @@ def calc_T_CS_Norman(F, vza_n, vza_f, T_n, T_f, w_C=1, x_LAD=1, omega0=1):
     # Calculate the fraction of vegetation observed by each angle
     f_theta_n = calc_F_theta_campbell(vza_n, F, w_C=w_C, Omega0=omega0, x_LAD=x_LAD)
     f_theta_f = calc_F_theta_campbell(vza_f, F, w_C=w_C, Omega0=omega0, x_LAD=x_LAD)
-    # Solve the sytem of two unknowns and two equations
+    # Solve the system of two unknowns and two equations
     T_S_4 = np.asarray((f_theta_f * T_n**4 - f_theta_n * T_f**4)
                        / (f_theta_f - f_theta_n))
     T_C_4 = np.asarray((T_n ** 4 - (1.0 - f_theta_n) * T_S_4) / f_theta_n)
