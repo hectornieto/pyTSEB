@@ -128,6 +128,8 @@ F_ZERO_H_S = 4  # Negative soil sensible heat flux, forced to zero
 F_ZERO_LE = 5  # No positive latent fluxes found, G recomputed to close the energy balance (G=Rn-H)
 F_ALL_FLUXES_OS = 10  # All positive fluxes for soil only, produced using one-source energy balance (OSEB) model.
 F_ZERO_LE_OS = 15  # No positive latent fluxes found using OSEB, G recomputed to close the energy balance (G=Rn-H)
+F_FAILED_TC = 253  # Arithmetic error when computing canopy tempeerature for LST and TS
+F_FAILED_TS = 254  # Arithmetic error when computing soil tempeerature for LST and TC
 F_INVALID = 255  # Arithmetic error. BAD data, it should be discarded
 
 # Steps for decreasing transpiration efficiency in TSEB-SW
@@ -835,7 +837,7 @@ def TSEB_PT(Tr_K,
             # Calculate soil temperature
             flag_t = np.zeros(flag.shape) + F_ALL_FLUXES
             flag_t[i], T_S[i] = calc_T_S(Tr_K[i], T_C[i], f_theta[i])
-            flag[flag_t == F_INVALID] = F_INVALID
+            flag[flag_t == F_INVALID] = F_FAILED_TS
             LE_S[flag_t == F_INVALID] = 0
 
             # Recalculate soil resistance using new soil temperature
@@ -1273,10 +1275,7 @@ def TSEB_SW(Tr_K,
             # Rst[Rss <= 500] = Rst_min[Rss <= 500]
 
             # There cannot be negative transpiration from the vegetation
-            flag[np.logical_and(i, Rst > MAX_RST)] = F_ZERO_LE
-
-            flag[np.logical_and.reduce((i, Rss > 500, Rst < MAX_RST))] =\
-                F_ZERO_LE_S
+            flag[np.logical_and(i, Rst > MAX_RST)] = F_ZERO_LE_S
 
             # Calculate aerodynamic resistances
             R_A[i], R_x[i], R_S[i] = calc_resistances(resistance_form,
@@ -1360,7 +1359,7 @@ def TSEB_SW(Tr_K,
             # Calculate soil temperature
             flag_t = np.zeros(flag.shape) + F_ALL_FLUXES
             flag_t[i], T_S[i] = calc_T_S(Tr_K[i], T_C[i], f_theta[i])
-            flag[flag_t == F_INVALID] = F_INVALID
+            flag[flag_t == F_INVALID] = F_FAILED_TS
             LE_S[flag_t == F_INVALID] = 0
 
             # Calculate net longwave radiation with current values of T_C and T_S
@@ -1871,7 +1870,7 @@ def TSEB_PM(Tr_K,
             # Calculate soil temperature
             flag_t = np.zeros(flag.shape) + F_ALL_FLUXES
             flag_t[i], T_S[i] = calc_T_S(Tr_K[i], T_C[i], f_theta[i])
-            flag[flag_t == F_INVALID] = F_INVALID
+            flag[flag_t == F_INVALID] = F_FAILED_TS
             LE_S[flag_t == F_INVALID] = 0
 
             # Recalculate soil resistance using new soil temperature
@@ -2384,7 +2383,7 @@ def DTD(Tr_K_0,
                 c_p[i])
             flag_t = np.zeros(flag.shape) + F_ALL_FLUXES
             flag_t[i], T_S[i] = calc_T_S(Tr_K_1[i], T_C[i], f_theta[i])
-            flag[flag_t == F_INVALID] = F_INVALID
+            flag[flag_t == F_INVALID] = F_FAILED_TS
             LE_S[flag_t == F_INVALID] = 0
 
             # Recalculate soil resistance using new difference between soil
@@ -3570,6 +3569,38 @@ def calc_T_S_series(Tr_K, T_A_K, R_A, R_x, R_S, f_theta, H_S, rho, c_p):
     return np.asarray(T_S, dtype=np.float32), np.asarray(T_AC, dtype=np.float32)
 
 
+
+def calc_T_S_parallel(t_a_k, r_a, r_s, h_s, rho, c_p):
+    """Estimates soil temperature from soil sensible heat flux and
+    resistance network in series.
+
+    Parameters
+    ----------
+    t_a_k : float
+        Air Temperature (K).
+    r_a : float
+        Aerodynamic resistance to heat transport (s m-1).
+    r_s : float
+        Aerodynamic resistance to heat transport at the soil boundary layer (s m-1).
+    h_s : float
+        Sensible heat flux of the soil (W m-2).
+    rho : float
+        Density of air (km m-3).
+    c_p : float
+        Heat capacity of air at constant pressure (J kg-1 K-1).
+
+    Returns
+    -------
+    t_s: float
+        Soil temperature (K).
+
+    """
+
+    t_s = t_a_k + h_s * (r_a + r_s) / (rho * c_p)
+
+    return np.asarray(t_s, dtype=np.float32)
+
+
 def _check_default_parameter_size(parameter, input_array):
 
     parameter = np.asarray(parameter, dtype=np.float32)
@@ -3820,3 +3851,555 @@ def monin_obukhov_convergence(l_mo, l_queue, l_converged, flag):
     return i, l_queue, l_converged, l_diff_max
     
     
+def TSEB_SM(Tr_K,
+            vza,
+            r_ss,
+            psi,
+            T_A_K,
+            u,
+            ea,
+            p,
+            Sn_C,
+            Sn_S,
+            L_dn,
+            LAI,
+            h_C,
+            emis_C,
+            emis_S,
+            z_0M,
+            d_0,
+            z_u,
+            z_T,
+            leaf_width=0.1,
+            z0_soil=0.01,
+            alpha_PT=1.26,
+            x_LAD=1,
+            f_c=1.0,
+            f_g=1.0,
+            w_C=1.0,
+            resistance_form=None,
+            calcG_params=None,
+            const_L=None,
+            kB=KB_1_DEFAULT,
+            massman_profile=None,
+            verbose=True):
+    '''Priestley-Taylor TSEB
+
+    Calculates the Priestley Taylor TSEB fluxes using a single observation of
+    composite radiometric temperature and using resistances in series.
+
+    Parameters
+    ----------
+    Tr_K : float
+        Radiometric composite temperature (Kelvin).
+    vza : float
+        View Zenith Angle (degrees).
+    r_ss : float
+        Soil resistance to evaporation
+    psi : float
+        Soil matric potential (m)
+    T_A_K : float
+        Air temperature (Kelvin).
+    u : float
+        Wind speed above the canopy (m s-1).
+    ea : float
+        Water vapour pressure above the canopy (mb).
+    p : float
+        Atmospheric pressure (mb), use 1013 mb by default.
+    Sn_C : float
+        Canopy net shortwave radiation (W m-2).
+    Sn_S : float
+        Soil net shortwave radiation (W m-2).
+    L_dn : float
+        Downwelling longwave radiation (W m-2).
+    LAI : float
+        Effective Leaf Area Index (m2 m-2).
+    h_C : float
+        Canopy height (m).
+    emis_C : float
+        Leaf emissivity.
+    emis_S : flaot
+        Soil emissivity.
+    z_0M : float
+        Aerodynamic surface roughness length for momentum transfer (m).
+    d_0 : float
+        Zero-plane displacement height (m).
+    z_u : float
+        Height of measurement of windspeed (m).
+    z_T : float
+        Height of measurement of air temperature (m).
+    leaf_width : float, optional
+        average/effective leaf width (m).
+    z0_soil : float, optional
+        bare soil aerodynamic roughness length (m).
+    alpha_PT : float, optional
+        Priestley Taylor coeffient for canopy potential transpiration,
+        use 1.26 by default.
+    x_LAD : float, optional
+        Campbell 1990 leaf inclination distribution function chi parameter.
+    f_c : float, optional
+        Fractional cover.
+    f_g : float, optional
+        Fraction of vegetation that is green.
+    w_C : float, optional
+        Canopy width to height ratio.
+    resistance_form : int, optional
+        Flag to determine which Resistances R_x, R_S model to use.
+
+            * 0 [Default] Norman et al 1995 and Kustas et al 1999.
+            * 1 : Choudhury and Monteith 1988.
+            * 2 : McNaughton and Van der Hurk 1995.
+
+    calcG_params : list[list,float or array], optional
+        Method to calculate soil heat flux,parameters.
+
+            * [[1],G_ratio]: default, estimate G as a ratio of Rn_S, default Gratio=0.35.
+            * [[0],G_constant] : Use a constant G, usually use 0 to ignore the computation of G.
+            * [[2,Amplitude,phase_shift,shape],time] : estimate G from Santanello and Friedl with
+                                                       G_param list of parameters
+                                                       (see :func:`~TSEB.calc_G_time_diff`).
+    const_L : float or None, optional
+        If included, its value will be used to force the Moning-Obukhov stability length.
+
+    Returns
+    -------
+    flag : int
+        Quality flag, see Appendix for description.
+    T_S : float
+        Soil temperature  (Kelvin).
+    T_C : float
+        Canopy temperature  (Kelvin).
+    T_AC : float
+        Air temperature at the canopy interface (Kelvin).
+    L_nS : float
+        Soil net longwave radiation (W m-2)
+    L_nC : float
+        Canopy net longwave radiation (W m-2)
+    LE_C : float
+        Canopy latent heat flux (W m-2).
+    H_C : float
+        Canopy sensible heat flux (W m-2).
+    LE_S : float
+        Soil latent heat flux (W m-2).
+    H_S : float
+        Soil sensible heat flux (W m-2).
+    G : float
+        Soil heat flux (W m-2).
+    R_S : float
+        Soil aerodynamic resistance to heat transport (s m-1).
+    R_x : float
+        Bulk canopy aerodynamic resistance to heat transport (s m-1).
+    R_A : float
+        Aerodynamic resistance to heat transport (s m-1).
+    u_friction : float
+        Friction velocity (m s-1).
+    L : float
+        Monin-Obuhkov length (m).
+    n_iterations : int
+        number of iterations until convergence of L.
+
+    References
+    ----------
+    .. [Norman1995] J.M. Norman, W.P. Kustas, K.S. Humes, Source approach for estimating
+        soil and vegetation energy fluxes in observations of directional radiometric
+        surface temperature, Agricultural and Forest Meteorology, Volume 77, Issues 3-4,
+        Pages 263-293,
+        http://dx.doi.org/10.1016/0168-1923(95)02265-Y.
+    .. [Kustas1999] William P Kustas, John M Norman, Evaluation of soil and vegetation heat
+        flux predictions using a simple two-source model with radiometric temperatures for
+        partial canopy cover, Agricultural and Forest Meteorology, Volume 94, Issue 1,
+        Pages 13-29,
+        http://dx.doi.org/10.1016/S0168-1923(99)00005-2.
+    '''
+
+    # Convert input float scalars to arrays and parameters size
+    if calcG_params is None:
+        calcG_params = [[1], 0.35]
+    if resistance_form is None:
+        resistance_form = [0, {}]
+    if massman_profile is None:
+        massman_profile = [0, []]
+
+    Tr_K = np.asarray(Tr_K, dtype=np.float32)
+    (vza,
+     r_ss,
+     psi,
+     T_A_K,
+     u,
+     ea,
+     p,
+     Sn_C,
+     Sn_S,
+     L_dn,
+     LAI,
+     h_C,
+     emis_C,
+     emis_S,
+     z_0M,
+     d_0,
+     z_u,
+     z_T,
+     leaf_width,
+     z0_soil,
+     alpha_PT,
+     x_LAD,
+     f_c,
+     f_g,
+     w_C,
+     calcG_array) = map(_check_default_parameter_size,
+                        [vza,
+                         r_ss,
+                         psi,
+                         T_A_K,
+                         u,
+                         ea,
+                         p,
+                         Sn_C,
+                         Sn_S,
+                         L_dn,
+                         LAI,
+                         h_C,
+                         emis_C,
+                         emis_S,
+                         z_0M,
+                         d_0,
+                         z_u,
+                         z_T,
+                         leaf_width,
+                         z0_soil,
+                         alpha_PT,
+                         x_LAD,
+                         f_c,
+                         f_g,
+                         w_C,
+                         calcG_params[1]],
+                        [Tr_K] * 26)
+    res_params = resistance_form[1]
+    resistance_form = resistance_form[0]
+    # calcG_params[1] = None
+    # Create the output variables
+    [H, LE_C, H_C, LE_S, H_S, R_S, R_x, R_A, iterations] = [
+        np.full(Tr_K.shape, np.nan) for i in range(9)]
+
+    # iteration of the Monin-Obukhov length
+    if const_L is None:
+        # Initially assume stable atmospheric conditions and set variables for
+        L = np.zeros(Tr_K.shape) + np.inf
+        max_iterations = ITERATIONS
+    else:  # We force Monin-Obukhov lenght to the provided array/value
+        L = np.ones(Tr_K.shape) * const_L
+        max_iterations = 1  # No iteration
+    # Calculate the general parameters
+    rho = met.calc_rho(p, ea, T_A_K)  # Air density
+    c_p = met.calc_c_p(p, ea)  # Heat capacity of air
+    rho_cp = rho * c_p
+    vpd = met.calc_vapor_pressure(T_A_K) - ea
+    z_0H = res.calc_z_0H(z_0M, kB=kB)  # Roughness length for heat transport
+    delta = 10. * met.calc_delta_vapor_pressure(T_A_K)  # slope of saturation water vapour pressure in mb K-1
+    lambda_= met.calc_lambda(T_A_K)                     # latent heat of vaporization MJ kg-1
+    psicr = met.calc_psicr(c_p, p, lambda_)                     # Psicrometric constant (mb K-1)
+
+
+    # Calculate LAI dependent parameters for dataset where LAI > 0
+    omega0 = CI.calc_omega0_Kustas(LAI, f_c, x_LAD=x_LAD, isLAIeff=True)
+    F = np.asarray(LAI / f_c, dtype=np.float32)  # Real LAI
+    # Fraction of vegetation observed by the sensor
+    f_theta = calc_F_theta_campbell(vza, F, w_C=w_C, Omega0=omega0, x_LAD=x_LAD)
+    del vza, ea
+    # Initially assume stable atmospheric conditions and set variables for
+    # iteration of the Monin-Obukhov length
+    u_friction = MO.calc_u_star(u, z_u, L, d_0, z_0M)
+    u_friction = np.asarray(np.maximum(U_FRICTION_MIN, u_friction), dtype=np.float32)
+    L_queue = deque([np.array(L, np.float32)], 6)
+    L_converged = np.zeros(Tr_K.shape, bool)
+    L_diff_max = np.inf
+
+    # First assume that canopy temperature equals the minumum of Air or
+    # radiometric T
+    T_S = np.asarray(np.maximum(Tr_K, T_A_K), dtype=np.float32)
+    flag, T_C = calc_T_C(Tr_K, T_S, f_theta)
+    T_AC = T_A_K.copy()
+
+    # Initial estimate of potential LE to get VPD at canopy interface
+    _, _, _, taudl = rad.calc_spectra_Cambpell(LAI,
+                                               np.zeros(emis_C.shape),
+                                               1.0 - emis_C,
+                                               np.zeros(emis_S.shape),
+                                               1.0 - emis_S,
+                                               x_lad=x_LAD,
+                                               lai_eff=None)
+
+    emiss = taudl * emis_S + (1 - taudl) * emis_C
+    Ln = emiss * (L_dn - met.calc_stephan_boltzmann(T_AC))
+    Ln_C = (1. - taudl) * Ln
+    Ln_S = taudl * Ln
+    delta_Rn = Sn_C + Ln_C
+    Rn_S = Sn_S + Ln_S
+    netrad = delta_Rn + Rn_S
+    G = calc_G([calcG_params[0], calcG_array], Rn_S, None)
+    LE = (netrad - G) * 1.26 * f_g * psicr / (delta + psicr)
+
+    # Outer loop for estimating stability.
+    # Stops when difference in consecutives L is below a given threshold
+    start_time = time.time()
+    loop_time = time.time()
+    for n_iterations in range(max_iterations):
+        i = flag != F_INVALID
+        if np.all(L_converged[i]):
+            if verbose:
+                if L_converged[i].size == 0:
+                    print("Finished iterations with no valid solution")
+                else:
+                    print(f"Finished interations with a max. L diff: {L_diff_max}")
+            break
+        current_time = time.time()
+        loop_duration = current_time - loop_time
+        loop_time = current_time
+        total_duration = loop_time - start_time
+        if verbose:
+            print("Iteration: %d, non-converged pixels: %d, max L diff: %f, total time: %f, loop time: %f" %
+                  (n_iterations, np.sum(~L_converged[i]), L_diff_max, total_duration, loop_duration))
+        iterations[np.logical_and(~L_converged, flag != F_INVALID)] = n_iterations
+
+        # Inner loop to iterativelly reduce alpha_PT in case latent heat flux
+        # from the soil is negative. The initial assumption is of potential
+        # canopy transpiration.
+        flag[np.logical_and(~L_converged, flag != F_INVALID)] = F_ALL_FLUXES
+        LE_C[np.logical_and(~L_converged, flag != F_INVALID)] = -1
+        r_ss = r_ss[:] - STEP_RSS
+        alpha_PT_rec = np.asarray(alpha_PT + 0.1, dtype=np.float32)
+
+        while np.any(LE_C[i] < 0):
+            i = np.logical_and.reduce((LE_C < 0, ~L_converged, flag != F_INVALID,))
+            r_ss[i] += STEP_RSS  # Soil is drier and hence we increase soil surface resistance
+            # Calculate aerodynamic resistances
+            R_A[i], R_x[i], R_S[i] = calc_resistances(
+                      resistance_form,
+                      {"R_A": {"z_T": z_T[i], "u_friction": u_friction[i], "L": L[i],
+                               "d_0": d_0[i], "z_0H": z_0H[i]},
+                       "R_x": {"u_friction": u_friction[i], "h_C": h_C[i],
+                               "d_0": d_0[i],
+                               "z_0M": z_0M[i], "L": L[i], "F": F[i], "LAI": LAI[i],
+                               "leaf_width": leaf_width[i],
+                               "z0_soil": z0_soil[i],
+                               "massman_profile": massman_profile,
+                               "res_params": {k: res_params[k][i] for k in res_params.keys()}},
+                       "R_S": {"u_friction": u_friction[i], "h_C": h_C[i],
+                               "d_0": d_0[i],
+                               "z_0M": z_0M[i], "L": L[i], "F": F[i], "omega0": omega0[i],
+                               "LAI": LAI[i], "leaf_width": leaf_width[i],
+                               "z0_soil": z0_soil[i], "z_u": z_u[i],
+                               "deltaT": T_S[i] - T_AC[i], 'u': u[i], 'rho': rho[i],
+                               "c_p": c_p[i], "f_cover": f_c[i], "w_C": w_C[i],
+                               "massman_profile": massman_profile,
+                               "res_params": {k: res_params[k][i] for k in res_params.keys()}}
+                       }
+            )
+
+            # Calculate the soil evaporation and soil temperatures
+            e_soil = soil_wvp(psi[i], T_S[i])
+            vpd_0 = vpd[i] + (delta[i] * (netrad[i] - G[i]) - (delta[i] + psicr[i]) \
+                              * LE[i]) * R_A[i] / (rho_cp[i])
+            e_star = met.calc_vapor_pressure(T_AC[i])
+            e_ac = e_star - vpd_0
+            LE_S[i] = rho_cp[i] * (e_soil - e_ac) / (psicr[i] * (R_S[i] + r_ss[i]))
+            H_S[i] = Rn_S[i] - G[i] - LE_S[i]
+            T_S[i], T_AC[i] = calc_T_S_series(
+                Tr_K[i], T_A_K[i], R_A[i], R_x[i], R_S[i],
+                f_theta[i], H_S[i], rho[i], c_p[i])
+
+            # Calculate canopy temperature and canopy transpiration
+            flag_t = np.full(flag.shape, F_ALL_FLUXES)
+            flag_t[i], T_C[i] = calc_T_C(Tr_K[i], T_S[i], f_theta[i])
+            f = np.logical_and(i, flag_t == F_INVALID)
+            # If TC failes compute TS as in parallel resistors and recalculate
+            T_S[f] = calc_T_S_parallel(
+                T_A_K[f], R_A[f], R_S[f], H_S[f], rho[f], c_p[f])
+            flag_t[f], T_C[f] = calc_T_C(Tr_K[f], T_S[f], f_theta[f])
+
+            f = flag_t == F_INVALID
+            flag[f] = F_FAILED_TC
+            H_C[f] = np.minimum(calc_H_C_PT(delta_Rn[f], f_g[f],
+                                            T_A_K[f], p[f], c_p[f],
+                                            alpha_PT_rec[f]),
+                                delta_Rn[f])
+            LE_C[f] = delta_Rn[f] - H_C[f]
+
+            i = np.logical_and.reduce((LE_C < 0, ~L_converged, flag != F_FAILED_TC))
+            # Compute air temperature at the canopy interface
+            T_AC[i] = ((T_A_K[i] / R_A[i] + T_S[i] / R_S[i] + T_C[i] / R_x[i])
+                       / (1 / R_A[i] + 1 / R_S[i] + 1 / R_x[i]))
+            H_C[i] = rho_cp[i] * (T_C[i] - T_AC[i]) / R_x[i]
+            LE_C[i] = delta_Rn[i] - H_C[i]
+
+            # Calculate net longwave radiation with current values of T_C and T_S
+            Ln_C[i], Ln_S[i] = rad.calc_L_n_Campbell(
+                T_C[i], T_S[i], L_dn[i], LAI[i], emis_C[i], emis_S[i], x_LAD=x_LAD[i])
+            delta_Rn[i] = Sn_C[i] + Ln_C[i]
+            Rn_S[i] = Sn_S[i] + Ln_S[i]
+            netrad[i] = Rn_S[i] + delta_Rn[i]
+            # Compute Soil Heat Flux Ratio
+            G[i] = calc_G([calcG_params[0], calcG_array], Rn_S, i)
+            # Recalculate soil resistance using new soil temperature
+            _, _, R_S[i] = calc_resistances(
+                    resistance_form,
+                    {"R_S": {"u_friction": u_friction[i], "h_C": h_C[i], "d_0": d_0[i],
+                             "z_0M": z_0M[i], "L": L[i], "F": F[i], "omega0": omega0[i],
+                             "LAI": LAI[i], "leaf_width": leaf_width[i],
+                             "z0_soil": z0_soil[i],  "z_u": z_u[i],
+                             "deltaT": T_S[i] - T_AC[i], "u": u[i], "rho": rho[i],
+                             "c_p": c_p[i], "f_cover": f_c[i], "w_C": w_C[i],
+                             "massman_profile": massman_profile,
+                             "res_params": {k: res_params[k][i] for k in res_params.keys()}}
+                     }
+            )
+
+
+            # Special case if there is no transpiration from vegetation.
+            # In that case, there should also be no evaporation from the soil
+            # and the energy at the soil should be conserved.
+            # See end of appendix A1 in Guzinski et al. (2015).
+
+            noT = np.logical_and(i, LE_C == 0)
+            H_S[noT] = np.minimum(H_S[noT], Rn_S[noT] - G[noT])
+            G[noT] = np.maximum(G[noT], Rn_S[noT] - H_S[noT])
+            LE_S[noT] = 0
+
+            noE = np.logical_and(i, r_ss > MAX_RST)
+            flag[noE] = F_ZERO_LE_S
+            LE_S[noE] = 0
+            H_S[noE] = Rn_S[noE] - G[noE]
+            reduce_pt = np.logical_or(noE, f)
+            alpha_PT_rec[reduce_pt] -= 0.1
+
+            # There cannot be negative transpiration from the vegetation
+            alpha_PT_rec[alpha_PT_rec <= 0.0] = 0.0
+            flag[np.logical_and(i, alpha_PT_rec == 0.0)] = F_ZERO_LE
+            H_C[noE] = np.minimum(calc_H_C_PT(delta_Rn[noE], f_g[noE],
+                                              T_A_K[noE], p[noE], c_p[noE],
+                                              alpha_PT_rec[noE]),
+                                  delta_Rn[noE])
+            LE_C[noE] = delta_Rn[noE] - H_C[noE]
+
+            # Calculate total fluxes
+            H[i] = np.asarray(H_C[i] + H_S[i], dtype=np.float32)
+            LE[i] = np.asarray(LE_C[i] + LE_S[i], dtype=np.float32)
+            # Now L can be recalculated and the difference between iterations
+            # derived
+            if const_L is None:
+                L[i] = MO.calc_L(
+                    u_friction[i],
+                    T_A_K[i],
+                    rho[i],
+                    c_p[i],
+                    H[i],
+                    LE[i])
+                # Calculate again the friction velocity with the new stability
+                # correctios
+                u_friction[i] = MO.calc_u_star(
+                    u[i], z_u[i], L[i], d_0[i], z_0M[i])
+                u_friction[i] = np.asarray(np.maximum(U_FRICTION_MIN, u_friction[i]), dtype=np.float32)
+
+        if const_L is None:
+            # We check convergence against the value of L from previous iteration but as well
+            # against values from 2 or 3 iterations back. This is to catch situations (not
+            # infrequent) where L oscillates between 2 or 3 steady state values.
+            i, L_queue, L_converged, L_diff_max = monin_obukhov_convergence(L,
+                                                                            L_queue,
+                                                                            L_converged,
+                                                                            flag)
+
+    (flag,
+     T_S,
+     T_C,
+     T_AC,
+     L_nS,
+     L_nC,
+     LE_C,
+     H_C,
+     LE_S,
+     H_S,
+     G,
+     R_S,
+     R_x,
+     R_A,
+     u_friction,
+     L,
+     n_iterations) = map(np.asarray,
+                         (flag,
+                          T_S,
+                          T_C,
+                          T_AC,
+                          Ln_S,
+                          Ln_C,
+                          LE_C,
+                          H_C,
+                          LE_S,
+                          H_S,
+                          G,
+                          R_S,
+                          R_x,
+                          R_A,
+                          u_friction,
+                          L,
+                          iterations))
+
+    return (flag, T_S, T_C, T_AC, L_nS, L_nC, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A, u_friction,
+            L, n_iterations)
+
+
+def r_ss_Kustas(ssm, ssm_sat=0.5, a=8.2, b=4.3):
+    """
+
+    Parameters
+    ----------
+    ssm
+    ssm_sat
+    a
+    b
+
+    Returns
+    -------
+    r_ss : float or array_like
+        Soil resistance (s m-1) to evaporation
+
+    References
+    ----------
+    .. [Kustas2003] Kustas, W.P., Bindlish, R., French, A.N., Schmugge, T.J.
+        Comparison of energy balance modeling schemes using microwave‐derived
+        soil moisture and radiometric surface temperature.
+        Water Resources Research 2003, 39, 2002WR001361.
+        https://doi.org/10.1029/2002WR001361
+
+    .. [Hssaine2018] Hssaine, B.A., Merlin, O., Rafi, Z., Ezzahar, J.,
+        Jarlan, L., Khabba, S., Er-Raki, S.
+        Calibrating an evapotranspiration model using radiometric
+        surface temperature, vegetation cover fraction and
+        near-surface soil moisture data.
+        Agricultural and Forest Meteorology 2018, 256–257, 104–115.
+        https://doi.org/10.1016/j.agrformet.2018.02.033
+
+    """
+    r_ss = np.exp(a - b * ssm / ssm_sat)
+    return r_ss
+
+
+
+def soil_wvp(psi, t_s):
+    """
+
+    Parameters
+    ----------
+    psi
+    t_s
+
+    Returns
+    -------
+
+    """
+    r_v = 461.5  # gas constant for water vapor, J kg-1 K-1
+    h_r = np.exp(psi * MO.GRAVITY / (r_v * t_s))
+    e_soil = h_r * met.calc_vapor_pressure(t_s)
+    return e_soil
+
+
