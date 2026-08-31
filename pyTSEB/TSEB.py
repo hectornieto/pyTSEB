@@ -753,6 +753,7 @@ def TSEB_PT(Tr_K,
     # Stops when difference in consecutives L is below a given threshold
     start_time = time.time()
     loop_time = time.time()
+    alpha_PT_rec = np.asarray(alpha_PT, dtype=np.float32)
     for n_iterations in range(max_iterations):
         i = flag != F_INVALID
         if np.all(L_converged[i]):
@@ -876,6 +877,7 @@ def TSEB_PT(Tr_K,
             H_S[noT] = np.minimum(H_S[noT], Rn_S[noT] - G[noT])
             G[noT] = np.maximum(G[noT], Rn_S[noT] - H_S[noT])
             LE_S[noT] = 0
+            flag[noT] = F_ZERO_LE
 
             # Calculate total fluxes
             H[i] = np.asarray(H_C[i] + H_S[i], dtype=np.float32)
@@ -944,6 +946,7 @@ def TSEB_PT(Tr_K,
 
     return (flag, T_S, T_C, T_AC, Ln_S, Ln_C, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A, u_friction,
             L, n_iterations, alpha_PT_rec)
+
 
 def TSEB_SW(Tr_K,
             vza,
@@ -1229,6 +1232,8 @@ def TSEB_SW(Tr_K,
 
     # Outer loop for estimating stability.
     # Stops when difference in consecutives L is below a given threshold
+    Rst = Rst_min[:]
+    Rss = Rss_min[:]
     start_time = time.time()
     loop_time = time.time()
     for n_iterations in range(max_iterations):
@@ -1411,6 +1416,7 @@ def TSEB_SW(Tr_K,
             H_S[noT] = np.minimum(H_S[noT], Rn_S[noT] - G[noT])
             G[noT] = np.maximum(G[noT], Rn_S[noT] - H_S[noT])
             LE_S[noT] = 0
+            flag[noT] = F_ZERO_LE
 
             # Calculate total fluxes
             H[i] = np.asarray(H_C[i] + H_S[i])
@@ -1920,6 +1926,7 @@ def TSEB_PM(Tr_K,
             H_S[noT] = np.minimum(H_S[noT], Rn_S[noT] - G[noT])
             G[noT] = np.maximum(G[noT], Rn_S[noT] - H_S[noT])
             LE_S[noT] = 0
+            flag[noT] = F_ZERO_LE
 
             # Calculate total fluxes
             H[i] = np.asarray(H_C[i] + H_S[i])
@@ -2360,6 +2367,7 @@ def DTD(Tr_K_0,
             H_S[noT] = np.minimum(H_S[noT], Rn_S[noT] - G[noT])
             G[noT] = np.maximum(G[noT], Rn_S[noT] - H_S[noT])
             LE_S[noT] = 0
+            flag[noT] = F_ZERO_LE
 
             # Recalculate soil and canopy temperatures. They are used only for
             # estimation of longwave radiation, so the use of non-differential Tr
