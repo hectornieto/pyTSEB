@@ -287,7 +287,7 @@ def calc_R_A(z_T, ustar, L, d_0, z_0H):
     return np.asarray(R_A)
 
 
-def calc_R_S_Choudhury(u_star, h_C, z_0M, d_0, zm, z0_soil=0.01, alpha_k=2.0):
+def calc_R_S_Choudhury(u_star, h_C, z_0M, d_0, zm, z0_soil=0.01, alpha_w=2.5):
     ''' Aerodynamic resistance at the  soil boundary layer.
 
     Estimates the aerodynamic resistance at the  soil boundary layer based on the
@@ -307,7 +307,7 @@ def calc_R_S_Choudhury(u_star, h_C, z_0M, d_0, zm, z0_soil=0.01, alpha_k=2.0):
         height on measurement of wind speed (m).
     z0_soil : float, optional
         roughness length of the soil layer, use z0_soil=0.01.
-    alpha_k : float, optional
+    alpha_w : float, optional
         Heat diffusion coefficient, default=2.
 
     Returns
@@ -326,8 +326,8 @@ def calc_R_S_Choudhury(u_star, h_C, z_0M, d_0, zm, z0_soil=0.01, alpha_k=2.0):
     # Soil resistance eqs. 24 & 25 [Choudhury1988]_
     K_h = KARMAN * u_star * (h_C - d_0)
     del u_star
-    R_S = ((h_C * np.exp(alpha_k) / (alpha_k * K_h))
-           * (np.exp(-alpha_k * z0_soil / h_C) - np.exp(-alpha_k * (d_0 + z_0M) / h_C)))
+    R_S = ((h_C * np.exp(alpha_w) / (alpha_w * K_h))
+           * (np.exp(-alpha_w * z0_soil / h_C) - np.exp(-alpha_w * (d_0 + z_0M) / h_C)))
 
     return np.asarray(R_S)
 
@@ -644,7 +644,7 @@ def calc_r_ss_Haghighi(u, h_c, zm, rho, c_p, z0_soil=0.01, f_cover=0, w_c=1,
 
     return np.asarray(r_ss)
 
-def calc_R_x_Choudhury(u_C, F, leaf_width, alpha_prime=3.0):
+def calc_R_x_Choudhury(u_C, F, leaf_width, alpha_w=2.5):
     ''' Estimates aerodynamic resistance at the canopy boundary layer.
 
     Estimates the aerodynamic resistance at the canopy boundary layer based on the
@@ -658,8 +658,8 @@ def calc_R_x_Choudhury(u_C, F, leaf_width, alpha_prime=3.0):
         local Leaf Area Index.
     leaf_width : float
         efective leaf width size (m).
-    alpha_prime : float, optional
-        Wind exctinction coefficient, default=3.
+    alpha_w : float, optional
+        Wind exctinction coefficient, default=2.5
 
     Returns
     -------
@@ -675,8 +675,8 @@ def calc_R_x_Choudhury(u_C, F, leaf_width, alpha_prime=3.0):
     '''
 
     # Eqs. 29 & 30 [Choudhury1988]_
-    R_x = (1.0 / (F * (2.0 * CM_a / alpha_prime)
-           * np.sqrt(u_C / leaf_width) * (1.0 - np.exp(-alpha_prime / 2.0))))
+    R_x = (1.0 / (F * (2.0 * CM_a / alpha_w)
+           * np.sqrt(u_C / leaf_width) * (1.0 - np.exp(-alpha_w / 2.0))))
     # R_x=(alpha_u*(sqrt(leaf_width/U_C)))/(2.0*alpha_0*LAI*(1.-exp(-alpha_u/2.0)))
     return np.asarray(R_x)
 

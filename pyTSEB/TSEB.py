@@ -749,6 +749,7 @@ def TSEB_PT(Tr_K,
     T_C = np.asarray(np.minimum(Tr_K, T_A_K), dtype=np.float32)
     flag, T_S = calc_T_S(Tr_K, T_C, f_theta)
     T_AC = T_A_K.copy()
+    alpha_PT_rec = np.full_like(Tr_K, alpha_PT)
 
     # Outer loop for estimating stability.
     # Stops when difference in consecutives L is below a given threshold
@@ -1231,6 +1232,8 @@ def TSEB_SW(Tr_K,
     Rn_S = Sn_S + Ln_S
     Rn = delta_Rn + Rn_S
 
+    Rst = Rst_min[:]
+    Rss = Rss_min[:]
     # Outer loop for estimating stability.
     # Stops when difference in consecutives L is below a given threshold
     Rst = Rst_min[:]
@@ -3763,16 +3766,16 @@ def calc_resistances(res_form, res_types):
             u_C = wnd.calc_u_C_star(u_friction, h_C, d_0, z_0M, L)
             u_C = np.maximum(u_C, U_C_MIN)
             # Wind speed is highly attenuated within the canopy volume
-            alpha_prime = wnd.calc_A_Goudriaan(h_C, LAI, leaf_width)
+            alpha_w = wnd.calc_A_Goudriaan(h_C, LAI, leaf_width)
             # Vegetation in series with soil, i.e. well mixed, so we use
             # the landscape LAI
-            R_x = res.calc_R_x_Choudhury(u_C, LAI, leaf_width, alpha_prime=alpha_prime)
-            del LAI, alpha_prime
+            R_x = res.calc_R_x_Choudhury(u_C, LAI, leaf_width, alpha_w=alpha_w)
+            del LAI, alpha_w
 
         if calc_R_S:
             # Clumped vegetation enhanced wind speed for the soil surface
-            alpha_k = wnd.calc_A_Goudriaan(h_C, LAI, leaf_width)
-            R_S = res.calc_R_S_Choudhury(u_friction, h_C, z_0M, d_0, z_u, z0_soil, alpha_k=alpha_k)
+            alpha_w = wnd.calc_A_Goudriaan(h_C, LAI, leaf_width)
+            R_S = res.calc_R_S_Choudhury(u_friction, h_C, z_0M, d_0, z_u, z0_soil, alpha_w=alpha_w)
 
     elif res_form == HADHIGHI_AND_OR_2015:
         if calc_R_x:
