@@ -1091,3 +1091,51 @@ def raupach(lambda_):
 
     return np.asarray(z0M_factor), np.asarray(d_factor)
 
+
+def resistance_2_see(r_0, r_v, r_v_min=0):
+    """
+    Evaporation resistance to evaporative efficiency
+
+    Parameters
+    ----------
+    r_0 : float or array
+        Bulk aerodynamic resistance (m s-1)
+    r_v : float or array
+        Actual resistance to evaporation (m s-1)
+    r_v_min : float or array
+        Minimum resistance to evaporation  (m s-1)
+        (e.g. minimum stomatal resistance)
+
+    Returns
+    -------
+    see : float or array
+        Evaporative efficiency (0--1)
+    """
+    see = (r_0 + r_v_min) / (r_0 + r_v)
+    return see
+
+
+def see_2_resistance(see, r_0, r_v_min=0):
+    """
+    Evaporative efficiency to evaporation resistance
+
+    Parameters
+    ----------
+    see : float or array
+        Evaporative efficiency (0--1)
+    r_0 : float or array
+        Bulk aerodynamic resistance (m s-1)
+    r_v_min : float or array
+        Minimum resistance to evaporation  (m s-1)
+        (e.g. minimum stomatal resistance)
+
+    Returns
+    -------
+    r_v : float or array
+        Actual resistance to evaporation (m s-1)
+
+    """
+    r_v = (r_0 * (1 - see) + r_v_min) / see
+    return r_v
+
+
