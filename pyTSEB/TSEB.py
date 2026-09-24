@@ -4773,8 +4773,8 @@ def TSEB_SW_2(Tr_K,
                                                        }
                                                       )
 
-            Rss_out[i] = see_2_resistance(see[i], R_S[i] + R_A[i])
-            R_c[i] = see_2_resistance(
+            Rss_out[i] = res.see_2_resistance(see[i], R_S[i] + R_A[i])
+            R_c[i] = res.see_2_resistance(
                 beta_v[i], R_x[i] + R_A[i], r_v_min=r_c_min[i])
 
             # Calculate the canopy and soil temperatures using the Priestley Taylor approach
@@ -4951,11 +4951,4 @@ def TSEB_SW_2(Tr_K,
             R_A, Rss_out, Rst_out, u_friction, L, n_iterations)
 
 
-def resistance_2_see(r_0, r_v, r_v_min=0):
-    see = (r_0 + r_v_min) / (r_0 + r_v)
-    return see
 
-
-def see_2_resistance(see, r_0, r_v_min=0):
-    r_v = (r_0 * (1 - see) + r_v_min) / see
-    return r_v
