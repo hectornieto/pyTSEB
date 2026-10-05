@@ -84,6 +84,8 @@ from . import net_radiation as rad
 from . import clumping_index as CI
 from . import wind_profile as wnd
 from . import energy_combination_ET as pet
+import logging
+logger = logging.getLogger(__name__)
 
 # ==============================================================================
 # List of constants used in TSEB model and sub-routines
@@ -170,8 +172,7 @@ def TSEB_2T(T_C,
             calcG_params=None,
             const_L=None,
             kB=KB_1_DEFAULT,
-            massman_profile=None,
-            verbose=True):
+            massman_profile=None):
     """ TSEB using component canopy and soil temperatures.
 
     Calculates the turbulent fluxes by the Two Source Energy Balance model
@@ -390,19 +391,16 @@ def TSEB_2T(T_C,
     loop_time = time.time()
     for n_iterations in range(max_iterations):
         if np.all(l_converged[i]):
-            if verbose:
-                if l_converged[i].size == 0:
-                    print("Finished iterations with no valid solution")
-                else:
-                    print(f"Finished interations with a max. L diff: {l_diff_max}")
-            break
+            if l_converged[i].size == 0:
+                logger.info("Finished iterations with no valid solution")
+            else:
+                logger.info(f"Finished interations with a max. L diff: {l_diff_max}")
         current_time = time.time()
         loop_duration = current_time - loop_time
         loop_time = current_time
         total_duration = loop_time - start_time
-        if verbose:
-            print("Iteration: %d, non-converged pixels: %d, max L diff: %f, total time: %f, loop time: %f" %
-                  (n_iterations, np.sum(~l_converged[i]), l_diff_max, total_duration, loop_duration))
+        logger.debug("Iteration: %d, non-converged pixels: %d, max L diff: %f, total time: %f, loop time: %f" %
+              (n_iterations, np.sum(~l_converged[i]), l_diff_max, total_duration, loop_duration))
         iterations[np.logical_and(~l_converged, flag != F_INVALID)] = n_iterations
 
         i = np.logical_and(~l_converged, flag != F_INVALID)
@@ -525,8 +523,7 @@ def TSEB_PT(Tr_K,
             calcG_params=None,
             const_L=None,
             kB=KB_1_DEFAULT,
-            massman_profile=None,
-            verbose=True):
+            massman_profile=None):
     '''Priestley-Taylor TSEB
 
     Calculates the Priestley Taylor TSEB fluxes using a single observation of
@@ -759,19 +756,17 @@ def TSEB_PT(Tr_K,
     for n_iterations in range(max_iterations):
         i = flag != F_INVALID
         if np.all(L_converged[i]):
-            if verbose:
-                if L_converged[i].size == 0:
-                    print("Finished iterations with no valid solution")
-                else:
-                    print(f"Finished interations with a max. L diff: {L_diff_max}")
+            if L_converged[i].size == 0:
+                logger.warning("Finished iterations with no valid solution")
+            else:
+                logger.info(f"Finished interations with a max. L diff: {L_diff_max}")
             break
         current_time = time.time()
         loop_duration = current_time - loop_time
         loop_time = current_time
         total_duration = loop_time - start_time
-        if verbose:
-            print("Iteration: %d, non-converged pixels: %d, max L diff: %f, total time: %f, loop time: %f" %
-                  (n_iterations, np.sum(~L_converged[i]), L_diff_max, total_duration, loop_duration))
+        logger.debug("Iteration: %d, non-converged pixels: %d, max L diff: %f, total time: %f, loop time: %f" %
+              (n_iterations, np.sum(~L_converged[i]), L_diff_max, total_duration, loop_duration))
         iterations[np.logical_and(~L_converged, flag != F_INVALID)] = n_iterations
 
         # Inner loop to iterativelly reduce alpha_PT in case latent heat flux
@@ -1232,8 +1227,6 @@ def TSEB_SW(Tr_K,
     Rn_S = Sn_S + Ln_S
     Rn = delta_Rn + Rn_S
 
-    Rst = Rst_min[:]
-    Rss = Rss_min[:]
     # Outer loop for estimating stability.
     # Stops when difference in consecutives L is below a given threshold
     Rst = Rst_min[:]
@@ -1244,15 +1237,15 @@ def TSEB_SW(Tr_K,
         i = flag != F_INVALID
         if np.all(L_converged[i]):
             if L_converged[i].size == 0:
-                print("Finished iterations with no valid solution")
+                logger.warning("Finished iterations with no valid solution")
             else:
-                print("Finished interations with a max. L diff: " + str(L_diff_max))
+                logger.info("Finished interations with a max. L diff: " + str(L_diff_max))
             break
         current_time = time.time()
         loop_duration = current_time - loop_time
         loop_time = current_time
         total_duration = loop_time - start_time
-        print("Iteration: %d, non-converged pixels: %d, max L diff: %f, total time: %f, loop time: %f" %
+        logger.debug("Iteration: %d, non-converged pixels: %d, max L diff: %f, total time: %f, loop time: %f" %
               (n_iterations, np.sum(~L_converged[i]), L_diff_max, total_duration, loop_duration))
         iterations[np.logical_and(~L_converged, flag != F_INVALID)] = n_iterations
 
@@ -1781,15 +1774,15 @@ def TSEB_PM(Tr_K,
         i = flag != F_INVALID
         if np.all(L_converged[i]):
             if L_converged[i].size == 0:
-                print("Finished iterations with no valid solution")
+                logger.info("Finished iterations with no valid solution")
             else:
-                print("Finished interations with a max. L diff: " + str(L_diff_max))
-            break
+                logger.info("Finished interations with a max. L diff: " + str(L_diff_max))
+                break
         current_time = time.time()
         loop_duration = current_time - loop_time
         loop_time = current_time
         total_duration = loop_time - start_time
-        print("Iteration: %d, non-converged pixels: %d, max L diff: %f, total time: %f, loop time: %f" %
+        logger.debug("Iteration: %d, non-converged pixels: %d, max L diff: %f, total time: %f, loop time: %f" %
               (n_iterations, np.sum(~L_converged[i]), L_diff_max, total_duration, loop_duration))
         iterations[np.logical_and(~L_converged, flag != F_INVALID)] = n_iterations
 
@@ -2031,8 +2024,7 @@ def DTD(Tr_K_0,
         calcG_params=None,
         calc_Ri=True,
         kB=KB_1_DEFAULT,
-        massman_profile=None,
-        verbose=True):
+        massman_profile=None):
     ''' Calculate daytime Dual Time Difference TSEB fluxes
 
     Parameters
@@ -2292,15 +2284,14 @@ def DTD(Tr_K_0,
     for n_iterations in range(ITERATIONS):
         i = flag != F_INVALID
         if np.all(T_C_diff[i] < T_C_thres):
-            if verbose:
-                if T_C_diff[i].size == 0:
-                    print("Finished iterations with no valid solution")
-                else:
-                    print(f"Finished iteration with a max. T_C diff: {np.max(T_C_diff[i])}")
+            if T_C_diff[i].size == 0:
+                logger.warning("Finished iterations with no valid solution")
+            else:
+                logger.info(f"Finished iteration with a max. T_C diff: {np.max(T_C_diff[i])}")
             break
-        if verbose:
-            print(f"Iteration {n_iterations},"
-              f"maximum T_C difference between iterations: {np.max(T_C_diff[i])}")
+
+        logger.debug(f"Iteration {n_iterations},"
+          f"maximum T_C difference between iterations: {np.max(T_C_diff[i])}")
         iterations[np.logical_and(T_C_diff >= T_C_thres, flag != F_INVALID)] = n_iterations
 
         # Inner loop to iterativelly reduce alpha_PT in case latent heat flux
@@ -3883,8 +3874,7 @@ def TSEB_SM(Tr_K,
             calcG_params=None,
             const_L=None,
             kB=KB_1_DEFAULT,
-            massman_profile=None,
-            verbose=True):
+            massman_profile=None):
     '''Priestley-Taylor TSEB
 
     Calculates the Priestley Taylor TSEB fluxes using a single observation of
@@ -4148,19 +4138,17 @@ def TSEB_SM(Tr_K,
     for n_iterations in range(max_iterations):
         i = flag != F_INVALID
         if np.all(L_converged[i]):
-            if verbose:
-                if L_converged[i].size == 0:
-                    print("Finished iterations with no valid solution")
-                else:
-                    print(f"Finished interations with a max. L diff: {L_diff_max}")
+            if L_converged[i].size == 0:
+                logger.warning("Finished iterations with no valid solution")
+            else:
+                logger.info(f"Finished interations with a max. L diff: {L_diff_max}")
             break
         current_time = time.time()
         loop_duration = current_time - loop_time
         loop_time = current_time
         total_duration = loop_time - start_time
-        if verbose:
-            print("Iteration: %d, non-converged pixels: %d, max L diff: %f, total time: %f, loop time: %f" %
-                  (n_iterations, np.sum(~L_converged[i]), L_diff_max, total_duration, loop_duration))
+        loger.debug("Iteration: %d, non-converged pixels: %d, max L diff: %f, total time: %f, loop time: %f" %
+              (n_iterations, np.sum(~L_converged[i]), L_diff_max, total_duration, loop_duration))
         iterations[np.logical_and(~L_converged, flag != F_INVALID)] = n_iterations
 
         # Inner loop to iterativelly reduce alpha_PT in case latent heat flux
@@ -4695,15 +4683,15 @@ def TSEB_SW_2(Tr_K,
         i = flag != F_INVALID
         if np.all(L_converged[i]):
             if L_converged[i].size == 0:
-                print("Finished iterations with no valid solution")
+                logger.warning("Finished iterations with no valid solution")
             else:
-                print("Finished interations with a max. L diff: " + str(L_diff_max))
+                logger.info("Finished interations with a max. L diff: " + str(L_diff_max))
             break
         current_time = time.time()
         loop_duration = current_time - loop_time
         loop_time = current_time
         total_duration = loop_time - start_time
-        print("Iteration: %d, non-converged pixels: %d, max L diff: %f, total time: %f, loop time: %f" %
+        logger.debug("Iteration: %d, non-converged pixels: %d, max L diff: %f, total time: %f, loop time: %f" %
               (n_iterations, np.sum(~L_converged[i]), L_diff_max, total_duration, loop_duration))
         iterations[np.logical_and(~L_converged, flag != F_INVALID)] = n_iterations
 

@@ -3,6 +3,8 @@ from pyTSEB.TSEB import _check_default_parameter_size
 from pyTSEB import meteo_utils as met
 from pyTSEB import resistances as res
 from pyTSEB import net_radiation as rad
+import logging
+logger = logging.getLogger(__name__)
 
 # Convert from microEinstein to Watt
 MUEINSTEIN_2_WATT = 0.219
@@ -48,8 +50,7 @@ def gpp_leaf_no_gs(t_a_k,
                    g0p=G0P,
                    a_1=A_GS,
                    d_0=D_0_GS,
-                   fw=1,
-                   verbose=True):
+                   fw=1):
     """Model of photosynthesis Dewar+Farquhar.
     The function evaluates assimilation and conductance limited by temperature
     (Bernacchi's or Arrhenius equation) and radiation.
@@ -170,15 +171,25 @@ def gpp_leaf_no_gs(t_a_k,
                                                  a_1,
                                                  d_0,
                                                  oi=OI,
-                                                 fw=fw,
-                                                  verbose=verbose)
+                                                 fw=fw)
 
     gpp = assim + rd
     return gpp, rd, gst, ci, temp_limited
 
 
-def gs_solver_leaf(vpd, ca, vc_max, kc, ko, j_i, tes_star, rd, g0p, a_1, d_0, oi=OI,
-                   fw=1, verbose=True):
+def gs_solver_leaf(vpd,
+                   ca,
+                   vc_max,
+                   kc,
+                   ko,
+                   j_i,
+                   tes_star,
+                   rd,
+                   g0p,
+                   a_1,
+                   d_0,
+                   oi=OI,
+                   fw=1):
     """Function to compute net assimilation and photosynthesis at potential
     values,i.e. without taking into account the stomatal conductance reduction
     associated with the leaf water potential
@@ -263,11 +274,11 @@ def gs_solver_leaf(vpd, ca, vc_max, kc, ko, j_i, tes_star, rd, g0p, a_1, d_0, oi
         gst_old = gst.copy()
         ci_old = ci.copy()
         n_iterations += 1
-        if verbose:
-            print(f"Iteration: {n_iterations}, non-converged pixels: {np.sum(i)}, "
-                  f"max A diff: {np.nanmax(a_diff):4.3f}, "
-                  f"max Gs diff: {np.nanmax(gst_diff):4.3f},"
-                  f"max Ci diff: {np.nanmax(ci_diff):4.3f}")
+        logger.debug(
+            f"Iteration: {n_iterations}, non-converged pixels: {np.sum(i)}, "
+            f"max A diff: {np.nanmax(a_diff):4.3f}, "
+            f"max Gs diff: {np.nanmax(gst_diff):4.3f},"
+            f"max Ci diff: {np.nanmax(ci_diff):4.3f}")
 
     return assim, gst, ci, temp_limited
 
@@ -304,8 +315,7 @@ def gpp_canopy_no_gs(vpd,
                      a_1=A_GS,
                      d_0=D_0_GS,
                      fw=1,
-                     leaf_type=1,
-                     verbose=True):
+                     leaf_type=1):
     """Model of photosynthesis Dewar+Farquhar.
     The function evaluates assimilation and conductance limited by temperature
     (Bernacchi's or Arrhenius equation) and radiation.
@@ -526,8 +536,7 @@ def gpp_canopy_no_gs(vpd,
                                                                                d_0,
                                                                                oi=oi,
                                                                                fw=fw,
-                                                                               leaf_type=leaf_type,
-                                                                               verbose=verbose)
+                                                                               leaf_type=leaf_type)
 
     assim_sunlit, gs_sunlit, ci_sunlit, temp_limited_sunlit = gs_solver_canopy(vpd,
                                                                                lai_sunlit,
@@ -546,8 +555,7 @@ def gpp_canopy_no_gs(vpd,
                                                                                d_0,
                                                                                oi=oi,
                                                                                fw=fw,
-                                                                               leaf_type=leaf_type,
-                                                                               verbose=verbose)
+                                                                               leaf_type=leaf_type)
 
     assim = assim_shaded + assim_sunlit
     rd = rd_shaded + rd_sunlit
@@ -559,8 +567,23 @@ def gpp_canopy_no_gs(vpd,
     return gpp, rd, gs, ci, temp_limited
 
 
-def gs_solver_canopy(vpd, lai, r_x, r_a, ca, vc_max, kc, ko, j_c, tes_star, rd, r_soil, g0p, a_1, d_0,
-                     oi=OI, fw=1, leaf_type=1, verbose=True):
+def gs_solver_canopy(vpd,
+                     lai,
+                     r_x,
+                     r_a,
+                     ca,
+                     vc_max,
+                     kc,
+                     ko,
+                     j_c,
+                     tes_star,
+                     rd,
+                     r_soil,
+                     g0p, a_1,
+                     d_0,
+                     oi=OI,
+                     fw=1,
+                     leaf_type=1):
     """
 
     Parameters
@@ -585,7 +608,6 @@ def gs_solver_canopy(vpd, lai, r_x, r_a, ca, vc_max, kc, ko, j_c, tes_star, rd, 
     leaf_type : int or array_like
         1: Hypostomatous leaves (stomata only in one side of the leaf)
         2: Amphistomatous leaves (stomata in both sides of the leaf)
-    verbose
 
     Returns
     -------
@@ -630,11 +652,10 @@ def gs_solver_canopy(vpd, lai, r_x, r_a, ca, vc_max, kc, ko, j_c, tes_star, rd, 
         gs_old = gs.copy()
         ci_old = ci.copy()
         n_iterations += 1
-        if verbose:
-            print(f"Iteration: {n_iterations}, non-converged pixels: {np.sum(i)}, "
-                  f"max A diff: {np.nanmax(a_diff):4.3f}, "
-                  f"max Gs diff: {np.nanmax(gs_diff):4.3f}, "
-                  f"max Ci diff: {np.nanmax(ci_diff):4.3f}")
+        logger.debug(f"Iteration: {n_iterations}, non-converged pixels: {np.sum(i)}, "
+              f"max A diff: {np.nanmax(a_diff):4.3f}, "
+              f"max Gs diff: {np.nanmax(gs_diff):4.3f}, "
+              f"max Ci diff: {np.nanmax(ci_diff):4.3f}")
 
     # Compute effective leaf stomata conductance
     gst = gs / (lai * leaf_type)

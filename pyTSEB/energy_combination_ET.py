@@ -9,6 +9,8 @@ import time
 
 from . import TSEB
 import numpy as np
+import logging
+logger = logging.getLogger(__name__)
 
 # kB coefficient
 KB_1_DEFAULT = 2.3
@@ -44,8 +46,7 @@ def penman_monteith(T_A_K,
                     Rst_min=400,
                     leaf_type=TSEB.res.AMPHISTOMATOUS,
                     f_cd=None,
-                    kB=2.3,
-                    verbose=True):
+                    kB=2.3):
     '''Penman Monteith [Allen1998]_ energy combination model.
     Calculates the Penman Monteith one source fluxes using meteorological and crop data.
 
@@ -197,20 +198,18 @@ def penman_monteith(T_A_K,
     for n_iterations in range(max_iterations):
         i = ~L_converged
         if np.all(L_converged):
-            if verbose:
-                if L_converged.size == 0:
-                    print("Finished iterations with no valid solution")
-                else:
-                    print("Finished interations with a max. L diff: " + str(L_diff_max))
+            if L_converged.size == 0:
+                logger.warning("Finished iterations with no valid solution")
+            else:
+                logger.info("Finished interations with a max. L diff: " + str(L_diff_max))
             break
         current_time = time.time()
         loop_duration = current_time - loop_time
         loop_time = current_time
         total_duration = loop_time - start_time
-        if verbose:
-            print("Iteration: %d, non-converged pixels: "
-                  "%d, max L diff: %f, total time: %f, loop time: %f" %
-                  (n_iterations, np.sum(i), L_diff_max, total_duration, loop_duration))
+        logger.debug("Iteration: %d, non-converged pixels: "
+              "%d, max L diff: %f, total time: %f, loop time: %f" %
+              (n_iterations, np.sum(i), L_diff_max, total_duration, loop_duration))
 
         iterations[i] = n_iterations
         flag[i] = 0
@@ -302,8 +301,7 @@ def shuttleworth_wallace(T_A_K,
                          const_L=None,
                          massman_profile=None,
                          leaf_type=TSEB.res.AMPHISTOMATOUS,
-                         kB=0,
-                         verbose=True):
+                         kB=0):
     '''Shuttleworth and Wallace [Shuttleworth1995]_ dual source energy combination model.
     Calculates turbulent fluxes using meteorological and crop data for a
     dual source system in series.
@@ -551,20 +549,18 @@ def shuttleworth_wallace(T_A_K,
     for n_iterations in range(max_iterations):
         i = ~L_converged
         if np.all(L_converged):
-            if verbose:
-                if L_converged.size == 0:
-                    print("Finished iterations with no valid solution")
-                else:
-                    print("Finished interations with a max. L diff: " + str(L_diff_max))
+            if L_converged.size == 0:
+                logger.warning("Finished iterations with no valid solution")
+            else:
+                logger.info("Finished interations with a max. L diff: " + str(L_diff_max))
             break
         current_time = time.time()
         loop_duration = current_time - loop_time
         loop_time = current_time
         total_duration = loop_time - start_time
-        if verbose:
-            print("Iteration: %d, non-converged pixels: "
-                  "%d, max L diff: %f, total time: %f, loop time: %f" %
-                  (n_iterations, np.sum(i), L_diff_max, total_duration, loop_duration))
+        logger.debug("Iteration: %d, non-converged pixels: "
+              "%d, max L diff: %f, total time: %f, loop time: %f" %
+              (n_iterations, np.sum(i), L_diff_max, total_duration, loop_duration))
 
         iterations[i] = n_iterations
         flag[i] = 0
@@ -772,8 +768,7 @@ def penman(T_A_K,
            calcG_params=[[1], 0.35],
            const_L=None,
            f_cd=None,
-           kB=0,
-           verbose=True):
+           kB=0):
     '''Penman energy combination model.
     Calculates the Penman evaporation fluxes using meteorological data.
 
@@ -906,20 +901,18 @@ def penman(T_A_K,
     for n_iterations in range(max_iterations):
         i = ~L_converged
         if np.all(L_converged):
-            if verbose:
-                if L_converged.size == 0:
-                    print("Finished iterations with no valid solution")
-                else:
-                    print("Finished interations with a max. L diff: " + str(L_diff_max))
+            if L_converged.size == 0:
+                logger.warning("Finished iterations with no valid solution")
+            else:
+                logger.info("Finished interations with a max. L diff: " + str(L_diff_max))
             break
         current_time = time.time()
         loop_duration = current_time - loop_time
         loop_time = current_time
         total_duration = loop_time - start_time
-        if verbose:
-            print("Iteration: %d, non-converged pixels: "
-                  "%d, max L diff: %f, total time: %f, loop time: %f" %
-                  (n_iterations, np.sum(i), L_diff_max, total_duration, loop_duration))
+        logger.debug("Iteration: %d, non-converged pixels: "
+              "%d, max L diff: %f, total time: %f, loop time: %f" %
+              (n_iterations, np.sum(i), L_diff_max, total_duration, loop_duration))
 
         iterations[i] = n_iterations
         flag[i] = 0
