@@ -133,6 +133,8 @@ F_ZERO_LE_OS = 15  # No positive latent fluxes found using OSEB, G recomputed to
 F_FAILED_TC = 253  # Arithmetic error when computing canopy tempeerature for LST and TS
 F_FAILED_TS = 254  # Arithmetic error when computing soil tempeerature for LST and TC
 F_INVALID = 255  # Arithmetic error. BAD data, it should be discarded
+F_OUT_LIMS = 252 # Fluxes out of expected lims
+FLUX_LIMS = (-200, 1000)
 
 # Steps for increasing soil surface resistance to water transport in TSEB-SW
 STEP_RSS = 500.
@@ -464,7 +466,10 @@ def TSEB_2T(T_C,
         noI = np.logical_and.reduce((i, H_S < 0, Rn_S - G > 0))
         H_S[noI] = 0
         flag[noI] = F_ZERO_H_S
-
+        # Check whether fluxes are within the expected range
+        out = np.logical_and(
+            i, check_flux_lims(G, LE_C, LE_S, H_C, H_S))
+        flag[out] = F_OUT_LIMS
         # Evaporation Rate (Kustas and Norman 1999)
         H = np.asarray(H_S + H_C)
         LE = np.asarray(Rn - G - H)
@@ -875,7 +880,10 @@ def TSEB_PT(Tr_K,
             G[noT] = np.maximum(G[noT], Rn_S[noT] - H_S[noT])
             LE_S[noT] = 0
             flag[noT] = F_ZERO_LE
-
+            # Check whether fluxes are within the expected range
+            out = np.logical_and(
+                i, check_flux_lims(G, LE_C, LE_S, H_C, H_S))
+            flag[out] = F_OUT_LIMS
             # Calculate total fluxes
             H[i] = np.asarray(H_C[i] + H_S[i], dtype=np.float32)
             LE[i] = np.asarray(LE_C[i] + LE_S[i], dtype=np.float32)
@@ -1411,7 +1419,10 @@ def TSEB_SW(Tr_K,
             G[noT] = np.maximum(G[noT], Rn_S[noT] - H_S[noT])
             LE_S[noT] = 0
             flag[noT] = F_ZERO_LE
-
+            # Check whether fluxes are within the expected range
+            out = np.logical_and(
+                i, check_flux_lims(G, LE_C, LE_S, H_C, H_S))
+            flag[out] = F_OUT_LIMS
             # Calculate total fluxes
             H[i] = np.asarray(H_C[i] + H_S[i])
             LE[i] = np.asarray(LE_C[i] + LE_S[i])
@@ -1921,7 +1932,10 @@ def TSEB_PM(Tr_K,
             G[noT] = np.maximum(G[noT], Rn_S[noT] - H_S[noT])
             LE_S[noT] = 0
             flag[noT] = F_ZERO_LE
-
+            # Check whether fluxes are within the expected range
+            out = np.logical_and(
+                i, check_flux_lims(G, LE_C, LE_S, H_C, H_S))
+            flag[out] = F_OUT_LIMS
             # Calculate total fluxes
             H[i] = np.asarray(H_C[i] + H_S[i])
             LE[i] = np.asarray(LE_C[i] + LE_S[i])
@@ -2378,7 +2392,10 @@ def DTD(Tr_K_0,
             flag_t[i], T_S[i] = calc_T_S(Tr_K_1[i], T_C[i], f_theta[i])
             flag[flag_t == F_INVALID] = F_FAILED_TS
             LE_S[flag_t == F_INVALID] = 0
-
+            # Check whether fluxes are within the expected range
+            out = np.logical_and(
+                i, check_flux_lims(G, LE_C, LE_S, H_C, H_S))
+            flag[out] = F_OUT_LIMS
             # Recalculate soil resistance using new difference between soil
             # and canopy temperatures. deltaT is equivalent to T_S - T_C while
             # not being dependent on non-differential T_A.
@@ -2655,7 +2672,10 @@ def OSEB(Tr_K,
         H[LE < 0] = np.minimum(H[LE < 0], Rn[LE < 0] - G[LE < 0])
         G[LE < 0] = np.maximum(G[LE < 0], Rn[LE < 0] - H[LE < 0])
         LE[LE < 0] = 0
-
+        # Check whether fluxes are within the expected range
+        out = np.logical_and(
+            i, check_flux_lims(G, LE, H))
+        flag[out] = F_OUT_LIMS
         if const_L is None:
             # Now L can be recalculated and the difference between iterations
             # derived
@@ -4939,4 +4959,11 @@ def TSEB_SW_2(Tr_K,
             R_A, Rss_out, Rst_out, u_friction, L, n_iterations)
 
 
+def check_flux_lims(*fluxes, lims=FLUX_LIMS):
+    flag = np.zeros_like(fluxes[0], dtype=bool)
+    for flux in fluxes:
+        out = np.logical_or(flux < lims[0],
+                            flux > lims[1])
+        flag = np.logical_or(flag, out)
 
+    return flag
