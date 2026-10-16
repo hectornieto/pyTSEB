@@ -668,6 +668,7 @@ def shuttleworth_wallace(T_A_K,
             H_C[i] = Rn_C[i] - LE_C[i]
             no_canopy = np.logical_and(i, np.isnan(LE_C))
             H_C[no_canopy] = np.nan
+
             T_0[i] = calc_T(H[i], T_A_K[i], R_A[i], rho_a[i], Cp[i])
             T_C[i] = calc_T(H_C[i], T_0[i], R_x[i], rho_a[i], Cp[i])
             T_S[i] = calc_T(H_S[i], T_0[i], R_S[i], rho_a[i], Cp[i])
@@ -751,6 +752,9 @@ def shuttleworth_wallace(T_A_K,
                           L,
                           iterations))
 
+    # Recompute total fluxes
+    H = H_C + H_S
+    LE = LE_C + LE_S
     return flag, T_S, T_C, vpd_0, Ln_S, Ln_C, LE, H, LE_C, H_C, LE_S, H_S, G, R_S, R_x, R_A, u_friction, L, n_iterations
 
 
